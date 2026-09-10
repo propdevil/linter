@@ -39,3 +39,7 @@ functions = ["fopen", "fdopen", "tmpfile", "realloc"]
 [[rules."c/safety-rationale"]]
 target = "**/*.{c,h}"
 operations = ["gets", "vsprintf"]
+
+[[rules."c/interface-breadth"]]
+target = "**/*.h"
+max_functions = 24

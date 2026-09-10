@@ -23,7 +23,9 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<NestingRule>()?
         .register::<Allocation>()?
         .register::<ResultUse>()?
-        .register::<Safety>()
+        .register::<Safety>()?
+        .register::<Interface>()?
+        .register::<ForbiddenCall>()
 }
 
 pub use rule::allocation::Allocation;
