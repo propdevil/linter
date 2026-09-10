@@ -34,3 +34,4 @@ pub use rule::duplicate::{Config as DuplicateEntityConfig, DuplicateEntity};
 pub use rule::model::{Config as ModelDuplicationConfig, ModelDuplication};
 
 pub use rule::state::{Config as StringStateConfig, StringState};
+pub use rule::trait_count::{Config as TraitMethodCountConfig, TraitMethodCount};
