@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["linter", "linter-rust", "apps/cli", "apps/mcp"]
+members = ["linter", "linter-rust", "linter-c", "apps/cli", "apps/mcp"]
 exclude = ["sources"]
 
 [workspace.package]
@@ -29,3 +29,5 @@ tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 toml = "1.1.5"
+
+tree-sitter-c = "0.24"

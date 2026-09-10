@@ -1,0 +1,18 @@
+[package]
+name = "linter-c"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+linter.workspace = true
+serde.workspace = true
+tree-sitter.workspace = true
+tree-sitter-c.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

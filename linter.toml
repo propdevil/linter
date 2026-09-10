@@ -68,9 +68,14 @@ target = ["linter-rust"]
 dependencies = ["linter"]
 
 [[rules."rust/layers"]]
+name = "c"
+target = ["linter-c"]
+dependencies = ["linter"]
+
+[[rules."rust/layers"]]
 name = "apps"
 target = ["apps/*"]
-dependencies = ["linter", "rust"]
+dependencies = ["linter", "rust", "c"]
 
 [[rules.layout]]
 target = [
