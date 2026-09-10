@@ -27,15 +27,10 @@ impl Registry {
         Ok(self)
     }
 
-    /// Reads configuration, validates every registered rule, then runs enabled checks.
-    pub fn check(&self, root: &Path) -> Result<Report, Error> {
-        let mut configuration = Configuration::load(root)?;
-        for id in configuration.rules.keys() {
-            if !self.rules.contains_key(id.as_str()) {
-                return Err(Error::Configuration(format!("unknown rule {id:?}")));
-            }
-        }
-        let exclusions = configuration.files.compile()?;
+    fn prepare(
+        &self,
+        configuration: &mut Configuration,
+    ) -> Result<Vec<(&'static str, bool, Check)>, Error> {
         let mut checks = Vec::new();
         for (&id, factory) in &self.rules {
             let settings = configuration
@@ -47,6 +42,19 @@ impl Registry {
             // Invalid disabled settings are still errors, never silently ignored.
             checks.push((id, settings.enabled, factory(settings.config)?));
         }
+        Ok(checks)
+    }
+
+    /// Reads configuration, validates every registered rule, then runs enabled checks.
+    pub fn check(&self, root: &Path) -> Result<Report, Error> {
+        let mut configuration = Configuration::load(root)?;
+        for id in configuration.rules.keys() {
+            if !self.rules.contains_key(id.as_str()) {
+                return Err(Error::Configuration(format!("unknown rule {id:?}")));
+            }
+        }
+        let exclusions = configuration.files.compile()?;
+        let checks = self.prepare(&mut configuration)?;
         let project = Project::load(
             root,
             &exclusions,

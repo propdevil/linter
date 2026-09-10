@@ -30,18 +30,7 @@ impl Assertion {
                 continue;
             }
             let name = Path::new(entry.path.file_name().unwrap_or_default());
-            let required = self.files.required.iter().any(|path| path == name)
-                || self
-                    .directories
-                    .required
-                    .iter()
-                    .any(|path| path.starts_with(name))
-                || self
-                    .files
-                    .required
-                    .iter()
-                    .any(|path| path != name && path.starts_with(name));
-            if required {
+            if self.requires(name) {
                 continue;
             }
             if (!entry.kind.is_file() && !entry.kind.is_dir()) || !requirements.allows(name) {
@@ -59,6 +48,46 @@ impl Assertion {
         Ok(())
     }
 
+    fn requires(&self, name: &Path) -> bool {
+        self.files.required.iter().any(|path| path == name)
+            || self
+                .directories
+                .required
+                .iter()
+                .any(|path| path.starts_with(name))
+            || self
+                .files
+                .required
+                .iter()
+                .any(|path| path != name && path.starts_with(name))
+    }
+
+    fn directory_empty(
+        &self,
+        project: &Project,
+        entry: &Entry,
+        policy: &Requirements,
+        findings: &mut Vec<Finding>,
+    ) -> bool {
+        let contents: Vec<_> = children(project, &entry.path)
+            .filter(|child| !policy.ignores(&entry.path, child))
+            .collect();
+        if !policy.allow_single_file && contents.len() == 1 && contents[0].kind.is_file() {
+            findings.push(
+                self.finding(
+                    &entry.path,
+                    "directory contains only one file".into(),
+                    concat!(
+                        "Flatten this directory when appropriate, or narrow the configured ",
+                        "target to preserve intentional boundaries."
+                    )
+                    .into(),
+                ),
+            );
+        }
+        contents.is_empty()
+    }
+
     fn inspect_shape(
         &self,
         project: &Project,
@@ -71,26 +100,7 @@ impl Assertion {
             return Ok(());
         }
         let empty = if entry.kind.is_dir() {
-            let contents: Vec<_> = children(project, &entry.path)
-                .filter(|child| {
-                    !policy.content_ignored.iter().any(|pattern| {
-                        pattern
-                            .is_match(child.path.strip_prefix(&entry.path).unwrap_or(&child.path))
-                    })
-                })
-                .collect();
-            if !policy.allow_single_file && contents.len() == 1 && contents[0].kind.is_file() {
-                findings.push(
-                    self.finding(
-                        &entry.path,
-                        "directory contains only one file".into(),
-                        "Flatten this directory when appropriate, or narrow the configured t\
-                arget to preserve intentional boundaries."
-                            .into(),
-                    ),
-                );
-            }
-            contents.is_empty()
+            self.directory_empty(project, entry, policy, findings)
         } else {
             let path = project.root().join(&entry.path);
             std::fs::symlink_metadata(&path)
@@ -115,5 +125,14 @@ impl Assertion {
             ));
         }
         Ok(())
+    }
+}
+
+impl Requirements {
+    fn ignores(&self, parent: &Path, child: &Entry) -> bool {
+        let relative = child.path.strip_prefix(parent).unwrap_or(&child.path);
+        self.content_ignored
+            .iter()
+            .any(|pattern| pattern.is_match(relative))
     }
 }

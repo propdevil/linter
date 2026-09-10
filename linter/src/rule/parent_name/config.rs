@@ -26,33 +26,38 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"redundant-parent-name\"[{index}]");
-                if value.ignored_names.iter().any(|name| {
-                    name.is_empty()
-                        || name.contains(['/', '\\'])
-                        || matches!(
-                            name.as_str(),
-                            "\
+            .map(|(index, value)| value.compile(index))
+            .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"redundant-parent-name\"[{index}]");
+        if value.ignored_names.iter().any(|name| {
+            name.is_empty()
+                || name.contains(['/', '\\'])
+                || matches!(
+                    name.as_str(),
+                    "\
                 ." | "\
                 .."
-                        )
-                }) {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.ignored_names: expect\
+                )
+        }) {
+            return Err(Error::Configuration(format!(
+                "{setting}.ignored_names: expect\
                 ed nonempty file stems, without path separators"
-                    )));
-                }
-                Ok(Assertion {
-                    selector: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    ignored_names: value.ignored_names,
-                    setting,
-                })
-            })
-            .collect()
+            )));
+        }
+        Ok(Assertion {
+            selector: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            ignored_names: value.ignored_names,
+            setting,
+        })
     }
 }

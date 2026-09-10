@@ -33,71 +33,28 @@ impl Rule for Filename {
 
 impl Assertion {
     fn inspect(&self, project: &Project, findings: &mut Vec<Finding>) {
-        for entry in project.entries().filter(|entry| {
-            (match self.kind {
-                Kind::Any => entry.kind.is_dir() || entry.kind.is_file(),
-                Kind::File => entry.kind.is_file(),
-                Kind::Directory => entry.kind.is_dir(),
-            }) && self.selector.matches(&entry.path)
-        }) {
+        for entry in project
+            .entries()
+            .filter(|entry| self.kind.matches(entry.kind) && self.selector.matches(&entry.path))
+        {
             if entry.path == std::path::Path::new(".") {
                 continue;
             }
             let directory = entry.kind.is_dir();
-            let limit = self.max_words.unwrap_or(if directory { 1 } else { 2 });
             let label = if directory { "directory" } else { "file" };
             let stem = if directory {
                 entry.path.file_name()
             } else {
                 entry.path.file_stem()
             };
-            let mut messages = Vec::new();
-            if let Some(name) = stem.and_then(|value| value.to_str()) {
-                let normalized = name.to_snake_case();
-                let words: Vec<_> = normalized
-                    .split('_')
-                    .filter(|word| !word.is_empty())
-                    .collect();
-                if !name.chars().any(char::is_alphabetic) {
-                    messages.push(format!("{label} name must contain a word"));
-                }
-                if words.len() > limit {
-                    messages.push(format!(
-                        "{label} name has {} words; maximum is {}",
-                        words.len(),
-                        limit
-                    ));
-                }
-                if let Some(maximum) = self.max_characters {
-                    let count = name.chars().count();
-                    if count > maximum {
-                        messages.push(format!(
-                            "{label} name has {count} characters; maximum is {maximum}"
-                        ));
-                    }
-                }
-                if self.reject_numbered_fragments && numbered_fragment(name) {
-                    messages.push(format!(
-                        "{label} name uses a numbered implementation fragment"
-                    ));
-                }
-                if let Some(case) = self.case {
-                    let expected = match case {
-                        Case::Snake => name.to_snake_case(),
-                        Case::Camel => name.to_lower_camel_case(),
-                        Case::Pascal => name.to_upper_camel_case(),
-                        Case::Kebab => name.to_kebab_case(),
-                    };
-                    if name != expected {
-                        messages.push(format!(
-                            "{label} name does not use configured case; expected {expected:?}"
-                        ));
-                    }
-                }
-            } else {
-                messages.push(format!("{label} name is not valid Unicode"));
-            }
-            for message in messages {
+            let instruction = format!(
+                concat!(
+                    "Choose a concise name describing this {}'s responsibility ",
+                    "using the configured case and permitted words."
+                ),
+                label
+            );
+            for message in self.messages(stem.and_then(|value| value.to_str()), directory) {
                 findings.push(Finding {
                     span: None,
                     related: Vec::new(),
@@ -105,12 +62,74 @@ impl Assertion {
                     path: entry.path.clone(),
                     configuration: self.setting.clone(),
                     message,
-                    instruction: format!(
-                        "Choose a concise name describing this {label}'\
-                s responsibility using the configured case and permitted words."
-                    ),
+                    instruction: instruction.clone(),
                 });
             }
+        }
+    }
+
+    fn messages(&self, name: Option<&str>, directory: bool) -> Vec<String> {
+        let label = if directory { "directory" } else { "file" };
+        let Some(name) = name else {
+            return vec![format!("{label} name is not valid Unicode")];
+        };
+        let limit = self.max_words.unwrap_or(if directory { 1 } else { 2 });
+        let normalized = name.to_snake_case();
+        let count = normalized
+            .split('_')
+            .filter(|word| !word.is_empty())
+            .count();
+        let mut messages = Vec::new();
+        if !name.chars().any(char::is_alphabetic) {
+            messages.push(format!("{label} name must contain a word"));
+        }
+        if count > limit {
+            messages.push(format!(
+                "{label} name has {count} words; maximum is {limit}"
+            ));
+        }
+        if let Some(maximum) = self.max_characters {
+            let count = name.chars().count();
+            if count > maximum {
+                messages.push(format!(
+                    "{label} name has {count} characters; maximum is {maximum}"
+                ));
+            }
+        }
+        if self.reject_numbered_fragments && numbered_fragment(name) {
+            messages.push(format!(
+                "{label} name uses a numbered implementation fragment"
+            ));
+        }
+        if let Some(case) = self.case {
+            let expected = case.convert(name);
+            if name != expected {
+                messages.push(format!(
+                    "{label} name does not use configured case; expected {expected:?}"
+                ));
+            }
+        }
+        messages
+    }
+}
+
+impl Kind {
+    fn matches(self, kind: std::fs::FileType) -> bool {
+        match self {
+            Self::Any => kind.is_dir() || kind.is_file(),
+            Self::File => kind.is_file(),
+            Self::Directory => kind.is_dir(),
+        }
+    }
+}
+
+impl Case {
+    fn convert(self, name: &str) -> String {
+        match self {
+            Self::Snake => name.to_snake_case(),
+            Self::Camel => name.to_lower_camel_case(),
+            Self::Pascal => name.to_upper_camel_case(),
+            Self::Kebab => name.to_kebab_case(),
         }
     }
 }
@@ -304,7 +323,10 @@ case = "snake_case"
         write(
             root.path(),
             "linter.toml",
-            "[[rules.filename]]\ntarget = 'src/*'\nmax_words = 10\nreject_numbered_fragments = true",
+            "[[rules.filename]]
+ target = 'src/*'
+ max_words = 10
+ reject_numbered_fragments = true",
         );
         let report = check(root.path()).unwrap();
         assert_eq!(report.findings.len(), rejected.len());

@@ -35,6 +35,17 @@ impl Directive {
         })
     }
 
+    fn matches(&self, finding: &Finding, known: &BTreeSet<&str>) -> bool {
+        self.problem(known).is_none()
+            && self.path == finding.path
+            && self.rule == finding.rule
+            && self
+                .target
+                .as_ref()
+                .zip(finding.span.as_ref())
+                .is_some_and(|(target, span)| span.start >= target.start && span.end <= target.end)
+    }
+
     fn problem(&self, known: &BTreeSet<&str>) -> Option<&str> {
         if self.rule.is_empty() || self.reason.is_empty() {
             Some("expected linter:disable RULE -- concrete reason")
@@ -74,18 +85,10 @@ pub(crate) fn apply(report: &mut Report, directives: Vec<Directive>, known: BTre
     }
     let mut used = vec![false; directives.len()];
     for finding in std::mem::take(&mut report.findings) {
-        let matched = directives.iter().enumerate().find(|(_, directive)| {
-            directive.problem(&known).is_none()
-                && directive.path == finding.path
-                && directive.rule == finding.rule
-                && directive
-                    .target
-                    .as_ref()
-                    .zip(finding.span.as_ref())
-                    .is_some_and(|(target, span)| {
-                        span.start >= target.start && span.end <= target.end
-                    })
-        });
+        let matched = directives
+            .iter()
+            .enumerate()
+            .find(|(_, directive)| directive.matches(&finding, &known));
         if let Some((index, directive)) = matched {
             used[index] = true;
             report.suppressed.push(Suppression {

@@ -32,6 +32,14 @@ impl Rule for Layout {
         } else {
             Status::Completed
         };
+        let mut findings = self.permissions(project);
+        self.structures(project, &mut findings)?;
+        Ok(RuleResult { status, findings })
+    }
+}
+
+impl Layout {
+    fn permissions(&self, project: &Project) -> Vec<Finding> {
         let mut findings = Vec::new();
         let mut banned = Vec::<std::path::PathBuf>::new();
         for entry in project.entries() {
@@ -41,46 +49,41 @@ impl Rule for Layout {
             {
                 continue;
             }
-            let decision = self
+            let Some(decision) = self
                 .assertions
                 .iter()
-                .filter_map(|check| match check {
-                    Check::Permission(permission)
-                        if permission.kind.matches(entry.kind)
-                            && permission.selector.matches(&entry.path)
-                            && (!permission.allow
-                                || entry.kind.is_file()
-                                || entry.kind.is_dir()) =>
-                    {
-                        Some(permission)
-                    }
-                    _ => None,
-                })
-                .next_back();
-            if let Some(decision) = decision
-                && !decision.allow
-            {
-                if entry.kind.is_dir() {
-                    banned.push(entry.path.clone());
-                }
-                let label = if entry.kind.is_dir() {
-                    "directory"
-                } else {
-                    "file"
-                };
-                findings.push(Finding {
-                    span: None,
-                    related: Vec::new(),
-                    rule: Self::ID,
-                    path: entry.path.clone(),
-                    configuration: decision.setting.clone(),
-                    message: format!("forbidden {label} {}", entry.path.display()),
-                    instruction: "Remove or move this file, or add a later allow block w\
-                ith a purpose description."
-                        .into(),
-                });
+                .filter_map(|check| check.permission(entry))
+                .next_back()
+            else {
+                continue;
+            };
+            if decision.allow {
+                continue;
             }
+            banned.extend(entry.kind.is_dir().then(|| entry.path.clone()));
+            let label = if entry.kind.is_dir() {
+                "directory"
+            } else {
+                "file"
+            };
+            findings.push(Finding {
+                span: None,
+                related: Vec::new(),
+                rule: Self::ID,
+                path: entry.path.clone(),
+                configuration: decision.setting.clone(),
+                message: format!("forbidden {label} {}", entry.path.display()),
+                instruction: concat!(
+                    "Remove or move this file, or add a later allow block ",
+                    "with a purpose description."
+                )
+                .into(),
+            });
         }
+        findings
+    }
+
+    fn structures(&self, project: &Project, findings: &mut Vec<Finding>) -> Result<(), Error> {
         for check in &self.assertions {
             let Check::Structure(assertion) = check else {
                 continue;
@@ -92,7 +95,7 @@ impl Rule for Layout {
                 .filter(|path| assertion.selector.matches(path))
             {
                 matches += 1;
-                assertion.inspect(project, directory, &mut findings)?;
+                assertion.inspect(project, directory, findings)?;
             }
             if matches == 0 {
                 findings.push(assertion.finding(
@@ -102,7 +105,19 @@ impl Rule for Layout {
                 ));
             }
         }
-        Ok(RuleResult { status, findings })
+        Ok(())
+    }
+}
+
+impl Check {
+    fn permission(&self, entry: &crate::Entry) -> Option<&config::Permission> {
+        let Self::Permission(permission) = self else {
+            return None;
+        };
+        (permission.kind.matches(entry.kind)
+            && permission.selector.matches(&entry.path)
+            && (!permission.allow || entry.kind.is_file() || entry.kind.is_dir()))
+        .then_some(permission)
     }
 }
 

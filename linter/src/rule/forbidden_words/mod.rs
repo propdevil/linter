@@ -42,34 +42,34 @@ impl Assertion {
                 path.set_extension("");
             }
             let mut hits = BTreeSet::new();
-            for component in path.components() {
-                if let Some(text) = component.as_os_str().to_str() {
-                    for word in text.to_snake_case().split('_') {
-                        if self.words.contains(word) {
-                            hits.insert(word.to_owned());
-                        }
-                    }
-                }
+            for text in path
+                .components()
+                .filter_map(|component| component.as_os_str().to_str())
+            {
+                hits.extend(
+                    text.to_snake_case()
+                        .split('_')
+                        .filter(|word| self.words.contains(*word))
+                        .map(str::to_owned),
+                );
             }
-            if !hits.is_empty() {
-                findings.push(Finding {
-                    span: None,
-                    related: Vec::new(),
-                    rule: ForbiddenWords::ID,
-                    path: entry.path.clone(),
-                    configuration: self.setting.clone(),
-                    message: format!(
-                        "path contains forbidden word(s): {}",
-                        hits.into_iter().collect::<Vec<_>>().join(
-                            "\
-                , "
-                        )
-                    ),
-                    instruction: "Rename the file or offending directory component to de\
+            if hits.is_empty() {
+                continue;
+            }
+            findings.push(Finding {
+                span: None,
+                related: Vec::new(),
+                rule: ForbiddenWords::ID,
+                path: entry.path.clone(),
+                configuration: self.setting.clone(),
+                message: format!(
+                    "path contains forbidden word(s): {}",
+                    hits.into_iter().collect::<Vec<_>>().join(", ")
+                ),
+                instruction: "Rename the file or offending directory component to de\
                 scribe its responsibility."
-                        .into(),
-                });
-            }
+                    .into(),
+            });
         }
     }
 }

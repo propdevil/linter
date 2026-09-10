@@ -30,46 +30,17 @@ impl Rule for SharedAffix {
     }
 }
 
+type Groups =
+    std::collections::BTreeMap<(std::path::PathBuf, &'static str, String), Vec<std::path::PathBuf>>;
+
 impl Assertion {
     fn inspect(&self, project: &Project, findings: &mut Vec<Finding>) {
-        use heck::ToSnakeCase;
-        use std::collections::BTreeMap;
-        let mut groups: BTreeMap<(_, _, _), Vec<_>> = BTreeMap::new();
+        let mut groups = Groups::new();
         for entry in project
             .entries()
             .filter(|entry| entry.kind.is_file() && self.selector.matches(&entry.path))
         {
-            let Some(stem) = entry.path.file_stem().and_then(|name| name.to_str()) else {
-                continue;
-            };
-            let normalized = stem.to_snake_case();
-            let words: Vec<_> = normalized
-                .split('_')
-                .filter(|word| !word.is_empty())
-                .collect();
-            if let [first, .., last] = words.as_slice() {
-                let parent = entry
-                    .path
-                    .parent()
-                    .filter(|path| !path.as_os_str().is_empty())
-                    .unwrap_or(std::path::Path::new("."));
-                for (label, word, limit) in [
-                    ("prefix", first, self.prefix),
-                    ("suffix", last, self.suffix),
-                ] {
-                    let selected = label != "suffix"
-                        || self
-                            .suffix_words
-                            .as_ref()
-                            .is_none_or(|words| words.iter().any(|candidate| candidate == *word));
-                    if limit.is_some() && selected {
-                        groups
-                            .entry((parent.to_path_buf(), label, (*word).to_owned()))
-                            .or_default()
-                            .push(entry.path.clone());
-                    }
-                }
-            }
+            self.group(entry, &mut groups);
         }
         for ((parent, label, word), mut paths) in groups {
             let limit = if label == "prefix" {
@@ -81,29 +52,63 @@ impl Assertion {
                 continue;
             }
             paths.sort();
+            let names = paths
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
             findings.push(Finding {
                 span: None,
                 related: Vec::new(),
                 rule: SharedAffix::ID,
                 path: parent,
                 configuration: self.setting.clone(),
-                message: format!(
-                    "{} files share {label} word '{word}': {}",
-                    paths.len(),
-                    paths
-                        .iter()
-                        .map(|path| path.display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(
-                            "\
-                , "
-                        )
-                ),
+                message: format!("{} files share {label} word '{word}': {names}", paths.len()),
                 instruction: format!(
-                    "Consider grouping these files under {word}/ and re\
-                moving the repeated {label}; check ownership and name collisions first."
+                    concat!(
+                        "Consider grouping these files under {}/ and removing the repeated {}; ",
+                        "check ownership and name collisions first."
+                    ),
+                    word, label
                 ),
             });
+        }
+    }
+
+    fn group(&self, entry: &crate::Entry, groups: &mut Groups) {
+        use heck::ToSnakeCase;
+        let Some(stem) = entry.path.file_stem().and_then(|name| name.to_str()) else {
+            return;
+        };
+        let normalized = stem.to_snake_case();
+        let words: Vec<_> = normalized
+            .split('_')
+            .filter(|word| !word.is_empty())
+            .collect();
+        let [first, .., last] = words.as_slice() else {
+            return;
+        };
+        let parent = entry
+            .path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or(std::path::Path::new("."));
+        for (label, word, limit) in [
+            ("prefix", first, self.prefix),
+            ("suffix", last, self.suffix),
+        ] {
+            let selected = label != "suffix"
+                || self
+                    .suffix_words
+                    .as_ref()
+                    .is_none_or(|words| words.iter().any(|candidate| candidate == *word));
+            if limit.is_none() || !selected {
+                continue;
+            }
+            groups
+                .entry((parent.to_path_buf(), label, (*word).to_owned()))
+                .or_default()
+                .push(entry.path.clone());
         }
     }
 }

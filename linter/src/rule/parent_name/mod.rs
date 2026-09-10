@@ -29,59 +29,63 @@ impl Rule for ParentName {
     fn check(&self, project: &Project, _: &()) -> Result<RuleResult, Error> {
         let mut findings = Vec::new();
         for assertion in &self.assertions {
-            for entry in project.entries().filter(|entry| {
-                entry.kind.is_file()
-                    && assertion.selector.matches(&entry.path)
-                    && !assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|selector| selector.matches(&entry.path))
-            }) {
-                let Some(stem) = entry.path.file_stem().and_then(|name| name.to_str()) else {
-                    continue;
-                };
-                if assertion.ignored_names.iter().any(|name| name == stem) {
-                    continue;
-                }
-                let Some(parent) = entry
-                    .path
-                    .parent()
-                    .and_then(|path| path.file_name())
-                    .and_then(|name| name.to_str())
-                else {
-                    continue;
-                };
-                let parent_words = words(parent);
-                let stem_words = words(stem);
-                let repeated = parent_words
-                    .intersection(&stem_words)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if repeated.is_empty() {
-                    continue;
-                }
-                let repeated = repeated.join(", ");
-                findings.push(Finding {
-                    span: None,
-                    related: Vec::new(),
-                    rule: Self::ID,
-                    path: entry.path.clone(),
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "filename '{stem}' repeats parent '{parent}' words: {repeated}"
-                    ),
-                    instruction: format!(
-                        "Remove repeated words ({repeated}) from the fi\
-                lename; the immediate parent already supplies that context. Check name c\
-                ollisions before renaming."
-                    ),
-                });
-            }
+            assertion.inspect(project, &mut findings);
         }
         Ok(RuleResult {
             status: Status::Completed,
             findings,
         })
+    }
+}
+
+impl Assertion {
+    fn inspect(&self, project: &Project, findings: &mut Vec<Finding>) {
+        for entry in project.entries().filter(|entry| {
+            entry.kind.is_file()
+                && self.selector.matches(&entry.path)
+                && !self
+                    .exclude
+                    .as_ref()
+                    .is_some_and(|selector| selector.matches(&entry.path))
+        }) {
+            let Some(stem) = entry.path.file_stem().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if self.ignored_names.iter().any(|name| name == stem) {
+                continue;
+            }
+            let Some(parent) = entry
+                .path
+                .parent()
+                .and_then(|path| path.file_name())
+                .and_then(|name| name.to_str())
+            else {
+                continue;
+            };
+            let parent_words = words(parent);
+            let stem_words = words(stem);
+            let repeated = parent_words
+                .intersection(&stem_words)
+                .cloned()
+                .collect::<Vec<_>>();
+            if repeated.is_empty() {
+                continue;
+            }
+            let repeated = repeated.join(", ");
+            findings.push(Finding {
+                span: None,
+                related: Vec::new(),
+                rule: ParentName::ID,
+                path: entry.path.clone(),
+                configuration: self.setting.clone(),
+                message: format!("filename '{stem}' repeats parent '{parent}' words: {repeated}"),
+                instruction: format!(
+                    "Remove repeated words ({repeated}) from the fi\
+                lename; the immediate parent already supplies that context. Check name c\
+                ollisions before renaming."
+                ),
+            });
+        }
     }
 }
 

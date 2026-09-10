@@ -28,13 +28,7 @@ impl Rule for MaxIndent {
             let assertions: Vec<_> = self
                 .assertions
                 .iter()
-                .filter(|assertion| {
-                    assertion.target.matches(&entry.path)
-                        && !assertion
-                            .exclude
-                            .as_ref()
-                            .is_some_and(|exclude| exclude.matches(&entry.path))
-                })
+                .filter(|assertion| assertion.selected(&entry.path))
                 .collect();
             if assertions.is_empty() {
                 continue;
@@ -42,35 +36,55 @@ impl Rule for MaxIndent {
             let path = project.root().join(&entry.path);
             let text = std::fs::read_to_string(&path).map_err(|error| Error::io(&path, error))?;
             for assertion in assertions {
-                for (index, line) in text.lines().enumerate() {
-                    if line.trim().is_empty() {
-                        continue;
-                    }
-                    let count = indentation(line, assertion.tab_width)?;
-                    if count > assertion.max_columns {
-                        findings.push(Finding {
-                            span: None,
-                            related: Vec::new(),
-                            rule: Self::ID,
-                            path: entry.path.clone(),
-                            configuration: assertion.setting.clone(),
-                            message: format!(
-                                "line {} has {count} indentation columns; maximum is {}",
-                                index + 1,
-                                assertion.max_columns
-                            ),
-                            instruction: "Reduce nesting or restructure the continuation to fit t\
-                he configured indentation."
-                                .into(),
-                        });
-                    }
-                }
+                assertion.inspect(&text, &entry.path, &mut findings)?;
             }
         }
         Ok(RuleResult {
             status: Status::Completed,
             findings,
         })
+    }
+}
+
+impl Assertion {
+    fn selected(&self, path: &std::path::Path) -> bool {
+        self.target.matches(path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.matches(path))
+    }
+
+    fn inspect(
+        &self,
+        text: &str,
+        path: &std::path::Path,
+        findings: &mut Vec<Finding>,
+    ) -> Result<(), Error> {
+        for (index, line) in text.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let count = indentation(line, self.tab_width)?;
+            if count > self.max_columns {
+                findings.push(Finding {
+                    span: None,
+                    related: Vec::new(),
+                    rule: MaxIndent::ID,
+                    path: path.to_owned(),
+                    configuration: self.setting.clone(),
+                    message: format!(
+                        "line {} has {count} indentation columns; maximum is {}",
+                        index + 1,
+                        self.max_columns
+                    ),
+                    instruction: "Reduce nesting or restructure the continuation to fit t\
+                he configured indentation."
+                        .into(),
+                });
+            }
+        }
+        Ok(())
     }
 }
 

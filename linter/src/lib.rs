@@ -169,9 +169,7 @@ impl Entries {
                 {
                     continue;
                 }
-                if kind.is_dir() {
-                    pending.push(child.clone());
-                }
+                pending.extend(kind.is_dir().then(|| child.clone()));
                 entries.push(Entry { path: child, kind });
             }
         }
@@ -199,6 +197,7 @@ pub use rule::parent_name::ParentName;
 pub use rule::indentation::MaxIndent;
 
 /// Registers this package's built-in rules; callers can append their own.
+// linter:disable rust/free-function -- Uniform registration hook shared with language packages.
 pub fn register(registry: Registry) -> Result<Registry, Error> {
     registry
         .register::<Layout>()?
