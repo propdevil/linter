@@ -31,3 +31,5 @@ pub use rule::allocation::Allocation;
 pub use rule::result::ResultUse;
 
 pub use rule::safety::Safety;
+
+pub use rule::interface::Interface;
