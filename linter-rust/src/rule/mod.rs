@@ -17,3 +17,5 @@ pub(crate) mod empty;
 pub(crate) mod struct_words;
 
 pub(crate) mod module_name;
+
+pub(crate) mod receiver;

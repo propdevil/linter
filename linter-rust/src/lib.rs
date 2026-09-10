@@ -44,3 +44,5 @@ pub use rule::empty::{Config as EmptyStructConfig, EmptyStruct};
 pub use rule::struct_words::{Config as StructWordsConfig, StructWords};
 
 pub use rule::module_name::{Config as ModuleNameConfig, ModuleName};
+
+pub use rule::receiver::{Config as ReceiverNameConfig, ReceiverName};
