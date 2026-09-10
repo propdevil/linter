@@ -511,6 +511,7 @@ version = "0.1.0"
 dependencies = [
  "linter",
  "serde",
+ "serde_json",
  "tempfile",
  "tree-sitter",
  "tree-sitter-c",

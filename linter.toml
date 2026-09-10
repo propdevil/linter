@@ -246,3 +246,6 @@ target = "**/*.rs"
 target = "**/*.rs"
 unwrap_types = ["std:Box", "std:Option", "std:Arc", "std:Rc", "std:Mutex", "std:RwLock", "std:RefCell", "std:SyncWeak", "std:RcWeak"]
 excluded_suffixes = ["Builder"]
+
+[[rules."rust/detached-constructor"]]
+target = "**/*.rs"

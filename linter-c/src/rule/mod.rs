@@ -17,3 +17,5 @@ pub(crate) mod calls;
 pub(crate) mod hook;
 
 pub(crate) mod format;
+
+pub(crate) mod tidy;
