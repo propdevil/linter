@@ -27,3 +27,7 @@ target = "**/*.{rs,c,h}"
 max_columns = 16
 tab_width = 4
 
+
+[[rules."c/unchecked-allocation"]]
+target = "**/*.{c,h}"
+functions = ["malloc", "calloc", "realloc"]

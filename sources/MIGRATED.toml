@@ -1,0 +1,17 @@
+# Original bytes remain in baseline commit f21776f.
+
+[[migrations]]
+rule = "rust/struct-noun-naming"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/naming.rs", "prop/packages/design-lint/src/rule/naming/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/naming/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/naming/tests.rs"]
+
+[[migrations]]
+rule = "rust/nesting"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/nesting.rs", "prop/packages/design-lint/src/rule/nesting/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/nesting/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/nesting/tests.rs"]
+
+[[migrations]]
+rule = "c/structure"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/structure.rs", "husklet/src/packages/hl-design-lint/src/rule/c/structure_test.rs"]
+
+[[migrations]]
+rule = "c/unchecked-allocation"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/allocation.rs", "husklet/src/packages/hl-design-lint/src/rule/c/allocation_test.rs"]

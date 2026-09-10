@@ -7,11 +7,9 @@ IDs extracted from Rust `id()` implementations. Same IDs may have different beha
 | async-blocking-operation | — | [source](prop/packages/design-lint/src/rule/blocking/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/blocking/mod.rs) |
 | boolean-state-cluster | — | [source](prop/packages/design-lint/src/rule/boolean/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/boolean/mod.rs) |
 | broad-trait-responsibilities | — | [source](prop/packages/design-lint/src/rule/contract/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/contract/mod.rs) |
-| c-source-structure | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/c/structure.rs) |
 | catch-all-module-name | — | [source](prop/packages/design-lint/src/rule/catchall/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/catchall.rs) |
 | catch-all-source-path | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/repository/catchall/mod.rs) |
 | chain-layout | [source](payment-sdk/packages/design-lint/src/rule/mod.rs) | — | — |
-| deep-control-flow | — | [source](prop/packages/design-lint/src/rule/nesting/mod.rs) | — |
 | dependency-direction | [source](payment-sdk/packages/design-lint/src/rule/mod.rs) | [source](prop/packages/design-lint/src/rule/dependency/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/repository/dependency/mod.rs) |
 | detached-constructor | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/rust/constructor/mod.rs) |
 | duplicate-entity-base | — | [source](prop/packages/design-lint/src/rule/duplicate/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/duplicate.rs) |
@@ -29,7 +27,6 @@ IDs extracted from Rust `id()` implementations. Same IDs may have different beha
 | ignored-fallible-result | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/rust/result/mod.rs) |
 | integration-test-candidate | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/rust/placement/mod.rs) |
 | manual-cli-dispatch | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/rust/arguments.rs) |
-| maximum-nesting | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/rust/nesting.rs) |
 | owned-vocabulary | [source](payment-sdk/packages/design-lint/src/rule/mod.rs) | — | — |
 | path-module-flattening | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/rust/boundary/mod.rs) |
 | platform-command-boundary | — | [source](prop/packages/design-lint/src/rule/command/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/command/mod.rs) |
@@ -46,7 +43,6 @@ IDs extracted from Rust `id()` implementations. Same IDs may have different beha
 | single-use-free-function | — | [source](prop/packages/design-lint/src/rule/single/mod.rs) | — |
 | singular-test-file | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/repository/shape/mod.rs) |
 | string-backed-finite-state | — | [source](prop/packages/design-lint/src/rule/state/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/state/mod.rs) |
-| struct-noun-naming | — | [source](prop/packages/design-lint/src/rule/naming/mod.rs) | [source](husklet/src/packages/hl-design-lint/src/rule/rust/naming.rs) |
 | struct-word-count | [source](payment-sdk/packages/design-lint/src/rule/mod.rs) | — | — |
 | test-only-source-directory | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/repository/suite/mod.rs) |
 | test-suite-kebab-path | — | — | [source](husklet/src/packages/hl-design-lint/src/rule/repository/suite_path.rs) |
