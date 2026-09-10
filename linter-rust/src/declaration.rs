@@ -382,6 +382,15 @@ impl<'a> Index<'a> {
                 depth + 1,
             );
         }
+        if owner
+            .module
+            .last()
+            .is_some_and(|part| part.starts_with('@'))
+        {
+            let mut outer = owner.clone();
+            outer.module.pop();
+            return self.resolve_path(&path, &outer, depth + 1);
+        }
         standard(&path).map(str::to_owned)
     }
 }
