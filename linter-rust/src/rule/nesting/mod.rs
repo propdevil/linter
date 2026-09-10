@@ -84,7 +84,7 @@ fn functions(
                 .child_by_field_name("name")
                 .map(|name| &source.text[name.byte_range()])
                 .unwrap_or("<anonymous>");
-            findings.push(Finding {
+            findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
                 rule: Nesting::ID,
                 path: source.path.clone(),
                 configuration: format!("{}.max_depth", assertion.setting),

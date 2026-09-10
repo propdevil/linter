@@ -62,7 +62,7 @@ fn visit(node: Node<'_>, source: &Source, assertions: &[&Assertion], findings: &
             .iter()
             .filter(|assertion| depth > assertion.max_depth)
         {
-            findings.push(Finding {
+            findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
                 rule: Nesting::ID,
                 path: source.path.clone(),
                 configuration: assertion.setting.clone(),

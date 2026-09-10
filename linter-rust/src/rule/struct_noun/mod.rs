@@ -84,7 +84,7 @@ fn inspect(
                 .iter()
                 .any(|word| assertion.accepted_words.contains(word) || language.noun(word))
             {
-                findings.push(Finding {
+                findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
                     rule: StructNoun::ID,
                     path: source.path.clone(),
                     configuration: assertion.setting.clone(),
