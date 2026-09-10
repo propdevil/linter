@@ -1,8 +1,4 @@
-use crate::{
-    Analysis, Source,
-    declaration::Index,
-    scope::{integration, mark_tests},
-};
+use crate::{Analysis, Source, declaration::Index};
 use config::{Assertion, Scope};
 use linter::{Error, Evidence, Finding, Project, Rule, RuleResult, Span, Status};
 use std::collections::{BTreeMap, BTreeSet};
@@ -24,113 +20,146 @@ impl Rule for RedundantMarker {
         let root =
             std::fs::canonicalize(project.root()).map_err(|e| Error::Analysis(e.to_string()))?;
         let index = Index::new(analysis, &root);
-        let mut candidates = BTreeMap::<String, Vec<(&Source, Node<'_>, bool)>>::new();
-        let mut used = BTreeSet::new();
-        let mut opaque = BTreeSet::new();
-        let mut implementations = BTreeMap::<String, Vec<Evidence>>::new();
-        for source in &analysis.sources {
-            let mut tests = vec![false; source.text.len()];
-            if integration(source, &root, analysis) {
-                tests.fill(true);
-            } else {
-                mark_tests(source.syntax.root_node(), &source.text, &mut tests);
-            }
-            for node in descendants(source.syntax.root_node()) {
-                let owner = index.identity(source, node);
-                if node.kind() == "macro_invocation" {
-                    for word in text(node, source).split(|c: char| !c.is_alphanumeric() && c != '_')
-                    {
-                        opaque.insert((owner.package.clone(), word.to_owned()));
-                    }
-                }
-                if node.kind() == "trait_item"
-                    && candidate(node, source)
-                    && let Some(name) = node.child_by_field_name("name")
-                    && let Some(id) = index.resolve(source, name, &owner)
-                {
-                    candidates.entry(id).or_default().push((
-                        source,
-                        node,
-                        tests.get(node.start_byte()).copied().unwrap_or(false),
-                    ));
-                }
-                if node.kind() == "impl_item"
-                    && let Some(trait_node) = node.child_by_field_name("trait")
-                    && let Some(id) = index.resolve(source, trait_node, &owner)
-                {
-                    if blanket(node, source) {
-                        implementations.entry(id).or_default().push(Evidence {
-                            path: source.path.clone(),
-                            span: Some(Span::new(&source.text, node.byte_range())),
-                            message: "Unconstrained blanket implementation".into(),
-                        });
-                    } else {
-                        used.insert(id);
-                    }
-                }
-                if matches!(node.kind(), "type_identifier" | "scoped_type_identifier")
-                    && !definition_name(node)
-                    && let Some(id) = index.resolve(source, node, &owner)
-                {
-                    used.insert(id);
-                }
-            }
-        }
-        let mut findings = Vec::new();
-        for (id, definitions) in candidates {
-            if definitions.len() != 1 || used.contains(&id) {
-                continue;
-            }
-            let (source, node, test) = definitions[0];
-            let owner = index.identity(source, node);
-            if node.child_by_field_name("name").is_some_and(|name| {
-                opaque.contains(&(owner.package, text(name, source).to_owned()))
-            }) {
-                continue;
-            }
-            for assertion in &self.0 {
-                if !assertion.target.matches(&source.path)
-                    || assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|e| e.matches(&source.path))
-                    || !match assertion.scope {
-                        Scope::Production => !test,
-                        Scope::Tests => test,
-                        Scope::All => true,
-                    }
-                {
-                    continue;
-                }
-                let name = node
-                    .child_by_field_name("name")
-                    .map(|n| text(n, source))
-                    .unwrap_or_default();
-                let related = implementations.get(&id).cloned().unwrap_or_default();
-                findings.push(Finding {
-                    rule: Self::ID,
-                    path: source.path.clone(),
-                    span: Some(Span::new(&source.text, node.byte_range())),
-                    related,
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "\
-                private empty marker trait `{name}` has no consumers or selective implem\
-                entations"
-                    ),
-                    instruction: "\
-                Remove the unused trait or establish a selective tagging, sealing, or sa\
-                fety contract used by consumers."
-                        .into(),
-                });
-            }
-        }
+        let markers = Markers::collect(analysis, &index, &root);
+        let findings = markers.findings(&index, &self.0);
         Ok(RuleResult {
             status: Status::Completed,
             findings,
         })
     }
 }
+#[derive(Default)]
+struct Markers<'a> {
+    candidates: BTreeMap<String, Vec<(&'a Source, Node<'a>, bool)>>,
+    used: BTreeSet<String>,
+    opaque: BTreeSet<(String, String)>,
+    implementations: BTreeMap<String, Vec<Evidence>>,
+}
+impl<'a> Markers<'a> {
+    fn collect(analysis: &'a Analysis, index: &Index<'a>, root: &std::path::Path) -> Self {
+        let mut markers = Self::default();
+        for source in &analysis.sources {
+            let tests = source.test_mask(root, analysis);
+            for node in descendants(source.syntax.root_node()) {
+                markers.inspect(node, source, index, &tests);
+            }
+        }
+        markers
+    }
+
+    fn inspect(&mut self, node: Node<'a>, source: &'a Source, index: &Index<'a>, tests: &[bool]) {
+        let owner = index.identity(source, node);
+        if node.kind() == "macro_invocation" {
+            for word in text(node, source).split(|c: char| !c.is_alphanumeric() && c != '_') {
+                self.opaque.insert((owner.package.clone(), word.to_owned()));
+            }
+        }
+        if node.kind() == "trait_item"
+            && candidate(node, source)
+            && let Some(name) = node.child_by_field_name("name")
+            && let Some(id) = index.resolve(source, name, &owner)
+        {
+            self.candidates.entry(id).or_default().push((
+                source,
+                node,
+                tests.get(node.start_byte()).copied().unwrap_or(false),
+            ));
+        }
+        if node.kind() == "impl_item" {
+            self.implementation(node, source, index);
+        }
+        if matches!(node.kind(), "type_identifier" | "scoped_type_identifier")
+            && !definition_name(node)
+            && let Some(id) = index.resolve(source, node, &owner)
+        {
+            self.used.insert(id);
+        }
+    }
+
+    fn implementation(&mut self, node: Node<'a>, source: &'a Source, index: &Index<'a>) {
+        let owner = index.identity(source, node);
+        if let Some(trait_node) = node.child_by_field_name("trait")
+            && let Some(id) = index.resolve(source, trait_node, &owner)
+        {
+            if blanket(node, source) {
+                self.implementations.entry(id).or_default().push(Evidence {
+                    path: source.path.clone(),
+                    span: Some(Span::new(&source.text, node.byte_range())),
+                    message: "Unconstrained blanket implementation".into(),
+                });
+            } else {
+                self.used.insert(id);
+            }
+        }
+    }
+
+    fn findings(self, index: &Index<'a>, assertions: &[Assertion]) -> Vec<Finding> {
+        let mut findings = Vec::new();
+        for (id, definitions) in self.candidates {
+            if definitions.len() != 1 || self.used.contains(&id) {
+                continue;
+            }
+            let (source, node, test) = definitions[0];
+            let owner = index.identity(source, node);
+            if node.child_by_field_name("name").is_some_and(|name| {
+                self.opaque
+                    .contains(&(owner.package, text(name, source).to_owned()))
+            }) {
+                continue;
+            }
+            for assertion in assertions {
+                if !assertion.selected(source, test) {
+                    continue;
+                }
+                let related = self.implementations.get(&id).cloned().unwrap_or_default();
+                findings.push(assertion.finding(source, node, related));
+            }
+        }
+        findings
+    }
+}
+
+impl Assertion {
+    fn selected(&self, source: &Source, test: bool) -> bool {
+        self.target.matches(&source.path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.matches(&source.path))
+            && match self.scope {
+                Scope::Production => !test,
+                Scope::Tests => test,
+                Scope::All => true,
+            }
+    }
+
+    fn finding(&self, source: &Source, node: Node<'_>, related: Vec<Evidence>) -> Finding {
+        let name = node
+            .child_by_field_name("name")
+            .map(|name| text(name, source))
+            .unwrap_or_default();
+        Finding {
+            rule: RedundantMarker::ID,
+            path: source.path.clone(),
+            span: Some(Span::new(&source.text, node.byte_range())),
+            related,
+            configuration: self.setting.clone(),
+            message: format!(
+                concat!(
+                    "private empty marker trait `{}` has no consumers ",
+                    "or selective implementations"
+                ),
+                name
+            ),
+            instruction: concat!(
+                "Remove the unused trait or establish a selective tagging, sealing, ",
+                "or safety contract used by consumers."
+            )
+            .into(),
+        }
+    }
+}
+
 fn children(node: Node<'_>) -> Vec<Node<'_>> {
     let mut c = node.walk();
     node.named_children(&mut c).collect()
@@ -191,16 +220,16 @@ fn blanket(node: Node<'_>, source: &Source) -> bool {
     if owner.kind() != "type_identifier" {
         return false;
     }
-    node.child_by_field_name("type_parameters")
-        .is_some_and(|params| {
-            children(params).iter().any(|param| {
-                param.kind() == "type_parameter"
-                    && !children(*param).iter().any(|n| n.kind() == "trait_bounds")
-                    && param
-                        .child_by_field_name("name")
-                        .is_some_and(|name| text(name, source) == text(owner, source))
-            })
-        })
+    let Some(params) = node.child_by_field_name("type_parameters") else {
+        return false;
+    };
+    children(params).iter().any(|param| {
+        param.kind() == "type_parameter"
+            && !children(*param).iter().any(|n| n.kind() == "trait_bounds")
+            && param
+                .child_by_field_name("name")
+                .is_some_and(|name| text(name, source) == text(owner, source))
+    })
 }
 fn definition_name(node: Node<'_>) -> bool {
     let Some(parent) = node.parent() else {
