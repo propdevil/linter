@@ -20,39 +20,43 @@ pub(super) fn compact(node: Node<'_>, source: &Source) -> String {
     text(node, source).split_whitespace().collect()
 }
 pub(super) fn boundary(node: Node<'_>, source: &Source) -> bool {
-    let mut previous = node.prev_named_sibling();
-    while let Some(item) = previous {
-        if item.kind() == "attribute_item" {
-            let value = compact(item, source);
+    let ordinary = |name: &str| {
+        matches!(
+            name,
+            "Debug"
+                | "Clone"
+                | "Copy"
+                | "Eq"
+                | "PartialEq"
+                | "Ord"
+                | "PartialOrd"
+                | "Hash"
+                | "Default"
+        )
+    };
+    std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+        .take_while(|node| {
+            matches!(
+                node.kind(),
+                "attribute_item" | "line_comment" | "block_comment"
+            )
+        })
+        .filter(|node| node.kind() == "attribute_item")
+        .any(|node| {
+            let value = compact(node, source);
             let Some(derives) = value
                 .strip_prefix("#[derive(")
                 .and_then(|s| s.strip_suffix(")]"))
             else {
                 return true;
             };
-            if derives.split(',').filter(|s| !s.is_empty()).any(|s| {
-                !matches!(
-                    s,
-                    "Debug"
-                        | "Clone"
-                        | "Copy"
-                        | "Eq"
-                        | "PartialEq"
-                        | "Ord"
-                        | "PartialOrd"
-                        | "Hash"
-                        | "Default"
-                )
-            }) {
-                return true;
-            }
-        } else if !matches!(item.kind(), "line_comment" | "block_comment") {
-            break;
-        }
-        previous = item.prev_named_sibling();
-    }
-    false
+            derives
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .any(|s| !ordinary(s))
+        })
 }
+
 pub(super) fn visibility(node: Node<'_>, source: &Source) -> String {
     children(node)
         .into_iter()
@@ -207,10 +211,7 @@ pub(super) fn constructor(
     if index.resolve(source, ty, &context).as_deref() != Some(inner) {
         return false;
     }
-    let Some(names) = parameters(node, source) else {
-        return false;
-    };
-    let Some(name) = names.first() else {
+    let Some(name) = parameters(node, source).and_then(|names| names.into_iter().next()) else {
         return false;
     };
     let Some(body) = expression(node) else {

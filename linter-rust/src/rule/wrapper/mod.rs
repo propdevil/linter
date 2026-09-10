@@ -40,60 +40,22 @@ impl Rule for RedundantWrapper {
             } else {
                 mark_tests(source.syntax.root_node(), &source.text, &mut tests);
             }
-            for node in descendants(source.syntax.root_node())
-                .into_iter()
-                .filter(|n| n.kind() == "struct_item")
-            {
-                let id = index.identity(source, node);
-                let platform = index
-                    .structures
-                    .iter()
-                    .find(|s| s.id == id)
-                    .is_some_and(|s| s.platform);
-                structures.push(Structure {
-                    source,
-                    node,
-                    id,
-                    fields: BTreeMap::new(),
-                    test: tests.get(node.start_byte()).copied().unwrap_or(false),
-                    platform,
-                });
-            }
-            for node in descendants(source.syntax.root_node())
-                .into_iter()
-                .filter(|n| n.kind() == "impl_item")
-            {
-                let owner = index.identity(source, node);
-                if let Some(ty) = node.child_by_field_name("type")
-                    && let Some(id) = index.resolve(source, ty, &owner)
-                {
-                    implementations.entry(id).or_default().push(Implementation {
-                        source,
-                        node,
-                        tests: tests.clone(),
-                    });
-                }
+            structures.extend(Wrapper::structures(source, &index, &tests));
+            for (id, implementation) in Implementation::collect(source, &index, &tests) {
+                implementations.entry(id).or_default().push(implementation);
             }
         }
         let mut findings = Vec::new();
         for structure in &structures {
-            for assertion in &self.0 {
-                if assertion.target.matches(&structure.source.path)
-                    && !assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|e| e.matches(&structure.source.path))
-                    && match assertion.scope {
-                        Scope::Production => !structure.test,
-                        Scope::Tests => structure.test,
-                        Scope::All => true,
-                    }
-                    && let Some(finding) =
-                        candidate(structure, &structures, &index, &implementations, assertion)
-                {
-                    findings.push(finding);
-                }
-            }
+            let Some(wrapper) = Wrapper::new(structure, &structures, &index) else {
+                continue;
+            };
+            findings.extend(
+                self.0
+                    .iter()
+                    .filter(|assertion| wrapper.selected(assertion))
+                    .filter_map(|assertion| wrapper.finding(&implementations, &index, assertion)),
+            );
         }
         Ok(RuleResult {
             status: Status::Completed,
@@ -101,150 +63,226 @@ impl Rule for RedundantWrapper {
         })
     }
 }
-fn candidate(
-    structure: &Structure<'_>,
-    structures: &[Structure<'_>],
-    index: &Index<'_>,
-    implementations: &BTreeMap<String, Vec<Implementation<'_>>>,
-    assertion: &Assertion,
-) -> Option<Finding> {
-    let source = structure.source;
-    let node = structure.node;
-    if structure.platform
-        || boundary(node, source)
-        || !syntax::visibility(node, source).is_empty()
-        || node.child_by_field_name("type_parameters").is_some()
-    {
-        return None;
+struct Wrapper<'a, 'b> {
+    structure: &'b Structure<'a>,
+    field: String,
+    inner: String,
+    inner_name: String,
+}
+impl<'a, 'b> Wrapper<'a, 'b> {
+    fn structures(source: &'a Source, index: &Index<'_>, tests: &[bool]) -> Vec<Structure<'a>> {
+        descendants(source.syntax.root_node())
+            .into_iter()
+            .filter(|node| node.kind() == "struct_item")
+            .map(|node| {
+                let id = index.identity(source, node);
+                let platform = index
+                    .structures
+                    .iter()
+                    .find(|s| s.id == id)
+                    .is_some_and(|s| s.platform);
+                Structure {
+                    source,
+                    node,
+                    id,
+                    fields: BTreeMap::new(),
+                    test: tests.get(node.start_byte()).copied().unwrap_or(false),
+                    platform,
+                }
+            })
+            .collect()
     }
-    let body = node.child_by_field_name("body")?;
-    let fields: Vec<_> = children(body)
-        .into_iter()
-        .filter(|n| n.kind() != "attribute_item")
-        .collect();
-    if fields.len() != 1 || boundary(fields[0], source) {
-        return None;
-    }
-    let (field, ty) = if fields[0].kind() == "field_declaration" {
-        (
-            text(fields[0].child_by_field_name("name")?, source).to_owned(),
-            fields[0].child_by_field_name("type")?,
-        )
-    } else {
-        ("0".into(), fields[0])
-    };
-    let inner = index.resolve(source, ty, &structure.id)?;
-    let inner_id = inner.strip_prefix("nominal:")?;
-    let matches: Vec<_> = structures
-        .iter()
-        .filter(|s| s.id.key() == inner_id)
-        .collect();
-    if matches.len() != 1
-        || matches[0].id.package != structure.id.package
-        || inner_id == structure.id.key()
-    {
-        return None;
-    }
-    let owner = format!("nominal:{}", structure.id.key());
-    if structures.iter().filter(|s| s.id == structure.id).count() != 1 {
-        return None;
-    }
-    let own = implementations.get(&owner)?;
-    let inner_impls = implementations.get(&inner)?;
-    let mut related = Vec::new();
-    let mut count = 0;
-    for implementation in own {
-        if ignored(implementation, implementation.node, structure.test) {
-            continue;
-        }
-        if implementation.node.child_by_field_name("trait").is_some()
-            || children(implementation.node)
-                .iter()
-                .any(|n| matches!(n.kind(), "where_clause" | "type_parameters"))
-            || boundary(implementation.node, implementation.source)
+    fn new(
+        structure: &'b Structure<'a>,
+        structures: &[Structure<'a>],
+        index: &Index<'_>,
+    ) -> Option<Self> {
+        let source = structure.source;
+        let node = structure.node;
+        if structure.platform
+            || boundary(node, source)
+            || !syntax::visibility(node, source).is_empty()
+            || node.child_by_field_name("type_parameters").is_some()
         {
             return None;
         }
-        for method in children(implementation.node.child_by_field_name("body")?) {
-            if ignored(implementation, method, structure.test) || method.kind() == "attribute_item"
-            {
-                continue;
-            }
-            if method.kind() != "function_item" || boundary(method, implementation.source) {
-                return None;
-            }
-            if syntax::constructor(method, implementation.source, index, &field, &inner) {
-                continue;
-            }
-            if !syntax::forwards(method, implementation.source, &field) {
-                return None;
-            }
-            let signature = syntax::signature(method, implementation.source, index)?;
-            let name = text(method.child_by_field_name("name")?, implementation.source);
-            let mut matches = Vec::new();
-            for inner_impl in inner_impls {
-                if inner_impl.node.child_by_field_name("trait").is_some()
-                    || ignored(inner_impl, inner_impl.node, structure.test)
-                {
-                    continue;
-                }
-                for candidate in children(inner_impl.node.child_by_field_name("body")?) {
-                    if candidate.kind() == "function_item"
-                        && !ignored(inner_impl, candidate, structure.test)
-                        && candidate
-                            .child_by_field_name("name")
-                            .is_some_and(|n| text(n, inner_impl.source) == name)
-                    {
-                        matches.push((inner_impl.source, candidate));
-                    }
-                }
-            }
-            if matches.len() != 1
-                || syntax::signature(matches[0].1, matches[0].0, index).as_ref() != Some(&signature)
-            {
-                return None;
-            }
-            count += 1;
-            related.push(evidence(
-                implementation.source,
-                method,
-                format!("Transparent forwarder `{name}`"),
-            ));
-            related.push(evidence(
-                matches[0].0,
-                matches[0].1,
-                format!("Identical inner method `{name}`"),
-            ));
+        let fields: Vec<_> = children(node.child_by_field_name("body")?)
+            .into_iter()
+            .filter(|node| node.kind() != "attribute_item")
+            .collect();
+        if fields.len() != 1 || boundary(fields[0], source) {
+            return None;
         }
+        let (field, ty) = if fields[0].kind() == "field_declaration" {
+            (
+                text(fields[0].child_by_field_name("name")?, source).to_owned(),
+                fields[0].child_by_field_name("type")?,
+            )
+        } else {
+            ("0".into(), fields[0])
+        };
+        let inner = index.resolve(source, ty, &structure.id)?;
+        let id = inner.strip_prefix("nominal:")?;
+        let matches: Vec<_> = structures.iter().filter(|s| s.id.key() == id).collect();
+        if matches.len() != 1
+            || matches[0].id.package != structure.id.package
+            || id == structure.id.key()
+        {
+            return None;
+        }
+        if structures.iter().filter(|s| s.id == structure.id).count() != 1 {
+            return None;
+        }
+        Some(Self {
+            structure,
+            field,
+            inner,
+            inner_name: matches[0].id.name.clone(),
+        })
     }
-    if count < assertion.min_methods {
-        return None;
+    fn selected(&self, assertion: &Assertion) -> bool {
+        assertion.target.matches(&self.structure.source.path)
+            && !assertion
+                .exclude
+                .as_ref()
+                .is_some_and(|e| e.matches(&self.structure.source.path))
+            && match assertion.scope {
+                Scope::Production => !self.structure.test,
+                Scope::Tests => self.structure.test,
+                Scope::All => true,
+            }
     }
-    Some(Finding {
-        rule: RedundantWrapper::ID,
-        path: source.path.clone(),
-        span: Some(Span::new(&source.text, node.byte_range())),
-        related,
-        configuration: assertion.setting.clone(),
-        message: format!(
-            "\
-        `{}` only wraps local `{}` and forwards {count} methods with identical names and\
-        \u{20}signatures",
-            structure.id.name, matches[0].id.name
-        ),
-        instruction: "\
-        Use the inner entity directly unless the wrapper owns an invariant, translation,\
-        \u{20}synchronization, instrumentation, adapter, or compatibility contract."
-            .into(),
-    })
+    fn finding(
+        &self,
+        implementations: &BTreeMap<String, Vec<Implementation<'a>>>,
+        index: &Index<'_>,
+        assertion: &Assertion,
+    ) -> Option<Finding> {
+        let owner = format!("nominal:{}", self.structure.id.key());
+        let own = implementations.get(&owner)?;
+        let inner = implementations.get(&self.inner)?;
+        let related = self.evidence(own, inner, index)?;
+        let count = related.len() / 2;
+        if count < assertion.min_methods {
+            return None;
+        }
+        let source = self.structure.source;
+        Some(Finding {
+            rule:RedundantWrapper::ID,path:source.path.clone(),span:Some(Span::new(&source.text,self.structure.node.byte_range())),related,
+            configuration:assertion.setting.clone(),
+            message:format!("`{}` only wraps local `{}` and forwards {count} methods with identical names and signatures",self.structure.id.name,self.inner_name),
+            instruction:"Use the inner entity directly unless the wrapper owns an invariant, translation, synchronization, instrumentation, adapter, or compatibility contract.".into(),
+        })
+    }
+    fn evidence(
+        &self,
+        own: &[Implementation<'a>],
+        inner: &[Implementation<'a>],
+        index: &Index<'_>,
+    ) -> Option<Vec<Evidence>> {
+        let mut related = Vec::new();
+        for implementation in own
+            .iter()
+            .filter(|item| !item.ignored(item.node, self.structure.test))
+        {
+            for method in implementation.forwarders(self, index)? {
+                let name = text(method.child_by_field_name("name")?, implementation.source);
+                let signature = syntax::signature(method, implementation.source, index)?;
+                let (source, peer) = self.matching(name, &signature, inner, index)?;
+                related.push(evidence(
+                    implementation.source,
+                    method,
+                    format!("Transparent forwarder `{name}`"),
+                ));
+                related.push(evidence(
+                    source,
+                    peer,
+                    format!("Identical inner method `{name}`"),
+                ));
+            }
+        }
+        Some(related)
+    }
+    fn matching(
+        &self,
+        name: &str,
+        signature: &str,
+        inner: &[Implementation<'a>],
+        index: &Index<'_>,
+    ) -> Option<(&'a Source, Node<'a>)> {
+        let mut matching = Vec::new();
+        for implementation in inner.iter().filter(|item| {
+            item.node.child_by_field_name("trait").is_none()
+                && !item.ignored(item.node, self.structure.test)
+        }) {
+            let body = implementation.node.child_by_field_name("body")?;
+            let candidates = children(body)
+                .into_iter()
+                .filter(|node| {
+                    node.kind() == "function_item"
+                        && !implementation.ignored(*node, self.structure.test)
+                })
+                .filter(|node| {
+                    node.child_by_field_name("name")
+                        .is_some_and(|n| text(n, implementation.source) == name)
+                });
+            matching.extend(candidates.map(|node| (implementation.source, node)));
+        }
+        let [pair] = matching.as_slice() else {
+            return None;
+        };
+        (syntax::signature(pair.1, pair.0, index).as_deref() == Some(signature)).then_some(*pair)
+    }
 }
-fn ignored(implementation: &Implementation<'_>, node: Node<'_>, test: bool) -> bool {
-    !test
-        && implementation
-            .tests
-            .get(node.start_byte())
-            .copied()
-            .unwrap_or(false)
+impl<'a> Implementation<'a> {
+    fn collect(source: &'a Source, index: &Index<'_>, tests: &[bool]) -> Vec<(String, Self)> {
+        descendants(source.syntax.root_node())
+            .into_iter()
+            .filter(|node| node.kind() == "impl_item")
+            .filter_map(|node| {
+                let owner = index.identity(source, node);
+                let id = index.resolve(source, node.child_by_field_name("type")?, &owner)?;
+                Some((
+                    id,
+                    Self {
+                        source,
+                        node,
+                        tests: tests.to_vec(),
+                    },
+                ))
+            })
+            .collect()
+    }
+    fn ignored(&self, node: Node<'_>, test: bool) -> bool {
+        !test && self.tests.get(node.start_byte()).copied().unwrap_or(false)
+    }
+    fn forwarders(&self, wrapper: &Wrapper<'_, '_>, index: &Index<'_>) -> Option<Vec<Node<'a>>> {
+        if self.node.child_by_field_name("trait").is_some()
+            || children(self.node)
+                .iter()
+                .any(|n| matches!(n.kind(), "where_clause" | "type_parameters"))
+            || boundary(self.node, self.source)
+        {
+            return None;
+        }
+        let mut forwarders = Vec::new();
+        for method in children(self.node.child_by_field_name("body")?) {
+            if self.ignored(method, wrapper.structure.test) || method.kind() == "attribute_item" {
+                continue;
+            }
+            if method.kind() != "function_item" || boundary(method, self.source) {
+                return None;
+            }
+            if syntax::constructor(method, self.source, index, &wrapper.field, &wrapper.inner) {
+                continue;
+            }
+            if !syntax::forwards(method, self.source, &wrapper.field) {
+                return None;
+            }
+            forwarders.push(method);
+        }
+        Some(forwarders)
+    }
 }
 fn evidence(source: &Source, node: Node<'_>, message: String) -> Evidence {
     Evidence {
@@ -253,6 +291,7 @@ fn evidence(source: &Source, node: Node<'_>, message: String) -> Evidence {
         message,
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -393,21 +432,21 @@ mod tests {
     }
     #[test]
     fn test_helpers_do_not_change_production_evidence() {
-        for inner in ["", "#[cfg(test)] fn read(&self,id:u64)->usize{0}"] {
-            for outer in ["", "#[cfg(test)] fn fixture(&self)->bool{true}"] {
-                let input = SOURCE
-                    .replace(
-                        "fn read(&self,id:u64)->usize {id as usize}",
-                        &format!(
-                            "#[cfg(not(test))] fn read(&self,id:u64)->usize {{id as usize}} {inner}"
-                        ),
-                    )
-                    .replace(
-                        "fn new(inner:Store)",
-                        &format!("{outer} fn new(inner:Store)"),
-                    );
-                assert_eq!(check(&input, "").unwrap().len(), 1, "{input}");
-            }
+        let inner = "#[cfg(test)] fn read(&self,id:u64)->usize{0}";
+        let outer = "#[cfg(test)] fn fixture(&self)->bool{true}";
+        for (inner, outer) in [("", ""), (inner, ""), ("", outer), (inner, outer)] {
+            let input = SOURCE
+                .replace(
+                    "fn read(&self,id:u64)->usize {id as usize}",
+                    &format!(
+                        "#[cfg(not(test))] fn read(&self,id:u64)->usize {{id as usize}} {inner}"
+                    ),
+                )
+                .replace(
+                    "fn new(inner:Store)",
+                    &format!("{outer} fn new(inner:Store)"),
+                );
+            assert_eq!(check(&input, "").unwrap().len(), 1, "{input}");
         }
     }
     #[test]
