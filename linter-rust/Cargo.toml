@@ -9,6 +9,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+heck.workspace = true
 english-pos-tagger = "0.1"
 wordnet-lemmatizer = "0.1"
 linter.workspace = true

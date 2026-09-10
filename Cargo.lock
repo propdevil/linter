@@ -549,6 +549,7 @@ dependencies = [
  "cargo_metadata",
  "english-pos-tagger",
  "globset",
+ "heck",
  "linter",
  "serde",
  "syn 2.0.119",
