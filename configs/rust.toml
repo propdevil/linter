@@ -36,7 +36,8 @@ target = ["tests/**/*.rs", "{apps,packages,usecase}/*/tests/**/*.rs"]
 allow = true
 description = "Crate integration tests and repository-wide test cases."
 
-[rules."rust/file-length".config]
+[[rules."rust/file-length"]]
+target = "**/*.rs"
 max_lines = 500
 
 [[rules.filename]]
@@ -114,3 +115,35 @@ forbidden_words = ["common", "core", "helper", "helpers", "misc", "shared", "uti
 [[rules."markdown/examples"]]
 target = "**/*.md"
 min_cases = 0
+
+[[rules."rust/path-module-flattening"]]
+target = "**/*.rs"
+max_child_domains = 1
+
+[[rules."rust/receiver-name-repetition"]]
+target = "**/*.rs"
+
+[[rules."rust/broad-trait-responsibilities"]]
+target = "**/*.rs"
+min_methods = 8
+min_clusters = 3
+min_methods_per_cluster = 2
+ignored_type_words = ["result", "option", "vec", "box", "arc", "dyn", "impl", "where", "send", "sync", "static", "error", "bool", "str", "string", "usize", "isize", "u8", "u16", "u32", "u64", "u128", "i8", "i16", "i32", "i64", "i128"]
+cohesive_suffixes = ["Protocol", "Codec", "Visitor", "Renderer", "Commands"]
+generated_markers = ["@generated", "automatically generated"]
+generated_attributes = ["automatically_derived", "proc_macro_derive"]
+capabilities = [
+  { name = "persistence", verbs = ["create", "open", "read", "write", "save", "load", "delete", "remove", "list", "find", "get", "put"] },
+  { name = "lifecycle", verbs = ["start", "stop", "pause", "resume", "restart", "kill", "launch", "terminate"] },
+  { name = "observation", verbs = ["inspect", "status", "stats", "health", "metrics", "describe", "query"], nouns = ["metric", "metrics", "stat", "stats", "status", "health"] },
+  { name = "configuration", verbs = ["configure", "set", "update", "apply", "reset", "enable", "disable"] },
+  { name = "events", verbs = ["subscribe", "unsubscribe", "watch", "emit", "notify", "poll"], nouns = ["event", "events", "notification", "notifications"] },
+  { name = "transfer", verbs = ["upload", "download", "push", "pull", "import", "export", "copy"] },
+  { name = "authorization", verbs = ["login", "logout", "authenticate", "authorize", "grant", "revoke"], nouns = ["auth", "permission", "permissions", "credential", "credentials"] },
+  { name = "connection", verbs = ["connect", "disconnect", "bind", "listen", "accept", "send", "receive"] },
+  { name = "rendering", verbs = ["render", "draw", "present", "commit", "frame", "paint"] },
+  { name = "traversal", verbs = ["visit", "walk", "fold", "traverse"] },
+  { name = "codec", verbs = ["encode", "decode", "serialize", "deserialize", "parse", "format"] },
+  { name = "clipboard", nouns = ["clipboard"] },
+  { name = "window", nouns = ["window", "windows", "surface", "interaction"] },
+]

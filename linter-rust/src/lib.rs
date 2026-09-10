@@ -28,7 +28,10 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<TraitMethodCount>()?
         .register::<StructWords>()?
         .register::<EmptyStruct>()?
-        .register::<ModuleName>()
+        .register::<ModuleName>()?
+        .register::<PathModules>()?
+        .register::<ReceiverName>()?
+        .register::<BroadTrait>()
 }
 
 mod declaration;

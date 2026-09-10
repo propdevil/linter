@@ -7,9 +7,10 @@ use crate::{Analysis, Source};
 mod config;
 pub use config::Config;
 
+use config::Assertion;
+
 pub struct FileLength {
-    max_lines: usize,
-    selector: linter::Selector,
+    assertions: Vec<Assertion>,
 }
 
 impl Rule for FileLength {
@@ -18,40 +19,61 @@ impl Rule for FileLength {
     type Config = Config;
 
     fn new(config: Config) -> Result<Self, Error> {
-        let config = config.validate()?;
         Ok(Self {
-            max_lines: config.max_lines,
-            selector: config.target.compile("rust/file-length.target", true)?,
+            assertions: config.compile()?,
         })
+    }
+
+    fn configured(&self) -> bool {
+        !self.assertions.is_empty()
     }
 
     fn check(&self, project: &Project, analysis: &Analysis) -> Result<RuleResult, Error> {
         let root =
             fs::canonicalize(project.root()).map_err(|error| Error::Analysis(error.to_string()))?;
         let mut findings = Vec::new();
-        for source in analysis
-            .sources
-            .iter()
-            .filter(|source| self.selector.matches(&source.path))
-        {
+        for source in &analysis.sources {
             if integration(source, &root, analysis) {
                 continue;
             }
             let lines = production_lines(source);
-            if lines > self.max_lines {
-                findings.push(Finding { span: None, related: Vec::new(),
-                    rule: Self::ID,
-                    path: source.path.clone(),
-                    configuration: "rules.\"rust/file-length\".config.max_lines".into(),
-                    message: format!("Rust file has {lines} production lines ({} total); maximum is {}", source.text.lines().count(), self.max_lines),
-                    instruction: "Split production code by cohesive responsibility. Test code is already excluded; do not use include! or numbered fragments to evade the limit.".into(),
-                });
+            for assertion in &self.assertions {
+                assertion.inspect(source, lines, &mut findings);
             }
         }
         Ok(RuleResult {
             status: Status::Completed,
             findings,
         })
+    }
+}
+
+impl Assertion {
+    fn inspect(&self, source: &Source, lines: usize, findings: &mut Vec<Finding>) {
+        if lines <= self.max_lines
+            || !self.target.matches(&source.path)
+            || self
+                .exclude
+                .as_ref()
+                .is_some_and(|s| s.matches(&source.path))
+        {
+            return;
+        }
+        findings.push(Finding {
+            span: None,
+            related: Vec::new(),
+            rule: FileLength::ID,
+            path: source.path.clone(),
+            configuration: self.setting.clone(),
+            message: format!(
+                "Rust file has {lines} production lines ({} total); maximum is {}",
+                source.text.lines().count(),
+                self.max_lines
+            ),
+            instruction: "Split production code by cohesive responsibility. Test code is already \
+                excluded; do not use include! or numbered fragments to evade the limit."
+                .into(),
+        });
     }
 }
 
@@ -162,11 +184,50 @@ mod tests {
         assert_eq!(count("// #[cfg(test)]\nfn production() {}\n"), 2);
     }
     #[test]
+    fn blocks_require_targets_and_honor_exclusions() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("one.rs"), "// one\n// two").unwrap();
+        std::fs::write(root.path().join("two.rs"), "// one\n// two").unwrap();
+        let registry = linter::Registry::default()
+            .register::<FileLength>()
+            .unwrap();
+        assert_eq!(
+            registry.check(root.path()).unwrap().rules[FileLength::ID],
+            Status::Unconfigured
+        );
+        std::fs::write(
+            root.path().join("linter.toml"),
+            r#"
+[[rules."rust/file-length"]]
+target = "*.rs"
+exclude = "two.rs"
+max_lines = 1
+[[rules."rust/file-length"]]
+target = "two.rs"
+max_lines = 2
+"#,
+        )
+        .unwrap();
+        let report = registry.check(root.path()).unwrap();
+        assert_eq!(report.findings.len(), 1);
+        assert_eq!(report.findings[0].path, std::path::Path::new("one.rs"));
+        std::fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"rust/file-length\"]]\nmax_lines = 1",
+        )
+        .unwrap();
+        assert!(matches!(
+            registry.check(root.path()),
+            Err(Error::Configuration(_))
+        ));
+    }
+
+    #[test]
     fn production_budget_ignores_five_hundred_lines_of_tests() {
         let root = tempfile::tempdir().unwrap();
         std::fs::write(
             root.path().join("linter.toml"),
-            "[rules.\"rust/file-length\".config]\nmax_lines = 600",
+            "[[rules.\"rust/file-length\"]]\ntarget = '**/*.rs'\nmax_lines = 600",
         )
         .unwrap();
         let production = "// production\n".repeat(500);
@@ -218,6 +279,11 @@ mod tests {
         let registry = linter::Registry::default()
             .register::<FileLength>()
             .unwrap();
+        std::fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"rust/file-length\"]]\ntarget = '**/*.rs'\nmax_lines = 1",
+        )
+        .unwrap();
         assert!(registry.check(root.path()).unwrap().findings.is_empty());
         for config in [
             "max_lines = 0",
@@ -227,7 +293,7 @@ mod tests {
         ] {
             std::fs::write(
                 root.path().join("linter.toml"),
-                format!("[rules.\"rust/file-length\".config]\n{config}"),
+                format!("[[rules.\"rust/file-length\"]]\ntarget = '**/*.rs'\n{config}"),
             )
             .unwrap();
             assert!(matches!(

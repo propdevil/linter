@@ -3,7 +3,8 @@
 Limit physical production lines in Rust files while excluding test code. Enabled by default with a maximum of 500 lines.
 
 ```toml
-[rules."rust/file-length".config]
+[[rules."rust/file-length"]]
+target = "**/*.rs"
 target = "**/*.rs"
 max_lines = 600
 ```
@@ -38,3 +39,7 @@ The rule uses shared Tree-sitter syntax trees for item boundaries. Syn parses on
 Macro expansion and cross-file test-module reachability are not resolved. Custom test attributes and `cfg_attr` remain counted unless enclosed in a recognized test-only scope. Integration sources are still parsed by shared Rust analysis, so syntax errors remain errors.
 
 Findings report production lines, total physical lines, and the configured maximum. Split excess production code by responsibility; do not use `include!` or numbered fragments to evade the limit. Test code is already excluded.
+
+Each block requires `target` and accepts optional `exclude`. The default maximum is
+500 production lines. Multiple blocks apply independently. Without blocks, the
+rule is unconfigured. Test code is always excluded from this production budget.
