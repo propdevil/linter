@@ -82,6 +82,7 @@ fn glob(pattern: &str, setting: &str, case_sensitive: bool) -> Result<globset::G
         )));
     }
     GlobBuilder::new(pattern)
+        .empty_alternates(true)
         .case_insensitive(!case_sensitive)
         .literal_separator(true)
         .backslash_escape(false)

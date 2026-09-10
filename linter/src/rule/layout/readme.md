@@ -74,3 +74,25 @@ description = "Crate integration tests and repository-wide cases."
 Unit tests stay inline beside implementation. Adjust crate-category selectors for integration tests; this repository uses `{linter,linter-*,apps/*}/tests/**/*.rs`. Avoid a broad `**/tests/**` allowance, which also admits `src/tests/`. Layout checks paths, not Rust attributes or test behavior.
 
 Old `glob`, permission `files` selectors, and layout naming/word-limit/affix/vocabulary settings are rejected. Generate current presets with `linter init rust`. Missing configuration reports unconfigured; invalid settings fail even for disabled rules.
+
+Permission blocks accept `kind = "file"` (default), `"directory"`, or `"any"`.
+A banned directory is reported once; its descendants do not duplicate that finding.
+Later matching allowances still decide whether the directory itself is allowed.
+
+```toml
+[[rules.layout]]
+target = "old{,/**}"
+kind = "any"
+allow = false
+
+[[rules.layout]]
+target = "**/src"
+directories.allow_empty = false
+directories.allow_single_file = false
+directories.content_ignored = [".gitkeep"]
+```
+
+Content exclusions are relative to each inspected child directory. They affect
+emptiness and single-file counts, not required paths or structural allowances.
+Project-excluded entries do not count as substantive discovered content.
+This transfers configurable forbidden paths and placeholder-aware directory checks.

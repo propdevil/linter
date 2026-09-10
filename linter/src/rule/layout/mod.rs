@@ -2,9 +2,10 @@ use std::{fs, path::Path};
 
 use crate::{Error, Finding, Project, Rule, RuleResult, Status};
 
+mod children;
 mod config;
 pub use config::Config;
-use config::{Assertion, Check, Mode};
+use config::{Assertion, Check};
 
 pub struct Layout {
     assertions: Vec<Check>,
@@ -32,14 +33,24 @@ impl Rule for Layout {
             Status::Completed
         };
         let mut findings = Vec::new();
-        for entry in project.entries().filter(|entry| !entry.kind.is_dir()) {
+        let mut banned = Vec::<std::path::PathBuf>::new();
+        for entry in project.entries() {
+            if banned
+                .iter()
+                .any(|path| entry.path != *path && entry.path.starts_with(path))
+            {
+                continue;
+            }
             let decision = self
                 .assertions
                 .iter()
                 .filter_map(|check| match check {
                     Check::Permission(permission)
-                        if permission.selector.matches(&entry.path)
-                            && (!permission.allow || entry.kind.is_file()) =>
+                        if permission.kind.matches(entry.kind)
+                            && permission.selector.matches(&entry.path)
+                            && (!permission.allow
+                                || entry.kind.is_file()
+                                || entry.kind.is_dir()) =>
                     {
                         Some(permission)
                     }
@@ -49,11 +60,19 @@ impl Rule for Layout {
             if let Some(decision) = decision
                 && !decision.allow
             {
+                if entry.kind.is_dir() {
+                    banned.push(entry.path.clone());
+                }
+                let label = if entry.kind.is_dir() {
+                    "directory"
+                } else {
+                    "file"
+                };
                 findings.push(Finding { span: None, related: Vec::new(),
                     rule: Self::ID,
                     path: entry.path.clone(),
                     configuration: decision.setting.clone(),
-                    message: format!("forbidden file {}", entry.path.display()),
+                    message: format!("forbidden {label} {}", entry.path.display()),
                     instruction: "Remove or move this file, or add a later allow block with a purpose description.".into(),
                 });
             }
@@ -69,7 +88,7 @@ impl Rule for Layout {
                 .filter(|path| assertion.selector.matches(path))
             {
                 matches += 1;
-                assertion.inspect(project.root(), directory, &mut findings)?;
+                assertion.inspect(project, directory, &mut findings)?;
             }
             if matches == 0 {
                 findings.push(assertion.finding(
@@ -86,7 +105,7 @@ impl Rule for Layout {
 impl Assertion {
     fn inspect(
         &self,
-        root: &Path,
+        project: &Project,
         directory: &Path,
         findings: &mut Vec<Finding>,
     ) -> Result<(), Error> {
@@ -96,7 +115,7 @@ impl Assertion {
         ] {
             for required in paths {
                 let relative = directory.join(required);
-                let actual = entry_kind(&root.join(directory), required)?;
+                let actual = entry_kind(&project.root().join(directory), required)?;
                 if actual == Some(expected) {
                     continue;
                 }
@@ -113,113 +132,15 @@ impl Assertion {
                 findings.push(self.finding(directory, message, instruction));
             }
         }
-        self.inspect_children(root, directory, findings)
+        self.inspect_children(project, directory, findings)
     }
 
-    fn inspect_children(
+    pub(super) fn finding(
         &self,
-        root: &Path,
         directory: &Path,
-        findings: &mut Vec<Finding>,
-    ) -> Result<(), Error> {
-        if self.mode != Mode::Restrictive
-            && self.files.allow_empty
-            && self.directories.allow_empty
-            && self.directories.allow_single_file
-        {
-            return Ok(());
-        }
-        let path = root.join(directory);
-        for entry in fs::read_dir(&path).map_err(|error| Error::io(&path, error))? {
-            let entry = entry.map_err(|error| Error::io(&path, error))?;
-            let name = std::path::PathBuf::from(entry.file_name());
-            let relative = if directory == Path::new(".") {
-                name.clone()
-            } else {
-                directory.join(&name)
-            };
-            let kind = entry
-                .file_type()
-                .map_err(|error| Error::io(entry.path(), error))?;
-            let (requirements, label, noun) = if kind.is_dir() {
-                (&self.directories, "directories", "directory")
-            } else {
-                (&self.files, "files", "file")
-            };
-            if kind.is_file() || kind.is_dir() {
-                if kind.is_dir() && !requirements.allow_single_file {
-                    let child_path = entry.path();
-                    let mut children =
-                        fs::read_dir(&child_path).map_err(|error| Error::io(&child_path, error))?;
-                    if let Some(child) = children
-                        .next()
-                        .transpose()
-                        .map_err(|error| Error::io(&child_path, error))?
-                        && children
-                            .next()
-                            .transpose()
-                            .map_err(|error| Error::io(&child_path, error))?
-                            .is_none()
-                        && child
-                            .file_type()
-                            .map_err(|error| Error::io(child.path(), error))?
-                            .is_file()
-                    {
-                        findings.push(self.finding(
-                            &relative,
-                            "directory contains only one file".into(),
-                            "Flatten this directory into its parent when appropriate, or narrow the configured layout glob to preserve intentional boundaries.".into(),
-                        ));
-                    }
-                }
-                if !requirements.allow_empty {
-                    let empty = if kind.is_dir() {
-                        let mut children = fs::read_dir(entry.path())
-                            .map_err(|error| Error::io(entry.path(), error))?;
-                        children
-                            .next()
-                            .transpose()
-                            .map_err(|error| Error::io(entry.path(), error))?
-                            .is_none()
-                    } else {
-                        fs::symlink_metadata(entry.path())
-                            .map_err(|error| Error::io(entry.path(), error))?
-                            .len()
-                            == 0
-                    };
-                    if empty {
-                        findings.push(self.finding(&relative, format!("empty {noun} is not allowed"),
-                            format!("Add meaningful contents, remove this {noun}, or set {}.{label}.allow_empty = true.", self.setting)));
-                    }
-                }
-            }
-            if self.mode != Mode::Restrictive {
-                continue;
-            }
-            // Required paths already receive type checks; their parent directories are implicit.
-            let required = self.files.required.iter().any(|path| path == &name)
-                || self
-                    .directories
-                    .required
-                    .iter()
-                    .any(|path| path.starts_with(&name))
-                || self
-                    .files
-                    .required
-                    .iter()
-                    .any(|path| path != &name && path.starts_with(&name));
-            if required {
-                continue;
-            }
-            if (!kind.is_file() && !kind.is_dir()) || !requirements.allows(&name) {
-                findings.push(self.finding(directory, format!("unexpected entry {}", name.display()),
-                    format!("Remove {} or add a glob and purpose description in {}.{label}.allowed for the correct entry type.", relative.display(), self.setting)));
-            }
-        }
-        Ok(())
-    }
-
-    fn finding(&self, directory: &Path, message: String, instruction: String) -> Finding {
+        message: String,
+        instruction: String,
+    ) -> Finding {
         Finding {
             span: None,
             related: Vec::new(),
@@ -873,6 +794,51 @@ description = "Source files."
                 .findings
                 .iter()
                 .all(|finding| finding.message.starts_with("forbidden file"))
+        );
+    }
+    #[test]
+    fn bans_directories_once_and_honors_later_allowances() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), "old/nested/value.rs", "content");
+        write(
+            root.path(),
+            "linter.toml",
+            "[[rules.layout]]\ntarget='old{,/**}'\nkind='any'\nallow=false",
+        );
+        let report = check(root.path()).unwrap();
+        assert_eq!(report.findings.len(), 1);
+        assert_eq!(report.findings[0].path, Path::new("old"));
+        write(
+            root.path(),
+            "linter.toml",
+            "[[rules.layout]]\ntarget='old{,/**}'\nkind='any'\nallow=false\n[[rules.layout]]\ntarget='old{,/**}'\nkind='any'\nallow=true\ndescription='Retained migration inputs.'",
+        );
+        assert!(check(root.path()).unwrap().findings.is_empty());
+    }
+    #[test]
+    fn ignores_configured_placeholders_when_assessing_directory_shape() {
+        let root = tempfile::tempdir().unwrap();
+        write(root.path(), "src/empty/.gitkeep", "");
+        write(root.path(), "src/single/.gitkeep", "");
+        write(root.path(), "src/single/value.rs", "content");
+        write(
+            root.path(),
+            "linter.toml",
+            "[[rules.layout]]\ntarget='src'\ndirectories.allow_empty=false\ndirectories.allow_single_file=false\ndirectories.content_ignored=['.gitkeep']",
+        );
+        let report = check(root.path()).unwrap();
+        assert_eq!(report.findings.len(), 2);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.message == "empty directory is not allowed")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.message == "directory contains only one file")
         );
     }
 }

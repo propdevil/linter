@@ -24,6 +24,8 @@ enum Block {
 struct PermissionConfig {
     target: crate::Target,
     allow: bool,
+    #[serde(default)]
+    kind: Kind,
     description: Option<String>,
     #[serde(default = "case_sensitive")]
     case_sensitive: bool,
@@ -37,6 +39,25 @@ pub(super) struct Permission {
     pub setting: String,
     pub selector: crate::Selector,
     pub allow: bool,
+    pub kind: Kind,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum Kind {
+    #[default]
+    File,
+    Directory,
+    Any,
+}
+impl Kind {
+    pub fn matches(&self, kind: std::fs::FileType) -> bool {
+        match self {
+            Self::File => !kind.is_dir(),
+            Self::Directory => kind.is_dir(),
+            Self::Any => true,
+        }
+    }
 }
 
 pub(super) enum Check {
@@ -72,6 +93,7 @@ struct Selection {
     case_sensitive: bool,
     allow_empty: bool,
     allow_single_file: Option<bool>,
+    content_ignored: Vec<String>,
 }
 
 impl Default for Selection {
@@ -82,6 +104,7 @@ impl Default for Selection {
             case_sensitive: true,
             allow_empty: true,
             allow_single_file: None,
+            content_ignored: Vec::new(),
         }
     }
 }
@@ -98,6 +121,7 @@ pub(super) struct Requirements {
     pub allowed: Vec<GlobMatcher>,
     pub allow_empty: bool,
     pub allow_single_file: bool,
+    pub content_ignored: Vec<GlobMatcher>,
 }
 
 pub(super) struct Assertion {
@@ -122,9 +146,12 @@ impl Config {
                             return Err(Error::Configuration(format!("{setting}.description: describe the allowed files' purpose")));
                         }
                         let selector = permission.target.compile(&format!("{setting}.target"), permission.case_sensitive)?;
-                        return Ok(Check::Permission(Permission { setting, selector, allow: permission.allow }));
+                        return Ok(Check::Permission(Permission { setting, selector, allow: permission.allow, kind: permission.kind }));
                     }
                 };
+                if !definition.files.content_ignored.is_empty() {
+                    return Err(Error::Configuration(format!("{setting}.files.content_ignored: only valid for directories")));
+                }
                 if definition.files.allow_single_file.is_some() {
                     return Err(Error::Configuration(format!("{setting}.files.allow_single_file: only valid for directories")));
                 }
@@ -206,6 +233,11 @@ impl Selection {
             allowed,
             allow_empty: self.allow_empty,
             allow_single_file: self.allow_single_file.unwrap_or(true),
+            content_ignored: self
+                .content_ignored
+                .iter()
+                .map(|pattern| matcher(pattern, &format!("{setting}.content_ignored"), true))
+                .collect::<Result<_, _>>()?,
         };
         Ok(requirements)
     }
