@@ -13,7 +13,7 @@ pub(crate) mod model;
 pub(crate) mod state;
 pub(crate) mod trait_count;
 
-pub(crate) mod struct_words;
 pub(crate) mod empty;
+pub(crate) mod struct_words;
 
 pub(crate) mod module_name;
