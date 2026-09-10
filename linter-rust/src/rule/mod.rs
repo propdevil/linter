@@ -32,11 +32,11 @@ pub(crate) mod accessor;
 pub(crate) mod detached;
 pub(crate) mod safety;
 
-pub(crate) mod namespace;
 pub(crate) mod cycles;
+pub(crate) mod namespace;
 pub(crate) mod single;
 
 pub(crate) mod provisional;
 
-pub(crate) mod marker;
 pub(crate) mod blocking;
+pub(crate) mod marker;

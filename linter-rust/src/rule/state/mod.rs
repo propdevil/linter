@@ -127,7 +127,8 @@ impl Concept {
             Kind::Binding => self.matches > 0 || (self.assignments > 0 && self.decisions > 0),
             Kind::Target => self.assignments >= assertion.min_variants,
         };
-        if self.open || !persistent || self.values.len() < assertion.min_variants {
+        let has_evidence = assertion.state_words.is_some() || self.decisions > 0;
+        if self.open || !persistent || !has_evidence || self.values.len() < assertion.min_variants {
             return None;
         }
         self.evidence.sort_by(|left, right| {
@@ -170,6 +171,35 @@ mod tests {
     fn findings_in(relative: &str, source: &str) -> Vec<Finding> {
         configured(relative, source, "").unwrap()
     }
+    #[test]
+    fn messages_without_decision_evidence_are_not_inferred_as_states() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            r#"
+[[rules."rust/string-backed-finite-state"]]
+target = "*.rs"
+"#,
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("lib.rs"),
+            r#"
+struct Finding { instruction: String }
+fn a() -> Finding { Finding { instruction: "Move the package".into() } }
+fn b() -> Finding { Finding { instruction: "Rename the field".into() } }
+fn c() -> Finding { Finding { instruction: "Reduce indentation".into() } }
+"#,
+        )
+        .unwrap();
+        let report = linter::Registry::default()
+            .register::<StringState>()
+            .unwrap()
+            .check(root.path())
+            .unwrap();
+        assert!(report.findings.is_empty());
+    }
+
     #[test]
     fn reports_field_states() {
         let findings = findings(

@@ -40,3 +40,7 @@ An unguarded fallback that directly returns the unknown value or carries it in U
 `target` is required and optional `exclude` accepts the same root-relative glob or nonempty-list syntax. Scope defaults to production; tests and all are available. Shared test classification recognizes test-only items and integration files. Project exclusions apply. Each error identifies its first literal and includes assignment/decision evidence locations and distinct values. Common reasoned directives apply; no blocks means unconfigured.
 
 Migration preserves the ten source regressions from Husklet `rule/rust/state/{mod.rs,syntax.rs,test.rs}` and Payment-SDK `rule/adopted/state/{mod.rs,syntax.rs,tests.rs}`. Warnings become errors, optional vocabulary filters and thresholds become configuration, declaration identity replaces name-only grouping, and unknown-value evidence is tightened to actual preservation. The implementation reuses Tree-sitter syntax and the shared Rust declaration index.
+
+Without a name filter, literal assignments alone do not prove state: the same
+resolved value must participate in decisions. Three different user-facing
+instructions assigned to a `String` field are not a state vocabulary.

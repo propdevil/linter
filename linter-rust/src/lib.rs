@@ -41,7 +41,10 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<FreeFunction>()?
         .register::<RedundantNamespace>()?
         .register::<SingleUse>()?
-        .register::<ProvisionalComment>()
+        .register::<ProvisionalComment>()?
+        .register::<DependencyCycles>()?
+        .register::<RedundantMarker>()?
+        .register::<AsyncBlocking>()
 }
 
 mod declaration;
@@ -84,5 +87,5 @@ pub use rule::cycles::{Config as DependencyCyclesConfig, DependencyCycles};
 
 mod cargo_manifest;
 
-pub use rule::marker::{Config as RedundantMarkerConfig, RedundantMarker};
 pub use rule::blocking::{AsyncBlocking, Config as AsyncBlockingConfig};
+pub use rule::marker::{Config as RedundantMarkerConfig, RedundantMarker};

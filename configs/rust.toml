@@ -181,3 +181,29 @@ target = "**/*.rs"
 [[rules."rust/provisional-diagnostic"]]
 target = "**/*.rs"
 terms = ["temporary", "diagnostic"]
+
+[[rules."rust/dependency-cycles"]]
+target = "**"
+
+[[rules."rust/redundant-marker"]]
+target = "**/*.rs"
+
+[[rules."rust/async-blocking-operation"]]
+target = "**/*.rs"
+scope = "production"
+blocking_functions = [
+    "std::thread::sleep",
+    "std::fs::read", "std::fs::read_to_string", "std::fs::write",
+    "std::fs::File::open", "std::fs::File::create",
+]
+blocking_contexts = ["tokio::task::spawn_blocking", "tokio::task::block_in_place"]
+guard_adapters = ["unwrap", "expect"]
+blocking_methods = [
+    { receiver = "std::process::Command", methods = ["spawn", "status", "output"], constructors = ["std::process::Command::new"], fluent_methods = ["arg", "args"] },
+    { receiver = "std::fs::OpenOptions", methods = ["open"], constructors = ["std::fs::OpenOptions::new"], fluent_methods = ["read", "write", "create"] },
+    { receiver = "std::sync::Mutex", methods = ["lock"], constructors = ["std::sync::Mutex::new"], returns_guard = true },
+    { receiver = "std::sync::RwLock", methods = ["read", "write"], constructors = ["std::sync::RwLock::new"], returns_guard = true },
+    { receiver = "parking_lot::Mutex", methods = ["lock"], constructors = ["parking_lot::Mutex::new"], returns_guard = true },
+    { receiver = "tokio::sync::Mutex", methods = ["blocking_lock"], constructors = ["tokio::sync::Mutex::new"] },
+    { receiver = "tokio::sync::mpsc::Receiver", methods = ["blocking_recv"] },
+]

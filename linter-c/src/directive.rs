@@ -9,7 +9,9 @@ pub(crate) fn collect(source: &Source) -> Vec<Directive> {
 }
 
 fn visit(node: Node<'_>, source: &Source, output: &mut Vec<Directive>) {
-    if matches!(node.kind(), "line_comment" | "block_comment" | "comment") {
+    if matches!(node.kind(), "line_comment" | "block_comment" | "comment")
+        && source.text[node.byte_range()].contains("linter:")
+    {
         let mut next = node.next_named_sibling();
         while next.is_some_and(|next| {
             matches!(

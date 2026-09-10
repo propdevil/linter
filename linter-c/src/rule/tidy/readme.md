@@ -35,3 +35,5 @@ entry is removed from the temporary database. Selected C files with no matching
 compilation entry produce an analysis error. A warning is an error-level finding;
 a missing executable is an execution error. Header locations remain in the tool
 message; the finding is attached to the selected translation unit.
+
+Tool configuration follows the [clang-tidy documentation](https://clang.llvm.org/extra/clang-tidy/).
