@@ -39,3 +39,5 @@ impl Analysis for () {
 pub(crate) mod affix;
 pub(crate) mod filename;
 pub(crate) mod forbidden_words;
+
+pub(crate) mod parent_name;
