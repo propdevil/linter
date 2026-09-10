@@ -236,3 +236,9 @@ capabilities = [
   { name = "clipboard", nouns = ["clipboard"] },
   { name = "window", nouns = ["window", "windows", "surface", "interaction"] },
 ]
+
+[[rules."rust/self-constructor-static"]]
+target = "**/*.rs"
+
+[[rules."rust/redundant-module-prefix"]]
+target = "**/*.rs"

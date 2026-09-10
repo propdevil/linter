@@ -9,10 +9,10 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+tempfile.workspace = true
 linter.workspace = true
 serde.workspace = true
 tree-sitter.workspace = true
 tree-sitter-c.workspace = true
 
-[dev-dependencies]
-tempfile.workspace = true
+
