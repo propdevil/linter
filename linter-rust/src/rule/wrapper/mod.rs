@@ -168,10 +168,19 @@ impl<'a, 'b> Wrapper<'a, 'b> {
         }
         let source = self.structure.source;
         Some(Finding {
-            rule:RedundantWrapper::ID,path:source.path.clone(),span:Some(Span::new(&source.text,self.structure.node.byte_range())),related,
-            configuration:assertion.setting.clone(),
-            message:format!("`{}` only wraps local `{}` and forwards {count} methods with identical names and signatures",self.structure.id.name,self.inner_name),
-            instruction:"Use the inner entity directly unless the wrapper owns an invariant, translation, synchronization, instrumentation, adapter, or compatibility contract.".into(),
+            rule: RedundantWrapper::ID,
+            path: source.path.clone(),
+            span: Some(Span::new(&source.text, self.structure.node.byte_range())),
+            related,
+            configuration: assertion.setting.clone(),
+            message: format!(
+                "`{}` only wraps local `{}` and forwards {count} methods with identical names \
+                and signatures",
+                self.structure.id.name, self.inner_name
+            ),
+            instruction: "Use the inner entity directly unless the wrapper owns an invariant, \
+                translation, synchronization, instrumentation, adapter, or compatibility contract."
+                .into(),
         })
     }
     fn evidence(

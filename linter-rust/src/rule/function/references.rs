@@ -103,41 +103,13 @@ fn resolves(
     index: &Index<'_>,
 ) -> bool {
     let mut owner = index.identity(source, node);
-    if owner.package != candidate.id.package {
-        return false;
-    }
     let mut parts: Vec<_> = path.split("::").collect();
-    let Some(name) = parts.pop() else {
-        return false;
-    };
-    if name != candidate.id.name {
+    let name = parts.pop().unwrap_or_default();
+    if owner.package != candidate.id.package || name != candidate.id.name {
         return false;
     }
     if parts.is_empty() {
-        if shadowed(name, node, source) {
-            return false;
-        }
-        loop {
-            let matching: Vec<_> = functions
-                .iter()
-                .filter(|function| {
-                    function.id.package == owner.package
-                        && function.id.module == owner.module
-                        && function.id.name == name
-                })
-                .collect();
-            if !matching.is_empty() {
-                return matching.len() == 1 && matching[0].id == candidate.id;
-            }
-            if !owner
-                .module
-                .last()
-                .is_some_and(|part| part.starts_with('@'))
-            {
-                return false;
-            }
-            owner.module.pop();
-        }
+        return !shadowed(name, node, source) && candidate.lexical(owner, name, functions);
     }
     while owner
         .module
@@ -164,36 +136,59 @@ fn resolves(
     }
     owner.module.extend(parts.into_iter().map(str::to_owned));
     owner.name = name.into();
-    let matching: Vec<_> = functions
+    functions
         .iter()
         .filter(|function| function.id == owner)
-        .collect();
-    matching.len() == 1 && owner == candidate.id
+        .count()
+        == 1
+        && owner == candidate.id
+}
+impl Declaration<'_> {
+    fn lexical(&self, mut owner: Identity, name: &str, functions: &[Declaration<'_>]) -> bool {
+        loop {
+            let matching: Vec<_> = functions
+                .iter()
+                .filter(|function| {
+                    function.id.package == owner.package
+                        && function.id.module == owner.module
+                        && function.id.name == name
+                })
+                .collect();
+            if !matching.is_empty() {
+                return matching.len() == 1 && matching[0].id == self.id;
+            }
+            if !owner
+                .module
+                .last()
+                .is_some_and(|part| part.starts_with('@'))
+            {
+                return false;
+            }
+            owner.module.pop();
+        }
+    }
 }
 fn shadowed(name: &str, mut node: Node<'_>, source: &Source) -> bool {
     while let Some(parent) = node.parent() {
-        if matches!(parent.kind(), "function_item" | "closure_expression")
-            && parent
-                .child_by_field_name("parameters")
-                .is_some_and(|parameters| {
-                    children(parameters).iter().any(|parameter| {
-                        parameter
-                            .child_by_field_name("pattern")
-                            .is_some_and(|pattern| binds(pattern, name, source))
-                    })
-                })
-        {
+        let parameters = parent
+            .child_by_field_name("parameters")
+            .map(children)
+            .unwrap_or_default();
+        let parameter_binding = parameters
+            .iter()
+            .filter_map(|parameter| parameter.child_by_field_name("pattern"))
+            .any(|pattern| binds(pattern, name, source));
+        if matches!(parent.kind(), "function_item" | "closure_expression") && parameter_binding {
             return true;
         }
-        if parent.kind() == "block"
-            && children(parent).iter().any(|statement| {
-                statement.start_byte() < node.start_byte()
-                    && statement.kind() == "let_declaration"
-                    && statement
-                        .child_by_field_name("pattern")
-                        .is_some_and(|pattern| binds(pattern, name, source))
+        let local_binding = children(parent)
+            .into_iter()
+            .filter(|statement| {
+                statement.start_byte() < node.start_byte() && statement.kind() == "let_declaration"
             })
-        {
+            .filter_map(|statement| statement.child_by_field_name("pattern"))
+            .any(|pattern| binds(pattern, name, source));
+        if parent.kind() == "block" && local_binding {
             return true;
         }
         node = parent;

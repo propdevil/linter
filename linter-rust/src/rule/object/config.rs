@@ -70,24 +70,8 @@ impl Config {
 }
 
 impl Definition {
-    fn compile(self, index: usize) -> Result<Assertion, Error> {
-        let definition = self;
-        let setting = format!("rules.\"rust/god-object-growth\"[{index}]");
-        if definition.max_methods == 0
-            || definition.min_fields == 0
-            || definition.min_clusters < 2
-            || definition.min_methods_per_cluster == 0
-            || definition
-                .unwrap_types
-                .iter()
-                .chain(&definition.excluded_suffixes)
-                .any(|value| value.trim().is_empty())
-        {
-            return Err(Error::Configuration(format!(
-                "{setting}.max_methods: expected a positive integer"
-            )));
-        }
-        if definition.unwrap_types.iter().any(|name| {
+    fn validate_containers(&self, setting: &str) -> Result<(), Error> {
+        if self.unwrap_types.iter().any(|name| {
             !matches!(
                 name.as_str(),
                 "std:Box"
@@ -105,6 +89,26 @@ impl Definition {
                 "{setting}.unwrap_types: expected a supported standard ownership container"
             )));
         }
+        Ok(())
+    }
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/god-object-growth\"[{index}]");
+        if definition.max_methods == 0
+            || definition.min_fields == 0
+            || definition.min_clusters < 2
+            || definition.min_methods_per_cluster == 0
+            || definition
+                .unwrap_types
+                .iter()
+                .chain(&definition.excluded_suffixes)
+                .any(|value| value.trim().is_empty())
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}.max_methods: expected a positive integer"
+            )));
+        }
+        definition.validate_containers(&setting)?;
         Ok(Assertion {
             target: definition
                 .target

@@ -253,10 +253,21 @@ impl Model<'_> {
         assertion: &Assertion,
     ) -> Finding {
         Finding {
-            rule:ModelDuplication::ID,path:self.structure.source.path.clone(),span:Some(Span::new(&self.structure.source.text,self.structure.node.byte_range())),related,
-            configuration:assertion.setting.clone(),
-            message:format!("Wire model `{}` duplicates `{}` across {count} matching named fields",self.structure.id.name,owner.structure.id.name),
-            instruction:"Reuse or compose the owned model; keep a separate representation only for a concrete boundary contract.".into(),
+            rule: ModelDuplication::ID,
+            path: self.structure.source.path.clone(),
+            span: Some(Span::new(
+                &self.structure.source.text,
+                self.structure.node.byte_range(),
+            )),
+            related,
+            configuration: assertion.setting.clone(),
+            message: format!(
+                "Wire model `{}` duplicates `{}` across {count} matching named fields",
+                self.structure.id.name, owner.structure.id.name
+            ),
+            instruction: "Reuse or compose the owned model; keep a separate representation only \
+                for a concrete boundary contract."
+                .into(),
         }
     }
 }

@@ -46,18 +46,16 @@ impl Rule for GodObject {
         let mut findings = Vec::new();
         for assertion in &self.0 {
             let methods = collect(analysis, &index, &masks, assertion.scope);
-            for item in index
-                .structures
-                .iter()
-                .filter(|item| selected(item, assertion))
-            {
-                let key = format!("nominal:{}", item.id.key());
-                if let Some(methods) = methods.get(&key)
-                    && let Some(finding) = finding(item, methods, &index, assertion)
-                {
-                    findings.push(finding);
-                }
-            }
+            findings.extend(
+                index
+                    .structures
+                    .iter()
+                    .filter(|item| selected(item, assertion))
+                    .filter_map(|item| {
+                        let key = format!("nominal:{}", item.id.key());
+                        finding(item, methods.get(&key)?, &index, assertion)
+                    }),
+            );
         }
         Ok(RuleResult {
             status: Status::Completed,
@@ -92,48 +90,17 @@ fn finding(
     if clusters.len() < assertion.min_clusters {
         return None;
     }
-    let crossing = methods.iter().find(|method| {
-        method.workflow
-            && method
-                .calls
-                .iter()
-                .filter_map(|field| origins.get(field))
-                .collect::<BTreeSet<_>>()
-                .len()
-                >= 2
-    })?;
-    let mut related: Vec<_> = clusters
-        .iter()
-        .map(|cluster| {
-            let method = &methods[cluster.methods[0]];
-            Evidence {
-                path: method.path.clone(),
-                span: Some(method.span.clone()),
-                message: format!(
-                    "fields [{}] from [{}] via [{}]",
-                    cluster
-                        .fields
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    cluster
-                        .origins
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    cluster
-                        .methods
-                        .iter()
-                        .take(3)
-                        .map(|index| methods[*index].name.as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-            }
-        })
-        .collect();
+    let crosses = |method: &&Method| {
+        let capabilities: BTreeSet<_> = method
+            .calls
+            .iter()
+            .filter_map(|field| origins.get(field))
+            .collect();
+        method.workflow && capabilities.len() >= 2
+    };
+    let crossing = methods.iter().find(crosses)?;
+    let evidence = clusters.iter().map(|cluster| cluster.evidence(methods));
+    let mut related: Vec<_> = evidence.collect();
     related.push(Evidence {
         path: crossing.path.clone(),
         span: Some(crossing.span.clone()),
@@ -164,30 +131,56 @@ struct Cluster {
     origins: BTreeSet<String>,
     methods: Vec<usize>,
 }
+impl Cluster {
+    fn evidence(&self, methods: &[Method]) -> Evidence {
+        let method = &methods[self.methods[0]];
+        let fields = self.fields.iter().cloned().collect::<Vec<_>>().join(", ");
+        let origins = self.origins.iter().cloned().collect::<Vec<_>>().join(", ");
+        let names = self
+            .methods
+            .iter()
+            .take(3)
+            .map(|index| methods[*index].name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        Evidence {
+            path: method.path.clone(),
+            span: Some(method.span.clone()),
+            message: format!("fields [{fields}] from [{origins}] via [{names}]"),
+        }
+    }
+    fn candidates(
+        methods: &[Method],
+        origins: &BTreeMap<String, String>,
+        assertion: &Assertion,
+    ) -> Vec<Self> {
+        let mut groups = BTreeMap::<BTreeSet<String>, Vec<usize>>::new();
+        for (index, method) in methods.iter().enumerate().filter(|(_, method)| {
+            !method.fields.is_empty()
+                && method.calls.iter().any(|field| origins.contains_key(field))
+        }) {
+            groups.entry(method.fields.clone()).or_default().push(index);
+        }
+        groups
+            .into_iter()
+            .filter(|(_, methods)| methods.len() >= assertion.min_methods_per_cluster)
+            .map(|(fields, methods)| Cluster {
+                origins: fields
+                    .iter()
+                    .filter_map(|field| origins.get(field).cloned())
+                    .collect(),
+                fields,
+                methods,
+            })
+            .collect()
+    }
+}
 fn clusters(
     methods: &[Method],
     origins: &BTreeMap<String, String>,
     assertion: &Assertion,
 ) -> Vec<Cluster> {
-    let mut groups = BTreeMap::<BTreeSet<String>, Vec<usize>>::new();
-    for (index, method) in methods.iter().enumerate() {
-        if !method.fields.is_empty() && method.calls.iter().any(|field| origins.contains_key(field))
-        {
-            groups.entry(method.fields.clone()).or_default().push(index);
-        }
-    }
-    let candidates: Vec<_> = groups
-        .into_iter()
-        .filter(|(_, methods)| methods.len() >= assertion.min_methods_per_cluster)
-        .map(|(fields, methods)| Cluster {
-            origins: fields
-                .iter()
-                .filter_map(|field| origins.get(field).cloned())
-                .collect(),
-            fields,
-            methods,
-        })
-        .collect();
+    let candidates = Cluster::candidates(methods, origins, assertion);
     let minimal: Vec<_> = candidates
         .iter()
         .filter(|candidate| {
@@ -296,31 +289,27 @@ fn children(node: Node<'_>) -> Vec<Node<'_>> {
     node.named_children(&mut cursor).collect()
 }
 fn attributes(node: Node<'_>, source: &Source, name: &str, argument: Option<&str>) -> bool {
-    let mut sibling = node.prev_named_sibling();
-    while let Some(attribute) = sibling {
-        if !matches!(
-            attribute.kind(),
-            "attribute_item" | "line_comment" | "block_comment"
-        ) {
-            break;
-        }
-        if attribute.kind() == "attribute_item"
-            && let Some(meta) = attribute.named_child(0)
-            && let Some(path) = meta.named_child(0)
-            && &source.text[path.byte_range()] == name
-            && argument.is_none_or(|argument| {
-                meta.child_by_field_name("arguments").is_some_and(|args| {
-                    source.text[args.byte_range()]
-                        .split(|ch: char| !ch.is_alphanumeric())
-                        .any(|word| word == argument)
-                })
-            })
-        {
-            return true;
-        }
-        sibling = attribute.prev_named_sibling();
-    }
-    false
+    std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+        .take_while(|node| {
+            matches!(
+                node.kind(),
+                "attribute_item" | "line_comment" | "block_comment"
+            )
+        })
+        .filter(|node| node.kind() == "attribute_item")
+        .filter_map(|node| node.named_child(0))
+        .filter(|meta| {
+            meta.named_child(0)
+                .is_some_and(|path| &source.text[path.byte_range()] == name)
+        })
+        .any(|meta| match argument {
+            None => true,
+            Some(argument) => meta.child_by_field_name("arguments").is_some_and(|args| {
+                source.text[args.byte_range()]
+                    .split(|ch: char| !ch.is_alphanumeric())
+                    .any(|word| word == argument)
+            }),
+        })
 }
 
 #[cfg(test)]

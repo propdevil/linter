@@ -52,38 +52,53 @@ impl Rule for FreeFunction {
             .collect();
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            for declaration in declarations.iter().filter(|declaration| {
-                assertion.target.matches(&declaration.source.path)
-                    && !assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|exclude| exclude.matches(&declaration.source.path))
-            }) {
-                let source_index = analysis
-                    .sources
-                    .iter()
-                    .position(|source| source.path == declaration.source.path)
-                    .unwrap_or(0);
-                if !included(declaration.node, &masks[source_index], assertion.scope) {
-                    continue;
-                }
-                if let Some(mut finding) = candidate(declaration, &index, &owners, assertion) {
-                    finding.related = references::collect(
-                        declaration,
-                        &declarations,
-                        analysis,
-                        &index,
-                        &masks,
-                        assertion.scope,
-                    );
-                    findings.push(finding);
-                }
-            }
+            findings.extend(assertion.findings(&declarations, &index, &owners, analysis, &masks));
         }
         Ok(RuleResult {
             status: Status::Completed,
             findings,
         })
+    }
+}
+impl Assertion {
+    fn findings(
+        &self,
+        declarations: &[Declaration<'_>],
+        index: &Index<'_>,
+        owners: &BTreeMap<String, Declaration<'_>>,
+        analysis: &Analysis,
+        masks: &[Vec<bool>],
+    ) -> Vec<Finding> {
+        declarations
+            .iter()
+            .filter(|declaration| {
+                self.target.matches(&declaration.source.path)
+                    && !self
+                        .exclude
+                        .as_ref()
+                        .is_some_and(|exclude| exclude.matches(&declaration.source.path))
+            })
+            .filter_map(|declaration| {
+                let position = analysis
+                    .sources
+                    .iter()
+                    .position(|source| source.path == declaration.source.path)
+                    .unwrap_or(0);
+                if !included(declaration.node, &masks[position], self.scope) {
+                    return None;
+                }
+                let mut finding = declaration.candidate(index, owners, self)?;
+                finding.related = references::collect(
+                    declaration,
+                    declarations,
+                    analysis,
+                    index,
+                    masks,
+                    self.scope,
+                );
+                Some(finding)
+            })
+            .collect()
     }
 }
 struct Declaration<'a> {
@@ -116,86 +131,92 @@ fn collect<'a>(
         collect(child, source, index, functions, owners);
     }
 }
-fn candidate(
-    declaration: &Declaration<'_>,
-    index: &Index<'_>,
-    owners: &BTreeMap<String, Declaration<'_>>,
-    assertion: &Assertion,
-) -> Option<Finding> {
-    let node = declaration.node;
-    let source = declaration.source;
-    let parameters = node.child_by_field_name("parameters")?;
-    let parameters: Vec<_> = children(parameters)
-        .into_iter()
-        .filter(|node| node.kind() == "parameter")
-        .collect();
-    if !matches!(parameters.len(), 1 | 2)
-        || external(node, source)
-        || attributes(node, source).iter().any(|attribute| {
-            matches!(
-                attribute.0.as_str(),
-                "proc_macro" | "proc_macro_attribute" | "proc_macro_derive"
-            )
-        })
-    {
-        return None;
+impl Declaration<'_> {
+    fn candidate(
+        &self,
+        index: &Index<'_>,
+        owners: &BTreeMap<String, Declaration<'_>>,
+        assertion: &Assertion,
+    ) -> Option<Finding> {
+        let node = self.node;
+        let source = self.source;
+        let parameters = node.child_by_field_name("parameters")?;
+        let parameters: Vec<_> = children(parameters)
+            .into_iter()
+            .filter(|node| node.kind() == "parameter")
+            .collect();
+        if !matches!(parameters.len(), 1 | 2)
+            || external(node, source)
+            || attributes(node, source).iter().any(|attribute| {
+                matches!(
+                    attribute.0.as_str(),
+                    "proc_macro" | "proc_macro_attribute" | "proc_macro_derive"
+                )
+            })
+        {
+            return None;
+        }
+        if self.exempt(assertion) {
+            return None;
+        }
+        let receiver = receiver(self, &parameters, index, owners, assertion);
+        if matches!(assertion.mode, Mode::Receiver) && receiver.is_none() {
+            return None;
+        }
+        if factory(node, source, index, &self.id, owners) {
+            return None;
+        }
+        Some(self.diagnostic(parameters.len(), receiver, assertion))
     }
-    let name = &declaration.id.name;
-    let qualified = format!(
-        "crate::{}",
-        declaration
-            .id
-            .module
+    fn exempt(&self, assertion: &Assertion) -> bool {
+        let name = &self.id.name;
+        let qualified = format!(
+            "crate::{}",
+            self.id
+                .module
+                .iter()
+                .chain(std::iter::once(name))
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("::")
+        );
+        assertion
+            .exceptions
             .iter()
-            .chain(std::iter::once(name))
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("::")
-    );
-    if assertion
-        .exceptions
-        .iter()
-        .any(|exception| exception.function == *name || exception.function == qualified)
-    {
-        return None;
+            .any(|exception| exception.function == *name || exception.function == qualified)
     }
-    let receiver = receiver(declaration, &parameters, index, owners, assertion);
-    if matches!(assertion.mode, Mode::Receiver) && receiver.is_none() {
-        return None;
-    }
-    if factory(node, source, index, &declaration.id, owners) {
-        return None;
-    }
-    let message = receiver.map_or_else(
-        || {
-            format!(
-                "free function `{name}` has {} arguments and requires an ownership classification",
-                parameters.len()
-            )
-        },
-        |owner| {
-            format!(
+    fn diagnostic(
+        &self,
+        count: usize,
+        receiver: Option<&Declaration<'_>>,
+        assertion: &Assertion,
+    ) -> Finding {
+        let name = &self.id.name;
+        let source = self.source;
+        let node = self.node;
+        let message = match receiver {
+            None => format!(
+                "free function `{name}` has {count} arguments and requires an ownership \
+                classification"
+            ),
+            Some(owner) => format!(
                 "free function `{name}` takes one declared `{}` value that can own this behavior",
                 owner.id.name
-            )
-        },
-    );
-    Some(Finding {
-        rule: FreeFunction::ID,
-        path: source.path.clone(),
-        span: Some(Span::new(&source.text, node.byte_range())),
-        related: Vec::new(),
-        configuration: format!(
-            "\
-        {}.mode",
-            assertion.setting
-        ),
-        message,
-        instruction: "Move cohesive behavior onto its existing receiver, or document an e\
+            ),
+        };
+        Finding {
+            rule: FreeFunction::ID,
+            path: source.path.clone(),
+            span: Some(Span::new(&source.text, node.byte_range())),
+            related: Vec::new(),
+            configuration: format!("{}.mode", assertion.setting),
+            message,
+            instruction: "Move cohesive behavior onto its existing receiver, or document an e\
             xact algorithm/framework boundary using a reasoned exception. Do not invent \
             a wrapper for one helper."
-            .into(),
-    })
+                .into(),
+        }
+    }
 }
 fn receiver<'a>(
     declaration: &Declaration<'_>,
@@ -214,18 +235,18 @@ fn receiver<'a>(
     if !matches!(ty.kind(), "type_identifier" | "scoped_type_identifier") {
         return None;
     }
-    if declaration
+    let generics = declaration
         .node
         .child_by_field_name("type_parameters")
-        .is_some_and(|parameters| {
-            children(parameters).iter().any(|parameter| {
-                parameter.child_by_field_name("name").is_some_and(|name| {
-                    declaration.source.text[name.byte_range()]
-                        == declaration.source.text[ty.byte_range()]
-                })
-            })
-        })
-    {
+        .map(children)
+        .unwrap_or_default();
+    let shadowed = generics
+        .iter()
+        .filter_map(|parameter| parameter.child_by_field_name("name"))
+        .any(|name| {
+            declaration.source.text[name.byte_range()] == declaration.source.text[ty.byte_range()]
+        });
+    if shadowed {
         return None;
     }
     let key = index.resolve(declaration.source, ty, &declaration.id)?;
@@ -315,33 +336,30 @@ fn children(node: Node<'_>) -> Vec<Node<'_>> {
     node.named_children(&mut cursor).collect()
 }
 fn attributes(node: Node<'_>, source: &Source) -> Vec<(String, String)> {
-    let mut values = Vec::new();
-    let mut previous = node.prev_named_sibling();
-    while let Some(attribute) = previous {
-        if !matches!(
-            attribute.kind(),
-            "attribute_item" | "line_comment" | "block_comment"
-        ) {
-            break;
-        }
-        if attribute.kind() == "attribute_item"
-            && let Some(meta) = attribute.named_child(0)
-            && let Some(path) = meta.named_child(0)
-        {
+    let argument = |node: Node<'_>| {
+        source.text[node.byte_range()]
+            .trim_start_matches('(')
+            .trim_end_matches(')')
+            .to_owned()
+    };
+    std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+        .take_while(|node| {
+            matches!(
+                node.kind(),
+                "attribute_item" | "line_comment" | "block_comment"
+            )
+        })
+        .filter(|node| node.kind() == "attribute_item")
+        .filter_map(|node| {
+            let meta = node.named_child(0)?;
+            let path = meta.named_child(0)?;
             let arguments = meta
                 .child_by_field_name("arguments")
-                .map(|arguments| {
-                    source.text[arguments.byte_range()]
-                        .trim_start_matches('(')
-                        .trim_end_matches(')')
-                        .to_owned()
-                })
+                .map(argument)
                 .unwrap_or_default();
-            values.push((source.text[path.byte_range()].into(), arguments));
-        }
-        previous = attribute.prev_named_sibling();
-    }
-    values
+            Some((source.text[path.byte_range()].into(), arguments))
+        })
+        .collect()
 }
 
 #[cfg(test)]
