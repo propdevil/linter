@@ -24,27 +24,32 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"forbidden-words\"[{index}]");
-                let mut words = BTreeSet::new();
-                for word in value.words {
-                    let normalized = word.to_snake_case();
-                    if !word.chars().all(char::is_alphanumeric)
-                        || !word.chars().any(char::is_alphabetic)
-                        || normalized.contains('_')
-                        || !words.insert(normalized)
-                    {
-                        return Err(Error::Configuration(format!(
-                            "{setting}.words: expected unique individual words, got {word:?}"
-                        )));
-                    }
-                }
-                Ok(Assertion {
-                    selector: value.target.compile(&format!("{setting}.target"), true)?,
-                    setting,
-                    words,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"forbidden-words\"[{index}]");
+        let mut words = BTreeSet::new();
+        for word in value.words {
+            let normalized = word.to_snake_case();
+            if !word.chars().all(char::is_alphanumeric)
+                || !word.chars().any(char::is_alphabetic)
+                || normalized.contains('_')
+                || !words.insert(normalized)
+            {
+                return Err(Error::Configuration(format!(
+                    "{setting}.words: expected unique individual words, got {word:?}"
+                )));
+            }
+        }
+        Ok(Assertion {
+            selector: value.target.compile(&format!("{setting}.target"), true)?,
+            setting,
+            words,
+        })
     }
 }

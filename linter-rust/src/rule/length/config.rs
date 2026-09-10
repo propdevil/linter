@@ -30,23 +30,28 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"rust/file-length\"[{index}]");
-                if value.max_lines == 0 {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.max_lines: expected a positive integer"
-                    )));
-                }
-                Ok(Assertion {
-                    target: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    max_lines: value.max_lines,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"rust/file-length\"[{index}]");
+        if value.max_lines == 0 {
+            return Err(Error::Configuration(format!(
+                "{setting}.max_lines: expected a positive integer"
+            )));
+        }
+        Ok(Assertion {
+            target: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            max_lines: value.max_lines,
+            setting,
+        })
     }
 }

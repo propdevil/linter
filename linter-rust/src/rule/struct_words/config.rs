@@ -43,26 +43,31 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/struct-word-count\"[{index}]");
-                if definition.max_words == 0 {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.max_words: expected a positive integer"
-                    )));
-                }
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    max_words: definition.max_words,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/struct-word-count\"[{index}]");
+        if definition.max_words == 0 {
+            return Err(Error::Configuration(format!(
+                "{setting}.max_words: expected a positive integer"
+            )));
+        }
+        Ok(Assertion {
+            target: definition
+                .target
+                .compile(&format!("{setting}.target"), true)?,
+            exclude: definition
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: definition.scope,
+            max_words: definition.max_words,
+            setting,
+        })
     }
 }

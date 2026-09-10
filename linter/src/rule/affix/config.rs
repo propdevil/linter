@@ -27,42 +27,47 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"shared-affix\"[{index}]");
-                if (value.max_prefix.is_none() && value.max_suffix.is_none())
-                    || value.max_prefix == Some(0)
-                    || value.max_suffix == Some(0)
+            .map(|(index, value)| value.compile(index))
+            .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"shared-affix\"[{index}]");
+        if (value.max_prefix.is_none() && value.max_suffix.is_none())
+            || value.max_prefix == Some(0)
+            || value.max_suffix == Some(0)
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}: configure at least one positive max_prefix or max_suffix"
+            )));
+        }
+        if let Some(words) = &value.suffix_words {
+            if value.max_suffix.is_none() || words.is_empty() {
+                return Err(Error::Configuration(format!(
+                    "{setting}.suffix_words: requires max_suffix and nonempty words"
+                )));
+            }
+            let mut seen = std::collections::BTreeSet::new();
+            for word in words {
+                if word.is_empty()
+                    || !word.chars().all(|character| character.is_ascii_lowercase())
+                    || !seen.insert(word)
                 {
                     return Err(Error::Configuration(format!(
-                        "{setting}: configure at least one positive max_prefix or max_suffix"
+                        "{setting}.suffix_words: expected unique lowercase words"
                     )));
                 }
-                if let Some(words) = &value.suffix_words {
-                    if value.max_suffix.is_none() || words.is_empty() {
-                        return Err(Error::Configuration(format!(
-                            "{setting}.suffix_words: requires max_suffix and nonempty words"
-                        )));
-                    }
-                    let mut seen = std::collections::BTreeSet::new();
-                    for word in words {
-                        if word.is_empty()
-                            || !word.chars().all(|character| character.is_ascii_lowercase())
-                            || !seen.insert(word)
-                        {
-                            return Err(Error::Configuration(format!(
-                                "{setting}.suffix_words: expected unique lowercase words"
-                            )));
-                        }
-                    }
-                }
-                Ok(Assertion {
-                    selector: value.target.compile(&format!("{setting}.target"), true)?,
-                    setting,
-                    prefix: value.max_prefix,
-                    suffix: value.max_suffix,
-                    suffix_words: value.suffix_words,
-                })
-            })
-            .collect()
+            }
+        }
+        Ok(Assertion {
+            selector: value.target.compile(&format!("{setting}.target"), true)?,
+            setting,
+            prefix: value.max_prefix,
+            suffix: value.max_suffix,
+            suffix_words: value.suffix_words,
+        })
     }
 }

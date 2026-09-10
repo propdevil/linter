@@ -42,26 +42,34 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/wire-domain-model-duplication\"[{index}]");
-                if definition.min_shared_fields < 3 || !(1..=100).contains(&definition.min_overlap_percent) {
-                    return Err(Error::Configuration(format!("{setting}: min_shared_fields must be at least 3 and min_overlap_percent between 1 and 100")));
-                }
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    min_shared_fields: definition.min_shared_fields,
-                    min_overlap_percent: definition.min_overlap_percent,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/wire-domain-model-duplication\"[{index}]");
+        if definition.min_shared_fields < 3 || !(1..=100).contains(&definition.min_overlap_percent)
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}: min_shared_fields must be at least 3 and min_overlap_percent between 1 and 100"
+            )));
+        }
+        Ok(Assertion {
+            target: definition
+                .target
+                .compile(&format!("{setting}.target"), true)?,
+            exclude: definition
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: definition.scope,
+            min_shared_fields: definition.min_shared_fields,
+            min_overlap_percent: definition.min_overlap_percent,
+            setting,
+        })
     }
 }
 

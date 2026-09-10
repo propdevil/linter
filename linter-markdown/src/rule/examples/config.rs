@@ -39,25 +39,30 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"markdown/examples\"[{index}]");
-                if !value.require_title && value.min_cases == 0 && !value.require_closed_fences {
-                    return Err(Error::Configuration(format!(
-                        "{setting}: enable at least one check"
-                    )));
-                }
-                Ok(Assertion {
-                    target: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    require_title: value.require_title,
-                    min_cases: value.min_cases,
-                    require_closed_fences: value.require_closed_fences,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"markdown/examples\"[{index}]");
+        if !value.require_title && value.min_cases == 0 && !value.require_closed_fences {
+            return Err(Error::Configuration(format!(
+                "{setting}: enable at least one check"
+            )));
+        }
+        Ok(Assertion {
+            target: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            require_title: value.require_title,
+            min_cases: value.min_cases,
+            require_closed_fences: value.require_closed_fences,
+            setting,
+        })
     }
 }

@@ -30,23 +30,28 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"c/interface-breadth\"[{index}]");
-                if value.max_functions == 0 {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.max_functions: expected a positive limit"
-                    )));
-                }
-                Ok(Assertion {
-                    target: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    max_functions: value.max_functions,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"c/interface-breadth\"[{index}]");
+        if value.max_functions == 0 {
+            return Err(Error::Configuration(format!(
+                "{setting}.max_functions: expected a positive limit"
+            )));
+        }
+        Ok(Assertion {
+            target: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            max_functions: value.max_functions,
+            setting,
+        })
     }
 }

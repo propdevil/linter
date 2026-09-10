@@ -38,37 +38,42 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/module-name\"[{index}]");
-                let mut words = std::collections::BTreeSet::new();
-                for word in definition.forbidden_words {
-                    if word.is_empty()
-                        || !word.chars().all(|c| c.is_ascii_alphabetic())
-                        || !words.insert(word.to_ascii_lowercase())
-                    {
-                        return Err(Error::Configuration(format!(
-                            "{setting}.forbidden_words: expected unique ASCII alphabetic words"
-                        )));
-                    }
-                }
-                if words.is_empty() {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.forbidden_words: expected at least one word"
-                    )));
-                }
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    forbidden_words: words,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/module-name\"[{index}]");
+        let mut words = std::collections::BTreeSet::new();
+        for word in definition.forbidden_words {
+            if word.is_empty()
+                || !word.chars().all(|c| c.is_ascii_alphabetic())
+                || !words.insert(word.to_ascii_lowercase())
+            {
+                return Err(Error::Configuration(format!(
+                    "{setting}.forbidden_words: expected unique ASCII alphabetic words"
+                )));
+            }
+        }
+        if words.is_empty() {
+            return Err(Error::Configuration(format!(
+                "{setting}.forbidden_words: expected at least one word"
+            )));
+        }
+        Ok(Assertion {
+            target: definition
+                .target
+                .compile(&format!("{setting}.target"), true)?,
+            exclude: definition
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: definition.scope,
+            forbidden_words: words,
+            setting,
+        })
     }
 }

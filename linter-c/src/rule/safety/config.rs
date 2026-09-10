@@ -23,32 +23,37 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"c/safety-rationale\"[{index}]");
-                if value.operations.is_empty()
-                    || value.operations.iter().any(|name| {
-                        name.is_empty()
-                            || !name.bytes().enumerate().all(|(index, byte)| {
-                                byte == b'_'
-                                    || byte.is_ascii_alphabetic()
-                                    || (index > 0 && byte.is_ascii_digit())
-                            })
-                    })
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.operations: expected nonempty exact C function names"
-                    )));
-                }
-                Ok(Assertion {
-                    target: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    operations: value.operations.into_iter().collect(),
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"c/safety-rationale\"[{index}]");
+        if value.operations.is_empty()
+            || value.operations.iter().any(|name| {
+                name.is_empty()
+                    || !name.bytes().enumerate().all(|(index, byte)| {
+                        byte == b'_'
+                            || byte.is_ascii_alphabetic()
+                            || (index > 0 && byte.is_ascii_digit())
+                    })
+            })
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}.operations: expected nonempty exact C function names"
+            )));
+        }
+        Ok(Assertion {
+            target: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            operations: value.operations.into_iter().collect(),
+            setting,
+        })
     }
 }

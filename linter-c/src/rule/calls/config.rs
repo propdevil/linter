@@ -27,39 +27,44 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"c/forbidden-call\"[{index}]");
-                if value.functions.is_empty()
-                    || value.functions.iter().any(|name| {
-                        name.is_empty()
-                            || !name.bytes().enumerate().all(|(index, byte)| {
-                                byte == b'_'
-                                    || byte.is_ascii_alphabetic()
-                                    || (index > 0 && byte.is_ascii_digit())
-                            })
-                    })
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.functions: expected nonempty exact C function names"
-                    )));
-                }
-                if value.description.trim().is_empty() || value.instruction.trim().is_empty() {
-                    return Err(Error::Configuration(format!(
-                        "{setting}: description and instruction must be nonempty"
-                    )));
-                }
-                Ok(Assertion {
-                    target: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    functions: value.functions.into_iter().collect(),
-                    setting,
-                    description: value.description,
-                    instruction: value.instruction,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"c/forbidden-call\"[{index}]");
+        if value.functions.is_empty()
+            || value.functions.iter().any(|name| {
+                name.is_empty()
+                    || !name.bytes().enumerate().all(|(index, byte)| {
+                        byte == b'_'
+                            || byte.is_ascii_alphabetic()
+                            || (index > 0 && byte.is_ascii_digit())
+                    })
+            })
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}.functions: expected nonempty exact C function names"
+            )));
+        }
+        if value.description.trim().is_empty() || value.instruction.trim().is_empty() {
+            return Err(Error::Configuration(format!(
+                "{setting}: description and instruction must be nonempty"
+            )));
+        }
+        Ok(Assertion {
+            target: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            functions: value.functions.into_iter().collect(),
+            setting,
+            description: value.description,
+            instruction: value.instruction,
+        })
     }
 }

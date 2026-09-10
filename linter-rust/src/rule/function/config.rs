@@ -53,33 +53,39 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/free-function\"[{index}]");
-                if definition.boundary_derives.iter().any(|name| !path(name))
-                    || definition.exceptions.iter().any(|exception| {
-                        !path(&exception.function) || exception.reason.trim().is_empty()
-                    })
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}: expected explicit Rust paths and nonempty exception reasons"
-                    )));
-                }
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    mode: definition.mode,
-                    boundary_derives: definition.boundary_derives,
-                    exceptions: definition.exceptions,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/free-function\"[{index}]");
+        if definition.boundary_derives.iter().any(|name| !path(name))
+            || definition
+                .exceptions
+                .iter()
+                .any(|exception| !path(&exception.function) || exception.reason.trim().is_empty())
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}: expected explicit Rust paths and nonempty exception reasons"
+            )));
+        }
+        Ok(Assertion {
+            target: definition
+                .target
+                .compile(&format!("{setting}.target"), true)?,
+            exclude: definition
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: definition.scope,
+            mode: definition.mode,
+            boundary_derives: definition.boundary_derives,
+            exceptions: definition.exceptions,
+            setting,
+        })
     }
 }
 fn path(value: &str) -> bool {

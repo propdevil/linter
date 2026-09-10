@@ -45,45 +45,50 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/string-backed-finite-state\"[{index}]");
-                if definition.min_variants < 2 {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.min_variants: expected at least two"
-                    )));
-                }
-                let state_words = definition
-                    .state_words
-                    .map(|values| words(values, &format!("{setting}.state_words")))
-                    .transpose()?;
-                if state_words
-                    .as_ref()
-                    .is_some_and(std::collections::BTreeSet::is_empty)
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.state_words: expected at least one state word"
-                    )));
-                }
-                let ignored_words = words(
-                    definition.ignored_words,
-                    &format!("{setting}.ignored_words"),
-                )?;
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    state_words,
-                    ignored_words,
-                    min_variants: definition.min_variants,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/string-backed-finite-state\"[{index}]");
+        if definition.min_variants < 2 {
+            return Err(Error::Configuration(format!(
+                "{setting}.min_variants: expected at least two"
+            )));
+        }
+        let state_words = definition
+            .state_words
+            .map(|values| words(values, &format!("{setting}.state_words")))
+            .transpose()?;
+        if state_words
+            .as_ref()
+            .is_some_and(std::collections::BTreeSet::is_empty)
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}.state_words: expected at least one state word"
+            )));
+        }
+        let ignored_words = words(
+            definition.ignored_words,
+            &format!("{setting}.ignored_words"),
+        )?;
+        Ok(Assertion {
+            target: definition
+                .target
+                .compile(&format!("{setting}.target"), true)?,
+            exclude: definition
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: definition.scope,
+            state_words,
+            ignored_words,
+            min_variants: definition.min_variants,
+            setting,
+        })
     }
 }
 

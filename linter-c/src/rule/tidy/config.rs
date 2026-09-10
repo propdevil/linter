@@ -43,37 +43,42 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, value)| {
-                let setting = format!("rules.\"c/tidy\"[{index}]");
-                if value.executable.as_os_str().is_empty()
-                    || value.compilation_database.as_os_str().is_empty()
-                    || value.checks.trim().is_empty()
-                    || value.timeout_ms == 0
-                    || value.max_output_bytes == 0
-                    || value
-                        .extra_args
-                        .iter()
-                        .any(|value| value.is_empty() || value.contains('\0'))
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}: invalid tool settings"
-                    )));
-                }
-                Ok(Assertion {
-                    target: value.target.compile(&format!("{setting}.target"), true)?,
-                    exclude: value
-                        .exclude
-                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    executable: value.executable,
-                    database: value.compilation_database,
-                    checks: value.checks,
-                    extra_args: value.extra_args,
-                    timeout_ms: value.timeout_ms,
-                    max_output_bytes: value.max_output_bytes,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let value = self;
+        let setting = format!("rules.\"c/tidy\"[{index}]");
+        if value.executable.as_os_str().is_empty()
+            || value.compilation_database.as_os_str().is_empty()
+            || value.checks.trim().is_empty()
+            || value.timeout_ms == 0
+            || value.max_output_bytes == 0
+            || value
+                .extra_args
+                .iter()
+                .any(|value| value.is_empty() || value.contains('\0'))
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}: invalid tool settings"
+            )));
+        }
+        Ok(Assertion {
+            target: value.target.compile(&format!("{setting}.target"), true)?,
+            exclude: value
+                .exclude
+                .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            executable: value.executable,
+            database: value.compilation_database,
+            checks: value.checks,
+            extra_args: value.extra_args,
+            timeout_ms: value.timeout_ms,
+            max_output_bytes: value.max_output_bytes,
+            setting,
+        })
     }
 }

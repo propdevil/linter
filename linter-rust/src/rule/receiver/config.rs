@@ -39,32 +39,37 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/receiver-name-repetition\"[{index}]");
-                let mut words = std::collections::BTreeSet::new();
-                for word in definition.ignored_names {
-                    if word.is_empty()
-                        || syn::parse_str::<syn::Ident>(&word).is_err()
-                        || !words.insert(word.trim_start_matches("r#").to_owned())
-                    {
-                        return Err(Error::Configuration(format!(
-                            "{setting}.ignored_names: expected unique Rust method identifiers"
-                        )));
-                    }
-                }
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    ignored_names: words,
-                    setting,
-                })
-            })
+            .map(|(index, value)| value.compile(index))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let definition = self;
+        let setting = format!("rules.\"rust/receiver-name-repetition\"[{index}]");
+        let mut words = std::collections::BTreeSet::new();
+        for word in definition.ignored_names {
+            if word.is_empty()
+                || syn::parse_str::<syn::Ident>(&word).is_err()
+                || !words.insert(word.trim_start_matches("r#").to_owned())
+            {
+                return Err(Error::Configuration(format!(
+                    "{setting}.ignored_names: expected unique Rust method identifiers"
+                )));
+            }
+        }
+        Ok(Assertion {
+            target: definition
+                .target
+                .compile(&format!("{setting}.target"), true)?,
+            exclude: definition
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: definition.scope,
+            ignored_names: words,
+            setting,
+        })
     }
 }
