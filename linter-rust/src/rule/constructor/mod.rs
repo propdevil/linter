@@ -80,11 +80,25 @@ fn inspect(
             Scope::All => true,
         };
         if selected {
-            findings.push(Finding { rule: SelfConstructor::ID, path: source.path.clone(), configuration: assertion.setting.clone(),
+            findings.push(Finding {
+                rule: SelfConstructor::ID,
+                path: source.path.clone(),
+                configuration: assertion.setting.clone(),
                 span: Some(Span::new(&source.text, node.byte_range())),
-                related: vec![Evidence { path: source.path.clone(), span: Some(Span::new(&source.text, receiver.byte_range())), message: "Receiver is not referenced by the factory body.".into() }],
-                message: format!("constructor '{}' returns Self but takes an unused receiver", &source.text[name.byte_range()]),
-                instruction: "Make this receiver-independent constructor an associated function and update its callers.".into(),
+                related: vec![Evidence {
+                    path: source.path.clone(),
+                    span: Some(Span::new(&source.text, receiver.byte_range())),
+                    message: "\
+                Receiver is not referenced by the factory body."
+                        .into(),
+                }],
+                message: format!(
+                    "constructor '{}' returns Self but takes an unused receiver",
+                    &source.text[name.byte_range()]
+                ),
+                instruction: "Make this receiver-independent constructor an associated f\
+                unction and update its callers."
+                    .into(),
             });
         }
     }
@@ -165,7 +179,10 @@ mod tests {
     }
     #[test]
     fn reports_inherent_receiver_independent_factories_and_self_wrappers() {
-        let source = "struct Value(u8); impl Value { fn new(self) -> Self { Self(0) } fn parse(&self) -> Result<Self, ()> { Ok(Self(1)) } fn from_parts(&mut self) -> Option<Self> { Some(Self(2)) } fn try_from_text(self: Box<Self>) -> Box<Self> { Box::new(Self(3)) } }";
+        let source = "struct Value(u8); impl Value { fn new(self) -> Self { Self(0) } fn\
+            \u{20}parse(&self) -> Result<Self, ()> { Ok(Self(1)) } fn from_parts(&mut se\
+            lf) -> Option<Self> { Some(Self(2)) } fn try_from_text(self: Box<Self>) -> B\
+            ox<Self> { Box::new(Self(3)) } }";
         let report = run(source, "");
         assert_eq!(report.findings.len(), 4);
         assert!(
@@ -177,12 +194,20 @@ mod tests {
     }
     #[test]
     fn preserves_receiver_dependent_conversions_builders_and_trait_contracts() {
-        let source = "struct Value(u8); impl Value { fn parse(self) -> Result<Self, ()> { Ok(self) } fn from_parts(self) -> Self { Self(self.0) } fn new_alias(self) -> Self { let previous = self; previous } fn new_mutating(mut self) -> Self { self.0 += 1; self } fn from_macro(self) -> Self { convert!(self) } fn new() -> Self { Self(0) } fn newer(&self) -> Self { Self(1) } } trait Build { fn new(&self) -> Self; } impl Build for Value { fn new(&self) -> Self { Self(0) } }";
+        let source = "struct Value(u8); impl Value { fn parse(self) -> Result<Self, ()> \
+            { Ok(self) } fn from_parts(self) -> Self { Self(self.0) } fn new_alias(self)\
+            \u{20}-> Self { let previous = self; previous } fn new_mutating(mut self) ->\
+            \u{20}Self { self.0 += 1; self } fn from_macro(self) -> Self { convert!(self\
+            ) } fn new() -> Self { Self(0) } fn newer(&self) -> Self { Self(1) } } trait\
+            \u{20}Build { fn new(&self) -> Self; } impl Build for Value { fn new(&self) \
+            -> Self { Self(0) } }";
         assert!(run(source, "").findings.is_empty());
     }
     #[test]
     fn strings_comments_similar_names_and_shadowed_closure_values_do_not_count_as_self() {
-        let source = r##"struct Value(u8); impl Value { fn parse(self) -> Self { let myself = "self"; /* self */ let text = r#"self"#; let f = |myself| myself; Self(0) } }"##;
+        let source = "struct Value(u8); impl Value { fn parse(self) -> Self { let myself\
+            \u{20}= \"self\"; /* self */ let text = r#\"self\"#; let f = |myself| myself\
+            ; Self(0) } }";
         assert_eq!(run(source, "").findings.len(), 1);
         assert_eq!(
             run(
@@ -196,7 +221,10 @@ mod tests {
     }
     #[test]
     fn excludes_non_self_returns_and_distinct_scope_types() {
-        let source = "struct Value(u8); impl Value { fn new_ref(&self) -> &Self { unreachable!() } fn parse(&self) -> u8 { 0 } fn from_nested(&self) -> Result<Option<Self>, ()> { Ok(None) } #[cfg(test)] fn new(self) -> Self { Self(0) } fn from_outer(self) -> Self { fn parse() {} Self(1) } }";
+        let source = "struct Value(u8); impl Value { fn new_ref(&self) -> &Self { unreac\
+            hable!() } fn parse(&self) -> u8 { 0 } fn from_nested(&self) -> Result<Optio\
+            n<Self>, ()> { Ok(None) } #[cfg(test)] fn new(self) -> Self { Self(0) } fn f\
+            rom_outer(self) -> Self { fn parse() {} Self(1) } }";
         assert_eq!(run(source, "").findings.len(), 1);
         assert_eq!(run(source, "scope = 'tests'").findings.len(), 1);
         assert_eq!(run(source, "scope = 'all'").findings.len(), 2);
@@ -204,7 +232,9 @@ mod tests {
     }
     #[test]
     fn directives_remain_reasoned_and_unused_directives_fail() {
-        let source = "struct Value(u8); impl Value {\n// linter:disable rust/self-constructor-static -- Fixed compatibility method signature.\nfn parse(self) -> Self { Self(0) }\nfn new(self) -> Self { Self(1) }\n}";
+        let source = "struct Value(u8); impl Value {\n// linter:disable rust/self-constr\
+            uctor-static -- Fixed compatibility method signature.\nfn parse(self) -> Sel\
+            f { Self(0) }\nfn new(self) -> Self { Self(1) }\n}";
         let report = run(source, "");
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.suppressed.len(), 1);

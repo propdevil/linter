@@ -84,10 +84,18 @@ impl Rule for SingleUse {
                     continue;
                 }
                 findings.push(Finding {
-                    rule: Self::ID, path: source.path.clone(), span: Some(Span::new(&source.text, node.byte_range())),
-                    related, configuration: assertion.setting.clone(),
-                    message: format!("private free function `{}` has exactly one resolved use", declaration.id.name),
-                    instruction: "Inline the function at its sole use, or document its deliberate semantic boundary with a reasoned directive.".into(),
+                    rule: Self::ID,
+                    path: source.path.clone(),
+                    span: Some(Span::new(&source.text, node.byte_range())),
+                    related,
+                    configuration: assertion.setting.clone(),
+                    message: format!(
+                        "private free function `{}` has exactly one resolved use",
+                        declaration.id.name
+                    ),
+                    instruction: "Inline the function at its sole use, or document its d\
+                eliberate semantic boundary with a reasoned directive."
+                        .into(),
                 });
             }
         }
@@ -251,7 +259,9 @@ mod tests {
         let report = run(
             &[(
                 "lib.rs",
-                "fn main(){once();visual();public();ffi();twice();twice();register(callback);}\nfn once(){}\n// hl-lint: visual-section\nfn visual(){}\npub fn public(){}\nextern \"C\" fn ffi(){}\nfn twice(){}\nfn callback(){}",
+                "fn main(){once();visual();public();ffi();twice();twice();register(callb\
+                ack);}\nfn once(){}\n// hl-lint: visual-section\nfn visual(){}\npub fn p\
+                ublic(){}\nextern \"C\" fn ffi(){}\nfn twice(){}\nfn callback(){}",
             )],
             "",
         );
@@ -332,11 +342,42 @@ mod tests {
     }
     #[test]
     fn shadowed_values_are_not_references() {
-        assert!(run(&[("lib.rs","fn helper(){} fn run(helper:fn()){helper();} fn second(){let helper=other;helper();}")],"").findings.is_empty());
+        assert!(
+            run(
+                &[(
+                    "lib.rs",
+                    "fn helper(){} fn run(helper:fn()){helper();} fn second(\
+            ){let helper=other;helper();}"
+                )],
+                ""
+            )
+            .findings
+            .is_empty()
+        );
     }
     #[test]
     fn tests_visibility_and_constructors() {
-        assert!(run(&[("lib.rs","fn helper(){} #[test] fn case(){helper();} pub(crate) fn visible(){} fn run(){visible();} struct Value{x:u8} fn build()->Value{Value{x:0}} fn caller(){build();}"),("tests/check.rs","fn case(){helper();}")],"").findings.is_empty());
+        assert!(
+            run(
+                &[
+                    (
+                        "lib.rs",
+                        "fn helper(){} #[test] fn case(){helper();} pub(crate) f\
+            n visible(){} fn run(){visible();} struct Value{x:u8} fn build()->Value{Valu\
+            e{x:0}} fn caller(){build();}"
+                    ),
+                    (
+                        "\
+            tests/check.rs",
+                        "\
+            fn case(){helper();}"
+                    )
+                ],
+                ""
+            )
+            .findings
+            .is_empty()
+        );
         assert_eq!(
             run(
                 &[("lib.rs", "#[test] fn case(){helper();} fn helper(){}")],
@@ -352,7 +393,8 @@ mod tests {
         let report = run(
             &[(
                 "lib.rs",
-                "// linter:disable rust/single-use-free-function -- deliberate startup section\nfn section(){} fn main(){section();}",
+                "// linter:disable rust/single-use-free-function -- deliberate startup s\
+                ection\nfn section(){} fn main(){section();}",
             )],
             "",
         );
@@ -426,7 +468,8 @@ mod tests {
     }
     #[test]
     fn indexed_references_separate_scopes_and_names() {
-        let text = "mod a {fn helper(){} fn run(){helper();} #[test] fn case(){helper();}} mod b {fn helper(){} fn run(){helper();helper();}}";
+        let text = "mod a {fn helper(){} fn run(){helper();} #[test] fn case(){helper();\
+            }} mod b {fn helper(){} fn run(){helper();helper();}}";
         assert_eq!(run(&[("lib.rs", text)], "").findings.len(), 1);
         assert!(run(&[("lib.rs", text)], "scope='all'").findings.is_empty());
         let text = "fn helper(){} fn run(){helper();} #[test] fn case(){opaque!(helper);}";

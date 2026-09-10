@@ -55,13 +55,16 @@ mod test {
 
     #[test]
     fn condition_assembled_across_a_preprocessor_conditional_parses() {
-        let source = "int f(int a, int b) {\n    if (a != 0 ||\n#if !defined(SKIP)\n        b != 0 ||\n#endif\n        a == b)\n        return 1;\n    return 0;\n}\n";
+        let source = "int f(int a, int b) {\n    if (a != 0 ||\n#if !defined(SKIP)\n    \
+            \u{20}   b != 0 ||\n#endif\n        a == b)\n        return 1;\n    return 0\
+            ;\n}\n";
         assert!(parse(Path::new("conditional.c"), source).is_ok());
     }
 
     #[test]
     fn an_apostrophe_inside_a_comment_does_not_capture_the_parenthesis_scan() {
-        let source = "/* the caller doesn't own (this) */\n#ifndef GUARD_H\n#define GUARD_H\nint f(void);\n#endif\n";
+        let source = "/* the caller doesn't own (this) */\n#ifndef GUARD_H\n#define GUAR\
+            D_H\nint f(void);\n#endif\n";
         assert!(parse(Path::new("guard.h"), source).is_ok());
     }
 
@@ -137,28 +140,32 @@ mod test {
 
     #[test]
     fn parser_accepts_error_node_covering_a_multiline_definition() {
-        let source = "#define DISPATCH(context) \\\n+                          if ((context)->ready) { \\\n+                              continue; \\\n+                          } else { \\\n+                              break; \\\n+                          }\n";
+        let source = "#define DISPATCH(context) \\\n+                          if ((cont\
+            ext)->ready) { \\\n+                              continue; \\\n+           \
+            \u{20}              } else { \\\n+                              break; \\\n+\
+            \u{20}                         }\n";
         assert!(parse(Path::new("dispatch.h"), source).is_ok());
     }
 
     #[test]
     fn parser_accepts_error_on_final_uncontinued_macro_line() {
-        let source = "#define BODY(value) \\\n+                          do { \\\n+                              value++; \\\n+                          } while (0)\n";
+        let source = "#define BODY(value) \\\n+                          do { \\\n+     \
+            \u{20}                        value++; \\\n+                          } whil\
+            e (0)\n";
         assert!(parse(Path::new("dispatch.h"), source).is_ok());
     }
 
     #[test]
     fn parser_accepts_function_after_uncontinued_macro_body() {
-        let source = "#define BODY(value) do { \\\n+                          value++; \\\n+                      } while (0)\n\n\
-                      int main(void) { return 0; }\n";
+        let source = "#define BODY(value) do { \\\n+                          value++; \
+            \\\n+                      } while (0)\n\nint main(void) { return 0; }\n";
         assert!(parse(Path::new("macro.c"), source).is_ok());
     }
 
     #[test]
     fn parser_accepts_comment_after_uncontinued_macro_body() {
-        let source = "#define BODY(value) do { \\\n+                          value++; \\\n+                      } while (0)\n\n\
-                      /* next macro */\n\
-                      #define NEXT 1\n";
+        let source = "#define BODY(value) do { \\\n+                          value++; \
+            \\\n+                      } while (0)\n\n/* next macro */\n#define NEXT 1\n";
         assert!(parse(Path::new("macro.c"), source).is_ok());
     }
 

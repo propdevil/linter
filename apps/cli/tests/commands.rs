@@ -67,6 +67,40 @@ files.required = ["mod.rs", "config.rs", "readme.md"]
 }
 
 #[test]
+fn migrated_rust_rules_are_available_through_package_registration() {
+    let root = tempfile::tempdir().unwrap();
+    let policy = r#"
+[[rules."rust/dependency-budget"]]
+target = "."
+max_dependencies = 1
+[[rules."rust/environment-variable-access"]]
+target = "*.rs"
+functions = ["std::env::var"]
+[[rules."rust/redundant-wrapper"]]
+target = "*.rs"
+"#;
+    fs::write(root.path().join("linter.toml"), policy).unwrap();
+    fs::write(
+        root.path().join("lib.rs"),
+        "fn load() { std::env::var(\"SERVICE_URL\"); }",
+    )
+    .unwrap();
+    let output = check(root.path(), true);
+    assert_eq!(output.status.code(), Some(1));
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    for rule in [
+        "rust/dependency-budget",
+        "rust/environment-variable-access",
+        "rust/redundant-wrapper",
+    ] {
+        assert_eq!(report["rules"][rule], "completed", "{rule}");
+    }
+    let findings = report["findings"].as_array().unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0]["rule"], "rust/environment-variable-access");
+}
+
+#[test]
 fn invalid_configuration_and_missing_root_exit_two() {
     let root = tempfile::tempdir().unwrap();
     fs::write(

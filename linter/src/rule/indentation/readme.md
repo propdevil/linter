@@ -1,5 +1,8 @@
 # max-indent
 
+This is an absolute text constraint. For Rust function-relative indentation, use
+`rust/max-indent`; Rust control-flow depth and guard clauses use `rust/nesting`.
+
 ```toml
 [[rules."max-indent"]]
 target = "**/*.{rs,c,h}"

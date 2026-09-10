@@ -140,14 +140,38 @@ impl Concept {
             )
         });
         let first = self.evidence.first()?;
-        Some(Finding { rule: StringState::ID, path: first.path.clone(), span: first.span.clone(), related: self.evidence.clone(), configuration: assertion.setting.clone(), message: format!("`{}` uses {} string literals as a finite state vocabulary: {}", self.name, self.values.len(), self.values.into_iter().collect::<Vec<_>>().join(", ")), instruction: "Represent the closed vocabulary with an enum; parse and serialize strings at the boundary.".into() })
+        Some(Finding {
+            rule: StringState::ID,
+            path: first.path.clone(),
+            span: first.span.clone(),
+            related: self.evidence.clone(),
+            configuration: assertion.setting.clone(),
+            message: format!(
+                "\
+            `{}` uses {} string literals as a finite state vocabulary: {}",
+                self.name,
+                self.values.len(),
+                self.values.into_iter().collect::<Vec<_>>().join(
+                    "\
+            , "
+                )
+            ),
+            instruction: "\
+            Represent the closed vocabulary with an enum; parse and serialize strings at\
+            \u{20}the boundary."
+                .into(),
+        })
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
-    const WORDS: &str = "state_words=['state','status','phase','mode','kind','stage','condition','lifecycle','action']\nignored_words=['text','message','description','detail','error','name','title','label','path','url','uri','id','identifier','reference','command','query','header','body','content','log','output','input','format','mime','media','user','token','key','value','raw']";
+    const WORDS: &str = "state_words=['state','status','phase','mode','kind','stage','co\
+        ndition','lifecycle','action']\nignored_words=['text','message','description','d\
+        etail','error','name','title','label','path','url','uri','id','identifier','refe\
+        rence','command','query','header','body','content','log','output','input','forma\
+        t','mime','media','user','token','key','value','raw']";
     fn configured(relative: &str, source: &str, config: &str) -> Result<Vec<Finding>, Error> {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join(relative);
@@ -394,20 +418,36 @@ fn transition(&self) -> bool {
         assert!(finding.related.len() >= 2);
         assert!(finding.message.contains("finished"));
     }
-    const CLOSED: &str = "struct Upload { status:String } impl Upload { fn ready(&self)->bool { match self.status.as_str() {\"a\"=>true,\"b\"=>false,\"c\"=>false,_=>false} } }";
+    const CLOSED: &str = "struct Upload { status:String } impl Upload { fn ready(&self)-\
+        >bool { match self.status.as_str() {\"a\"=>true,\"b\"=>false,\"c\"=>false,_=>fal\
+        se} } }";
 
     #[test]
     fn distinct_owners_bindings_and_setter_receivers_never_combine() {
         let first = CLOSED.replace(",\"c\"=>false", "");
         let second = first.replace("\"a\"", "\"d\"").replace("\"b\"", "\"e\"");
         assert!(findings(&format!("mod first{{{first}}} mod second{{{second}}}")).is_empty());
-        assert!(findings("fn sample(){let mut phase=\"a\"; phase==\"b\"; {let mut phase=\"c\"; phase==\"d\";}}").is_empty());
-        assert!(findings("struct Job; fn update(a:&mut Job,b:&mut Job){a.set_status(\"a\");a.set_status(\"b\");b.set_status(\"c\");b.set_status(\"d\");}").is_empty());
+        assert!(
+            findings(
+                "fn sample(){let mut phase=\"a\"; phase==\"b\"; {let mut phase=\
+            \"c\"; phase==\"d\";}}"
+            )
+            .is_empty()
+        );
+        assert!(
+            findings(
+                "struct Job; fn update(a:&mut Job,b:&mut Job){a.set_status(\"a\
+            \");a.set_status(\"b\");b.set_status(\"c\");b.set_status(\"d\");}"
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn unknown_preservation_requires_an_unguarded_fallback() {
-        let open = "struct Upload { status:String } impl Upload { fn status(&self)->String { match self.status.as_str() {\"a\"=>\"one\".into(),\"b\"=>\"two\".into(),\"c\"=>\"three\".into(),_=>self.status.clone()} } }";
+        let open = "struct Upload { status:String } impl Upload { fn status(&self)->Stri\
+            ng { match self.status.as_str() {\"a\"=>\"one\".into(),\"b\"=>\"two\".into()\
+            ,\"c\"=>\"three\".into(),_=>self.status.clone()} } }";
         assert!(findings(open).is_empty());
         let discarded = open.replace(
             "_=>self.status.clone()",
@@ -470,7 +510,13 @@ fn transition(&self) -> bool {
     #[test]
     fn custom_string_nominal_types_and_arbitrary_calls_do_not_qualify() {
         assert!(findings(&format!("struct String(u8); {CLOSED}")).is_empty());
-        assert!(findings("fn process(){let mut phase=decode(\"a\");phase=decode(\"b\");phase=decode(\"c\");phase==decode(\"a\");}").is_empty());
+        assert!(
+            findings(
+                "fn process(){let mut phase=decode(\"a\");phase=decode(\"b\");p\
+            hase=decode(\"c\");phase==decode(\"a\");}"
+            )
+            .is_empty()
+        );
     }
 
     #[test]
@@ -521,7 +567,15 @@ fn transition(&self) -> bool {
         )
         .unwrap();
         for (ignored, count) in [("[]", 1), ("['progress']", 0)] {
-            fs::write(root.path().join("linter.toml"),format!("[[rules.\"rust/string-backed-finite-state\"]]\ntarget='*.rs'\nstate_words=['PROGRESS']\nignored_words={ignored}")).unwrap();
+            fs::write(
+                root.path().join("linter.toml"),
+                format!(
+                    "[[rules.\"rust/string-bac\
+                ked-finite-state\"]]\ntarget='*.rs'\nstate_words=['PROGRESS']\nignored_w\
+                ords={ignored}"
+                ),
+            )
+            .unwrap();
             let report = linter::Registry::default()
                 .register::<StringState>()
                 .unwrap()
@@ -541,7 +595,11 @@ fn transition(&self) -> bool {
         ] {
             assert!(findings(source).is_empty());
         }
-        let suppressed=CLOSED.replace("fn ready", "// linter:disable rust/string-backed-finite-state -- wire contract preserves string states\nfn ready");
+        let suppressed = CLOSED.replace(
+            "fn ready",
+            "// linter:disable rust/string-backed-\
+            finite-state -- wire contract preserves string states\nfn ready",
+        );
         assert!(findings(&suppressed).is_empty());
     }
     fn unfiltered(text: &str, config: &str) -> Vec<Finding> {
@@ -584,7 +642,8 @@ impl Upload {
             .is_empty()
         );
         assert!(unfiltered(source, "ignored_words=['status']").is_empty());
-        let local = "fn finished(value:&str)->bool{match value{\"preparing\"=>false,\"pushing\"=>false,\"pushed\"=>true,_=>false}}";
+        let local = "fn finished(value:&str)->bool{match value{\"preparing\"=>false,\"pu\
+            shing\"=>false,\"pushed\"=>true,_=>false}}";
         assert_eq!(unfiltered(local, "").len(), 1);
         assert!(
             unfiltered(
@@ -596,9 +655,11 @@ impl Upload {
     }
     #[test]
     fn unfiltered_checks_keep_type_identity_and_unknown_values() {
-        let source = "fn parse(value:&str)->Status{match value{\"a\"=>Status::A,\"b\"=>Status::B,\"c\"=>Status::C,unknown=>Status::Unknown(unknown.to_owned())}}";
+        let source = "fn parse(value:&str)->Status{match value{\"a\"=>Status::A,\"b\"=>S\
+            tatus::B,\"c\"=>Status::C,unknown=>Status::Unknown(unknown.to_owned())}}";
         assert!(unfiltered(source, "").is_empty());
-        let unknown_type = "struct Input(String);fn parse(value:Input)->bool{match value{\"a\"=>false,\"b\"=>false,\"c\"=>true,_=>false}}";
+        let unknown_type = "struct Input(String);fn parse(value:Input)->bool{match value\
+            {\"a\"=>false,\"b\"=>false,\"c\"=>true,_=>false}}";
         assert!(unfiltered(unknown_type, "").is_empty());
         assert!(
             unfiltered(
@@ -607,7 +668,8 @@ impl Upload {
             )
             .is_empty()
         );
-        let shadow = "fn parse(value:&str){match value{\"a\"=>false,\"b\"=>true,_=>false};{let value=\"c\";match value{\"c\"=>false,\"d\"=>true,_=>false};}}";
+        let shadow = "fn parse(value:&str){match value{\"a\"=>false,\"b\"=>true,_=>false\
+            };{let value=\"c\";match value{\"c\"=>false,\"d\"=>true,_=>false};}}";
         assert!(unfiltered(shadow, "").is_empty());
     }
 }

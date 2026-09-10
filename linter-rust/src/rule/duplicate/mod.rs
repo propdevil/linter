@@ -158,11 +158,33 @@ fn finding(
         .collect::<Vec<_>>()
         .join(", ");
     Finding {
-        rule: DuplicateEntity::ID, path: first.source.path.clone(), span: Some(Span::new(&first.source.text, first.node.byte_range())),
-        related: vec![Evidence { path: second.source.path.clone(), span: Some(Span::new(&second.source.text, second.node.byte_range())), message: format!("Related struct `{}`; shared fields: {}", second.id.name, shared.join(", ")) }],
+        rule: DuplicateEntity::ID,
+        path: first.source.path.clone(),
+        span: Some(Span::new(&first.source.text, first.node.byte_range())),
+        related: vec![Evidence {
+            path: second.source.path.clone(),
+            span: Some(Span::new(&second.source.text, second.node.byte_range())),
+            message: format!(
+                "\
+            Related struct `{}`; shared fields: {}",
+                second.id.name,
+                shared.join(
+                    "\
+            , "
+                )
+            ),
+        }],
         configuration: format!("{}.min_shared_fields", assertion.setting),
-        message: format!("`{}` and `{}` duplicate {} identically typed entity fields: {fields}", first.id.name, second.id.name, shared.len()),
-        instruction: "Compose the shared entity into each specialization, preserving its identity and invariants. If these fields have distinct semantics, document that exact boundary with a reasoned directive.".into(),
+        message: format!(
+            "`{}` and `{}` duplicate {} identically typed entity fields: {fields}",
+            first.id.name,
+            second.id.name,
+            shared.len()
+        ),
+        instruction: "Compose the shared entity into each specialization, preserving its\
+            \u{20}identity and invariants. If these fields have distinct semantics, docu\
+            ment that exact boundary with a reasoned directive."
+            .into(),
     }
 }
 fn conversions(index: &Index<'_>, analysis: &Analysis) -> BTreeSet<(String, String)> {
@@ -235,7 +257,10 @@ mod tests {
     #[test]
     fn donor_identity_relation_requires_three_matching_fields() {
         let found = findings(
-            "struct Image { id: u64, name: String, path: String } struct DiscoveredImage { id: u64, name: String, path: String, score: u8 } struct Unrelated { id: u64, name: String, path: String } struct WrongTypes { id: String, name: String, path: String }",
+            "struct Image { id: u64, name: String, path: String } struct DiscoveredImage\
+                \u{20}{ id: u64, name: String, path: String, score: u8 } struct Unrelate\
+                d { id: u64, name: String, path: String } struct WrongTypes { id: String\
+                , name: String, path: String }",
         );
         assert_eq!(found.len(), 1);
         assert!(found[0].message.contains("`Image` and `DiscoveredImage`"));
@@ -245,7 +270,10 @@ mod tests {
     #[test]
     fn nominal_wallet_specialization_has_exact_evidence() {
         let found = findings(
-            "struct WalletId(u64); struct Address(String); enum Chain { Bitcoin }\nstruct Wallet { id: WalletId, address: Address, chain: Chain }\nstruct ImportedWallet { id: WalletId, address: Address, chain: Chain, birthday: u64 }\nstruct GeneratedWallet { wallet: Wallet, birthday: u64 }",
+            "struct WalletId(u64); struct Address(String); enum Chain { Bitcoin }\nstruc\
+                t Wallet { id: WalletId, address: Address, chain: Chain }\nstruct Import\
+                edWallet { id: WalletId, address: Address, chain: Chain, birthday: u64 }\
+                \nstruct GeneratedWallet { wallet: Wallet, birthday: u64 }",
         );
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].span.as_ref().unwrap().line, 2);
@@ -257,35 +285,89 @@ mod tests {
 
     #[test]
     fn primitive_wrappers_and_unrelated_models_are_not_duplicates() {
-        assert!(findings("struct Email(String); struct WalletId(String); struct Name { value: String } struct ImportedName { value: String } struct Image { id:u64,name:String,status:bool } struct Invoice { id:u64,name:String,status:bool }").is_empty());
-        assert!(findings("struct Art { id:u64,name:String,status:bool } struct Cart { id:u64,name:String,status:bool }").is_empty());
+        assert!(
+            findings(
+                "struct Email(String); struct WalletId(String); struct Name { v\
+            alue: String } struct ImportedName { value: String } struct Image { id:u64,n\
+            ame:String,status:bool } struct Invoice { id:u64,name:String,status:bool }"
+            )
+            .is_empty()
+        );
+        assert!(
+            findings(
+                "struct Art { id:u64,name:String,status:bool } struct Cart { id\
+            :u64,name:String,status:bool }"
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn same_storage_does_not_erase_distinct_nominal_field_types() {
-        assert!(findings("struct Email(String); struct WalletId(String); struct Wallet { id:Email, name:Email, address:Email } struct ImportedWallet { id:WalletId, name:WalletId, address:WalletId }").is_empty());
-        assert!(findings("mod a { pub struct Id(String); pub struct Wallet { id:Id,name:Id,address:Id } } mod b { pub struct Id(String); pub struct ImportedWallet { id:Id,name:Id,address:Id } }").is_empty());
+        assert!(
+            findings(
+                "struct Email(String); struct WalletId(String); struct Wallet {\
+            \u{20}id:Email, name:Email, address:Email } struct ImportedWallet { id:Walle\
+            tId, name:WalletId, address:WalletId }"
+            )
+            .is_empty()
+        );
+        assert!(
+            findings(
+                "mod a { pub struct Id(String); pub struct Wallet { id:Id,name:\
+            Id,address:Id } } mod b { pub struct Id(String); pub struct ImportedWallet {\
+            \u{20}id:Id,name:Id,address:Id } }"
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn aliases_and_imports_preserve_actual_shared_type_identity() {
-        let source = "mod ids { pub struct Id(String); } use crate::ids::Id; type Identifier = Id; struct Wallet { id:Identifier,name:String,address:String } mod child { use crate::ids::Id as Key; struct ImportedWallet { id:Key,name:String,address:String } }";
+        let source = "mod ids { pub struct Id(String); } use crate::ids::Id; type Identi\
+            fier = Id; struct Wallet { id:Identifier,name:String,address:String } mod ch\
+            ild { use crate::ids::Id as Key; struct ImportedWallet { id:Key,name:String,\
+            address:String } }";
         assert_eq!(findings(source).len(), 1);
-        assert!(findings("mod a { struct Wallet { id:Missing,name:Missing,address:Missing } } mod b { struct ImportedWallet { id:Missing,name:Missing,address:Missing } }").is_empty());
+        assert!(
+            findings(
+                "mod a { struct Wallet { id:Missing,name:Missing,address:Missin\
+            g } } mod b { struct ImportedWallet { id:Missing,name:Missing,address:Missin\
+            g } }"
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn proven_conversion_links_different_entity_names() {
-        let source = "struct Image { id:u64,name:String,path:String } struct Photo { id:u64,name:String,path:String } impl From<Image> for Photo { fn from(image:Image)->Self { Self { id:image.id,name:image.name,path:image.path } } }";
+        let source = "struct Image { id:u64,name:String,path:String } struct Photo { id:\
+            u64,name:String,path:String } impl From<Image> for Photo { fn from(image:Ima\
+            ge)->Self { Self { id:image.id,name:image.name,path:image.path } } }";
         assert_eq!(findings(source).len(), 1);
         assert!(findings(&format!("trait From<T> {{}} {source}")).is_empty());
     }
 
     #[test]
     fn platform_alternatives_and_test_only_models_are_excluded() {
-        assert!(findings("#[cfg(unix)] struct Wallet { id:u64,name:String,address:String } #[cfg(windows)] struct ImportedWallet { id:u64,name:String,address:String }").is_empty());
-        assert!(findings("struct Wallet { id:u64,name:String,address:String } #[test] fn fixture() { struct ImportedWallet { id:u64,name:String,address:String } }").is_empty());
-        let source = "#[cfg(test)] mod tests { struct Wallet { id:u64,name:String,address:String } struct ImportedWallet { id:u64,name:String,address:String } }";
+        assert!(
+            findings(
+                "#[cfg(unix)] struct Wallet { id:u64,name:String,address:String\
+            \u{20}} #[cfg(windows)] struct ImportedWallet { id:u64,name:String,address:S\
+            tring }"
+            )
+            .is_empty()
+        );
+        assert!(
+            findings(
+                "struct Wallet { id:u64,name:String,address:String } #[test] fn\
+            \u{20}fixture() { struct ImportedWallet { id:u64,name:String,address:String \
+            } }"
+            )
+            .is_empty()
+        );
+        let source = "#[cfg(test)] mod tests { struct Wallet { id:u64,name:String,addres\
+            s:String } struct ImportedWallet { id:u64,name:String,address:String } }";
         assert_eq!(
             check(&[("lib.rs", source)], "scope='tests'").findings.len(),
             1
@@ -313,7 +395,8 @@ mod tests {
 
     #[test]
     fn thresholds_selectors_and_suppression_apply_to_the_reported_model() {
-        let source = "struct Wallet { id:u64,name:String,address:String } struct ImportedWallet { id:u64,name:String,address:String }";
+        let source = "struct Wallet { id:u64,name:String,address:String } struct Importe\
+            dWallet { id:u64,name:String,address:String }";
         assert!(
             check(&[("lib.rs", source)], "min_shared_fields=4")
                 .findings
@@ -325,7 +408,8 @@ mod tests {
                 .is_empty()
         );
         let suppressed = format!(
-            "// linter:disable rust/duplicate-entity-base -- External contract preserves this identity shape.\n{source}"
+            "// linter:disable rust/duplicate-entity-base -- External contract preserves\
+                \u{20}this identity shape.\n{source}"
         );
         let report = check(&[("lib.rs", &suppressed)], "");
         assert!(report.findings.is_empty());
@@ -368,9 +452,15 @@ mod tests {
     }
     #[test]
     fn identical_names_in_independent_modules_do_not_prove_shared_ownership() {
-        let source = "mod indentation { struct Assertion { max_columns:usize,setting:String,tab_width:usize } } mod line_width { struct Assertion { max_columns:usize,setting:String,tab_width:usize } }";
+        let source = "mod indentation { struct Assertion { max_columns:usize,setting:Str\
+            ing,tab_width:usize } } mod line_width { struct Assertion { max_columns:usiz\
+            e,setting:String,tab_width:usize } }";
         assert!(findings(source).is_empty());
-        let source = "mod first { pub struct Wallet { pub id:u64,pub address:String,pub network:String } } mod second { pub struct Wallet { pub id:u64,pub address:String,pub network:String } } impl From<first::Wallet> for second::Wallet { fn from(wallet:first::Wallet)->Self { Self { id:wallet.id,address:wallet.address,network:wallet.network } } }";
+        let source = "mod first { pub struct Wallet { pub id:u64,pub address:String,pub \
+            network:String } } mod second { pub struct Wallet { pub id:u64,pub address:S\
+            tring,pub network:String } } impl From<first::Wallet> for second::Wallet { f\
+            n from(wallet:first::Wallet)->Self { Self { id:wallet.id,address:wallet.addr\
+            ess,network:wallet.network } } }";
         assert_eq!(findings(source).len(), 1);
     }
 }

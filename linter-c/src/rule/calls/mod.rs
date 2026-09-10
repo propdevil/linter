@@ -66,7 +66,9 @@ fn collect(node: Node<'_>, source: &Source, assertion: &Assertion, findings: &mu
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
-    const POLICY: &str = "[[rules.\"c/forbidden-call\"]]\ntarget = '**/*.c'\nfunctions = ['system', 'popen']\ndescription = 'Shell execution.'\ninstruction = 'Launch an explicit argv vector.'";
+    const POLICY: &str = "[[rules.\"c/forbidden-call\"]]\ntarget = '**/*.c'\nfunctions =\
+        \u{20}['system', 'popen']\ndescription = 'Shell execution.'\ninstruction = 'Laun\
+        ch an explicit argv vector.'";
     fn check(root: &Path) -> Result<linter::Report, linter::Error> {
         linter::Registry::default()
             .register::<super::ForbiddenCall>()?
@@ -93,7 +95,9 @@ mod tests {
     }
     #[test]
     fn matches_no_comments_strings_members_pointer_calls_macros_or_substrings() {
-        let source = "// system(\"x\")\n#define SHELL() system(\"x\")\nconst char *s = \"popen(x)\";\nint f(void) { object.system(); object->system(); (*system)(\"x\"); (system)(\"x\"); SHELL(); return subsystem(); }\n";
+        let source = "// system(\"x\")\n#define SHELL() system(\"x\")\nconst char *s = \
+            \"popen(x)\";\nint f(void) { object.system(); object->system(); (*system)(\"\
+            x\"); (system)(\"x\"); SHELL(); return subsystem(); }\n";
         assert!(run(source, POLICY).findings.is_empty());
     }
     #[test]
@@ -106,9 +110,11 @@ mod tests {
     }
     #[test]
     fn directives_validate_and_cannot_be_forged_in_strings() {
-        let source = "const char *s = \"linter:disable c/forbidden-call -- forged\";\nint f(void) { return system(\"x\"); }";
+        let source = "const char *s = \"linter:disable c/forbidden-call -- forged\";\nin\
+            t f(void) { return system(\"x\"); }";
         assert_eq!(run(source, POLICY).findings.len(), 1);
-        let source = "// linter:disable c/forbidden-call -- compatibility launcher has no argv API\nint f(void) { return system(\"x\"); }\n";
+        let source = "// linter:disable c/forbidden-call -- compatibility launcher has n\
+            o argv API\nint f(void) { return system(\"x\"); }\n";
         let report = run(source, POLICY);
         assert!(report.findings.is_empty());
         assert_eq!(report.suppressed.len(), 1);

@@ -180,8 +180,22 @@ fn candidate(
             )
         },
     );
-    Some(Finding{rule:FreeFunction::ID,path:source.path.clone(),span:Some(Span::new(&source.text,node.byte_range())),related:Vec::new(),configuration:format!("{}.mode",assertion.setting),message,
-        instruction:"Move cohesive behavior onto its existing receiver, or document an exact algorithm/framework boundary using a reasoned exception. Do not invent a wrapper for one helper.".into()})
+    Some(Finding {
+        rule: FreeFunction::ID,
+        path: source.path.clone(),
+        span: Some(Span::new(&source.text, node.byte_range())),
+        related: Vec::new(),
+        configuration: format!(
+            "\
+        {}.mode",
+            assertion.setting
+        ),
+        message,
+        instruction: "Move cohesive behavior onto its existing receiver, or document an e\
+            xact algorithm/framework boundary using a reasoned exception. Do not invent \
+            a wrapper for one helper."
+            .into(),
+    })
 }
 fn receiver<'a>(
     declaration: &Declaration<'_>,
@@ -565,7 +579,14 @@ pub fn run(options: Options) -> bool {
     }
     #[test]
     fn classification_mode_preserves_payment_scope_without_donor_annotations() {
-        let source = r#"fn zero() {} fn one(value:usize) {} fn two(a:usize,b:usize) {} fn three(a:usize,b:usize,c:usize) {} extern "C" fn ffi(value:usize) {} #[hl_design::adapter] async fn handler(State(state):State<AppState>) {} async fn unreviewed_handler(State(state):State<AppState>) {} fn detached(state:AppState) {} #[cfg(test)] fn test_only(value:usize) {} #[hl_design::classify(pkg)] fn package(value:usize) {} #[hl_design::classify(domain="gpu")] fn domain(value:usize) {} #[hl_design::classify(domain="")] fn malformed(value:usize) {}"#;
+        let source = "fn zero() {} fn one(value:usize) {} fn two(a:usize,b:usize) {} fn \
+            three(a:usize,b:usize,c:usize) {} extern \"C\" fn ffi(value:usize) {} #[hl_d\
+            esign::adapter] async fn handler(State(state):State<AppState>) {} async fn u\
+            nreviewed_handler(State(state):State<AppState>) {} fn detached(state:AppStat\
+            e) {} #[cfg(test)] fn test_only(value:usize) {} #[hl_design::classify(pkg)] \
+            fn package(value:usize) {} #[hl_design::classify(domain=\"gpu\")] fn domain(\
+            value:usize) {} #[hl_design::classify(domain=\"\")] fn malformed(value:usize\
+            ) {}";
         let report = run(&[("lib.rs", source)], "mode='classification'");
         assert_eq!(report.findings.len(), 8);
         for name in [
@@ -588,14 +609,21 @@ pub fn run(options: Options) -> bool {
     }
     #[test]
     fn proc_macros_and_nested_test_items_stay_outside_production() {
-        let source = r#"#[proc_macro] fn derive(input:TokenStream)->TokenStream{input} #[proc_macro_attribute] fn decorate(attr:TokenStream,item:TokenStream)->TokenStream{item} #[test] fn sample(){fn nested(value:usize){}} struct Sample; #[cfg(test)] impl Sample{fn fixture(){fn nested(value:usize){}}} impl Sample{#[cfg(test)] fn helper(){fn nested_method(value:usize){}} fn production(){fn retained(value:usize){}}}"#;
+        let source = "#[proc_macro] fn derive(input:TokenStream)->TokenStream{input} #[p\
+            roc_macro_attribute] fn decorate(attr:TokenStream,item:TokenStream)->TokenSt\
+            ream{item} #[test] fn sample(){fn nested(value:usize){}} struct Sample; #[cf\
+            g(test)] impl Sample{fn fixture(){fn nested(value:usize){}}} impl Sample{#[c\
+            fg(test)] fn helper(){fn nested_method(value:usize){}} fn production(){fn re\
+            tained(value:usize){}}}";
         let report = run(&[("lib.rs", source)], "mode='classification'");
         assert_eq!(report.findings.len(), 1);
         assert!(report.findings[0].message.contains("`retained`"));
     }
     #[test]
     fn receiver_resolution_respects_aliases_generics_and_local_owners() {
-        let source = "struct Local; type Alias=Local; struct T; fn check(value:&Alias){} fn generic<T>(value:T){} fn many(value:Local,extra:u8){} fn wrapped(value:Option<Local>){} fn method_like(value:Local){}";
+        let source = "struct Local; type Alias=Local; struct T; fn check(value:&Alias){}\
+            \u{20}fn generic<T>(value:T){} fn many(value:Local,extra:u8){} fn wrapped(va\
+            lue:Option<Local>){} fn method_like(value:Local){}";
         let found = findings(source);
         assert_eq!(found.len(), 2);
         assert!(
@@ -611,7 +639,8 @@ pub fn run(options: Options) -> bool {
     }
     #[test]
     fn factory_rules_own_concrete_construction_findings() {
-        let source = "struct Local; struct Output { value:Local } fn create(value:Local)->Output{Output{value}} fn inspect(value:Local)->bool{true}";
+        let source = "struct Local; struct Output { value:Local } fn create(value:Local)\
+            ->Output{Output{value}} fn inspect(value:Local)->bool{true}";
         let found = findings(source);
         assert_eq!(found.len(), 1);
         assert!(found[0].message.contains("`inspect`"));
@@ -628,7 +657,8 @@ pub fn run(options: Options) -> bool {
             assert_eq!(finding.related.len(), 1);
             assert_eq!(finding.related[0].path, finding.path);
         }
-        let source = "struct Local; fn check(value:Local){} fn use_it(){let pointer=check;pointer(Local);} fn shadow(check:fn(Local)){check(Local);}";
+        let source = "struct Local; fn check(value:Local){} fn use_it(){let pointer=chec\
+            k;pointer(Local);} fn shadow(check:fn(Local)){check(Local);}";
         let found = findings(source);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].related.len(), 1);
@@ -649,7 +679,11 @@ pub fn run(options: Options) -> bool {
                 .findings
                 .is_empty()
         );
-        let source=source.replace("fn inspect","// linter:disable rust/free-function -- Framework owns this callback signature.\nfn inspect");
+        let source = source.replace(
+            "fn inspect",
+            "// linter:disable rust/free-function -- \
+            Framework owns this callback signature.\nfn inspect",
+        );
         assert_eq!(run(&[("lib.rs", &source)], "").suppressed.len(), 1);
         for options in [
             "mode='unknown'",

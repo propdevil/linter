@@ -48,7 +48,9 @@ impl Rule for MaxIndent {
                     }
                     let count = indentation(line, assertion.tab_width)?;
                     if count > assertion.max_columns {
-                        findings.push(Finding { span: None, related: Vec::new(),
+                        findings.push(Finding {
+                            span: None,
+                            related: Vec::new(),
                             rule: Self::ID,
                             path: entry.path.clone(),
                             configuration: assertion.setting.clone(),
@@ -57,9 +59,9 @@ impl Rule for MaxIndent {
                                 index + 1,
                                 assertion.max_columns
                             ),
-                            instruction:
-                                "Reduce nesting or restructure the continuation to fit the configured indentation."
-                                    .into(),
+                            instruction: "Reduce nesting or restructure the continuation to fit t\
+                he configured indentation."
+                                .into(),
                         });
                     }
                 }
@@ -162,7 +164,8 @@ mod tests {
     #[test]
     fn selections_exclude_unreadable_text_and_custom_tab_stops_apply() {
         let root = setup(
-            "[files]\nexclude = ['global.rs']\n[[rules.\"max-indent\"]]\ntarget = ['*.rs']\nexclude = 'skip.rs'\nmax_columns = 1\ntab_width = 2",
+            "[files]\nexclude = ['global.rs']\n[[rules.\"max-indent\"]]\ntarget = ['*.rs\
+                ']\nexclude = 'skip.rs'\nmax_columns = 1\ntab_width = 2",
             "\tx",
         );
         for path in ["skip.rs", "global.rs", "other.txt"] {

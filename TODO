@@ -1,0 +1,2 @@
+linter/src/rule/layout/tests.rs
+- there needs to be clear guidance on how to write tests

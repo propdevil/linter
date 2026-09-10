@@ -93,7 +93,8 @@ impl Definition {
             || self.capabilities.len() < self.min_clusters
         {
             return Err(Error::Configuration(format!(
-                "{setting}: positive thresholds must fit min_methods, with at least two supported clusters"
+                "{setting}: positive thresholds must fit min_methods, with at least two \
+                supported clusters"
             )));
         }
         vocabulary(&self.capabilities, &setting)?;

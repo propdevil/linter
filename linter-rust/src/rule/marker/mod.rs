@@ -107,7 +107,22 @@ impl Rule for RedundantMarker {
                     .map(|n| text(n, source))
                     .unwrap_or_default();
                 let related = implementations.get(&id).cloned().unwrap_or_default();
-                findings.push(Finding{rule:Self::ID,path:source.path.clone(),span:Some(Span::new(&source.text,node.byte_range())),related,configuration:assertion.setting.clone(),message:format!("private empty marker trait `{name}` has no consumers or selective implementations"),instruction:"Remove the unused trait or establish a selective tagging, sealing, or safety contract used by consumers.".into()});
+                findings.push(Finding {
+                    rule: Self::ID,
+                    path: source.path.clone(),
+                    span: Some(Span::new(&source.text, node.byte_range())),
+                    related,
+                    configuration: assertion.setting.clone(),
+                    message: format!(
+                        "\
+                private empty marker trait `{name}` has no consumers or selective implem\
+                entations"
+                    ),
+                    instruction: "\
+                Remove the unused trait or establish a selective tagging, sealing, or sa\
+                fety contract used by consumers."
+                        .into(),
+                });
             }
         }
         Ok(RuleResult {
@@ -249,7 +264,10 @@ mod tests {
     }
     #[test]
     fn preserves_original_meaningful_contracts_and_zero_sized_types() {
-        let source = "pub trait ExternalTag {} trait Selective {} struct Linux; impl Selective for Linux {} trait Required {} fn require<T: Required>() {} trait Aggregate: Send + Sync {} unsafe trait Safety {} struct State; struct Other(());";
+        let source = "pub trait ExternalTag {} trait Selective {} struct Linux; impl Sel\
+            ective for Linux {} trait Required {} fn require<T: Required>() {} trait Agg\
+            regate: Send + Sync {} unsafe trait Safety {} struct State; struct Other(())\
+            ;";
         assert!(check(source, "").unwrap().is_empty());
         for source in [
             "trait Tag {} impl<T: Send> Tag for T {}",
@@ -302,7 +320,15 @@ mod tests {
         let input = "#[cfg(test)] mod tests {trait Tag {}}";
         assert!(check(input, "").unwrap().is_empty());
         assert_eq!(check(input, "scope='tests'").unwrap().len(), 1);
-        assert!(check("// linter:disable rust/redundant-marker -- reserved compatibility contract\ntrait Tag {}","").unwrap().is_empty());
+        assert!(
+            check(
+                "// linter:disable rust/redundant-marker -- reserved compatibility\
+            \u{20}contract\ntrait Tag {}",
+                ""
+            )
+            .unwrap()
+            .is_empty()
+        );
         for config in ["scope='bad'", "exclude=[]", "extra=true"] {
             assert!(matches!(check("", config), Err(Error::Configuration(_))));
         }

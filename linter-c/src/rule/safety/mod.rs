@@ -75,10 +75,18 @@ fn collect(
         && !attached(source, comments, anchor(node).start_byte())
     {
         findings.push(Finding {
-            rule: Safety::ID, path: source.path.clone(), configuration: assertion.setting.clone(),
-            span: Some(Span::new(&source.text, node.byte_range())), related: Vec::new(),
-            message: format!("configured safety-sensitive C operation '{name}' has no attached nonempty SAFETY: rationale"),
-            instruction: "State the pointer, lifetime, bounds, ownership or concurrency invariant in an immediately attached SAFETY: comment.".into(),
+            rule: Safety::ID,
+            path: source.path.clone(),
+            configuration: assertion.setting.clone(),
+            span: Some(Span::new(&source.text, node.byte_range())),
+            related: Vec::new(),
+            message: format!(
+                "configured safety-sensitive C operation '{name}' has no at\
+                tached nonempty SAFETY: rationale"
+            ),
+            instruction: "State the pointer, lifetime, bounds, ownership or concurrency \
+                invariant in an immediately attached SAFETY: comment."
+                .into(),
         });
     }
     let mut cursor = node.walk();
@@ -210,12 +218,14 @@ mod tests {
     #[test]
     fn directives_are_exact_and_stale_directives_fail() {
         let report = run(
-            "void run(void) {\n// linter:disable c/safety-rationale -- generated bounds proof\ncopy_bytes();\ncopy_bytes();\n}",
+            "void run(void) {\n// linter:disable c/safety-rationale -- generated bounds \
+                proof\ncopy_bytes();\ncopy_bytes();\n}",
         );
         assert_eq!(report.suppressed.len(), 1);
         assert_eq!(report.findings.len(), 1);
         let report = run(
-            "void run(void) {\n// linter:disable c/safety-rationale -- generated bounds proof\nreturn;\n}",
+            "void run(void) {\n// linter:disable c/safety-rationale -- generated bounds \
+                proof\nreturn;\n}",
         );
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].rule, "directive");
@@ -241,7 +251,12 @@ mod tests {
                 "{fields}"
             );
         }
-        fs::write(root.path().join("linter.toml"), "[[rules.\"c/safety-rationale\"]]\ntarget = ['*.c']\nexclude = 'skip.c'\noperations = ['copy_bytes']").unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"c/safety-rationale\"]]\nta\
+            rget = ['*.c']\nexclude = 'skip.c'\noperations = ['copy_bytes']",
+        )
+        .unwrap();
         for name in ["skip.c", "skip.h"] {
             fs::write(root.path().join(name), "void run(void) { copy_bytes(); }").unwrap();
         }

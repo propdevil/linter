@@ -139,9 +139,25 @@ fn finding(
         span: Some(crossing.span.clone()),
         message: format!("cross-capability workflow `{}`", crossing.name),
     });
-    Some(Finding{rule:GodObject::ID,path:item.source.path.clone(),span:Some(Span::new(&item.source.text,item.node.byte_range())),related,
-        configuration:format!("{}.max_methods",assertion.setting),message:format!("`{}` owns {} inherent methods across {} distinct field capabilities; `{}` coordinates unrelated groups",item.id.name,methods.len(),clusters.len(),crossing.name),
-        instruction:"Extract cohesive field-owned capabilities and their workflows. Keep the root responsible for construction and declarative composition.".into()})
+    Some(Finding {
+        rule: GodObject::ID,
+        path: item.source.path.clone(),
+        span: Some(Span::new(&item.source.text, item.node.byte_range())),
+        related,
+        configuration: format!("{}.max_methods", assertion.setting),
+        message: format!(
+            "`{}` \
+            owns {} inherent methods across {} distinct field capabilities; `{}` coordin\
+            ates unrelated groups",
+            item.id.name,
+            methods.len(),
+            clusters.len(),
+            crossing.name
+        ),
+        instruction: "Extract cohesive field-owned capabilities and their workflows. Keep\
+            \u{20}the root responsible for construction and declarative composition."
+            .into(),
+    })
 }
 struct Cluster {
     fields: BTreeSet<String>,
@@ -390,7 +406,10 @@ mod tests {
                 ));
             }
         }
-        methods.push_str("fn wire(&self) { self.workspaces.call(); self.settings.call(); self.terminal.call(); }");
+        methods.push_str(
+            "fn wire(&self) { self.workspaces.call(); self.settings.call();\
+            \u{20}self.terminal.call(); }",
+        );
         let source = format!(
             "{}
          struct Application {{
@@ -467,7 +486,8 @@ mod tests {
                 "fn terminal_{index}(&self) {{ self.terminal.call(); }}"
             ));
         }
-        let run = "fn run(&mut self) { if self.settings.ready() { self.workspaces.call(); self.terminal.call(); } }";
+        let run = "fn run(&mut self) { if self.settings.ready() { self.workspaces.call()\
+            ; self.terminal.call(); } }";
         let impls = if split.is_empty() {
             format!(
                 "impl {name} {{ {}{}{}{run} }}",
@@ -590,12 +610,23 @@ mod tests {
         let test_only = format!("#[cfg(test)] mod tests {{{source}}}");
         assert!(findings(&test_only).is_empty());
         assert_eq!(check(&test_only, "scope='tests'").findings.len(), 1);
-        let source=source.replace("struct Application","// linter:disable rust/god-object-growth -- External composition root requires this workflow.\nstruct Application");
+        let source = source.replace(
+            "struct Application",
+            "// linter:disable rust/god-objec\
+            t-growth -- External composition root requires this workflow.\nstruct Applic\
+            ation",
+        );
         assert_eq!(check(&source, "").suppressed.len(), 1);
     }
     #[test]
     fn receiver_workflow_is_not_invented_from_deferred_closures() {
-        let source=fixture("Application","").replace("if self.settings.ready() { self.workspaces.call(); self.terminal.call(); }", "let later=|| { if self.settings.ready() { self.workspaces.call(); self.terminal.call(); } };");
+        let source = fixture("Application", "").replace(
+            "if self.settings.ready() { self.wo\
+            rkspaces.call(); self.terminal.call(); }",
+            "\
+            let later=|| { if self.settings.ready() { self.workspaces.call(); self.termi\
+            nal.call(); } };",
+        );
         assert!(findings(&source).is_empty());
         assert!(findings(&fixture("ApplicationBuilder", "")).is_empty());
         assert!(

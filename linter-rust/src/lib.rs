@@ -44,7 +44,11 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<ProvisionalComment>()?
         .register::<DependencyCycles>()?
         .register::<RedundantMarker>()?
-        .register::<AsyncBlocking>()
+        .register::<AsyncBlocking>()?
+        .register::<DependencyBudget>()?
+        .register::<EnvironmentAccess>()?
+        .register::<RedundantWrapper>()?
+        .register::<MaxIndent>()
 }
 
 mod declaration;
@@ -94,7 +98,8 @@ pub use rule::wrapper::{Config as RedundantWrapperConfig, RedundantWrapper};
 
 mod imports;
 
-pub use rule::environment::{Config as EnvironmentConfig, EnvironmentAccess};
 pub use rule::budget::{Config as DependencyBudgetConfig, DependencyBudget};
+pub use rule::environment::{Config as EnvironmentConfig, EnvironmentAccess};
 mod exports;
 mod namespace;
+pub use rule::indentation::{Config as MaxIndentConfig, MaxIndent};

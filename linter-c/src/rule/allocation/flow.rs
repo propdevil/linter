@@ -281,11 +281,25 @@ impl Flow<'_> {
             return;
         }
         self.findings.push(Finding {
-            rule: Allocation::ID, path: self.source.path.clone(), configuration: self.assertion.setting.clone(),
+            rule: Allocation::ID,
+            path: self.source.path.clone(),
+            configuration: self.assertion.setting.clone(),
             span: Some(Span::new(&self.source.text, value.origin.clone())),
-            related: vec![Evidence { path: self.source.path.clone(), span: Some(Span::new(&self.source.text, node.byte_range())), message: "Dereference without an established prior non-null guard.".into() }],
-            message: format!("nullable allocation used through '{}' is dereferenced without an established prior null guard", self.text(argument)),
-            instruction: "Check the allocation before dereferencing it, and exit the null branch or keep uses inside a proven non-null branch.".into(),
+            related: vec![Evidence {
+                path: self.source.path.clone(),
+                span: Some(Span::new(&self.source.text, node.byte_range())),
+                message: "\
+                Dereference without an established prior non-null guard."
+                    .into(),
+            }],
+            message: format!(
+                "nullable allocation used through '{}' is dereferenced with\
+                out an established prior null guard",
+                self.text(argument)
+            ),
+            instruction: "Check the allocation before dereferencing it, and exit the nul\
+                l branch or keep uses inside a proven non-null branch."
+                .into(),
         });
     }
 }

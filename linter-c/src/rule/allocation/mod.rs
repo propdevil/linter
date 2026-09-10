@@ -124,12 +124,14 @@ mod tests {
     #[test]
     fn directives_suppress_allocation_and_stale_directives_fail() {
         let report = run(
-            "void run(void) {\n// linter:disable c/unchecked-allocation -- allocator aborts on exhaustion\nint *p = allocate(4);\n*p = 1;\n}",
+            "void run(void) {\n// linter:disable c/unchecked-allocation -- allocator abo\
+                rts on exhaustion\nint *p = allocate(4);\n*p = 1;\n}",
         );
         assert!(report.findings.is_empty(), "{:?}", report.findings);
         assert_eq!(report.suppressed.len(), 1);
         let report = run(
-            "void run(void) {\n// linter:disable c/unchecked-allocation -- allocator aborts on exhaustion\nint *p = allocate(4);\nif (!p) return;\n*p = 1;\n}",
+            "void run(void) {\n// linter:disable c/unchecked-allocation -- allocator abo\
+                rts on exhaustion\nint *p = allocate(4);\nif (!p) return;\n*p = 1;\n}",
         );
         assert!(!report.findings.is_empty());
     }
@@ -154,7 +156,12 @@ mod tests {
                 "{fields}"
             );
         }
-        fs::write(root.path().join("linter.toml"), "[[rules.\"c/unchecked-allocation\"]]\ntarget = ['*.c']\nexclude = 'skip.c'\nfunctions = ['allocate']").unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"c/unchecked-allocation\"]]\
+            \ntarget = ['*.c']\nexclude = 'skip.c'\nfunctions = ['allocate']",
+        )
+        .unwrap();
         fs::write(
             root.path().join("skip.c"),
             "void run(void) { int *p = allocate(4); *p = 1; }",

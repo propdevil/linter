@@ -57,13 +57,13 @@ impl Rule for EnvironmentAccess {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    const POLICY: &str = r#"
-[[rules."rust/environment-variable-access"]]
-target = "**/*.rs"
-functions = ["std::env::var", "std::env::var_os", "std::env::vars", "std::env::vars_os", "std::env::set_var", "std::env::remove_var", "std::env::current_dir", "std::env::current_exe", "std::env::temp_dir", "dirs::home_dir", "dirs::config_dir"]
-global_types = ["std::sync::OnceLock", "std::sync::LazyLock", "once_cell::sync::OnceCell", "once_cell::sync::Lazy"]
-global_words = ["config", "configuration", "settings", "state"]
-"#;
+    const POLICY: &str = "\n[[rules.\"rust/environment-variable-access\"]]\ntarget = \"*\
+        */*.rs\"\nfunctions = [\"std::env::var\", \"std::env::var_os\", \"std::env::vars\
+        \", \"std::env::vars_os\", \"std::env::set_var\", \"std::env::remove_var\", \"st\
+        d::env::current_dir\", \"std::env::current_exe\", \"std::env::temp_dir\", \"dirs\
+        ::home_dir\", \"dirs::config_dir\"]\nglobal_types = [\"std::sync::OnceLock\", \"\
+        std::sync::LazyLock\", \"once_cell::sync::OnceCell\", \"once_cell::sync::Lazy\"]\
+        \nglobal_words = [\"config\", \"configuration\", \"settings\", \"state\"]\n";
     fn report(source: &str, settings: &str, path: &str) -> linter::Report {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join(path);
@@ -86,11 +86,9 @@ global_words = ["config", "configuration", "settings", "state"]
     #[test]
     fn resolves_runtime_apis_and_import_aliases() {
         let values = findings(
-            r#"
-use std::env::{self as process_environment, current_dir as cwd, var as read};
-use std::env as host;
-fn load() { read("A"); process_environment::vars_os(); host::current_exe(); cwd(); std::env::temp_dir(); }
-"#,
+            "\nuse std::env::{self as process_environment, current_dir as cwd, var as re\
+                ad};\nuse std::env as host;\nfn load() { read(\"A\"); process_environmen\
+                t::vars_os(); host::current_exe(); cwd(); std::env::temp_dir(); }\n",
         );
         assert_eq!(values.len(), 5);
         assert!(
@@ -98,7 +96,15 @@ fn load() { read("A"); process_environment::vars_os(); host::current_exe(); cwd(
                 .iter()
                 .all(|finding| finding.span.is_some() && !finding.related.is_empty())
         );
-        assert_eq!(findings("use dirs as locations; use dirs::config_dir as preferences; fn load() { locations::home_dir(); preferences(); my_dirs::home_dir(); }").len(), 2);
+        assert_eq!(
+            findings(
+                "use dirs as locations; use dirs::config_dir as preferences;\
+            \u{20}fn load() { locations::home_dir(); preferences(); my_dirs::home_dir();\
+            \u{20}}"
+            )
+            .len(),
+            2
+        );
     }
     #[test]
     fn boundaries_are_explicit_and_do_not_match_sibling_prefixes() {
@@ -143,11 +149,27 @@ fn load() { read("A"); process_environment::vars_os(); host::current_exe(); cwd(
             .findings
             .is_empty()
         );
-        assert_eq!(report("mod platform { fn load() { std::env::var(\"A\"); } } mod platform_extra { fn load() { std::env::var(\"B\"); } }", "allowed_modules = ['platform']", "src/lib.rs").findings.len(), 1);
+        assert_eq!(
+            report(
+                "mod platform { fn load() { std::env::var(\"A\"); } } mod plat\
+            form_extra { fn load() { std::env::var(\"B\"); } }",
+                "\
+            allowed_modules = ['platform']",
+                "\
+            src/lib.rs"
+            )
+            .findings
+            .len(),
+            1
+        );
     }
     #[test]
     fn globals_need_proven_lazy_type_and_complete_semantic_words() {
-        let source = "use std::sync::{Mutex, OnceLock}; struct AppConfig; struct State; static CONFIG: OnceLock<AppConfig> = OnceLock::new(); static STATE: OnceLock<Mutex<State>> = OnceLock::new(); static LOCKS: OnceLock<Mutex<Vec<String>>> = OnceLock::new(); static REGISTRY: OnceLock<Vec<String>> = OnceLock::new(); static RECONFIGURE: OnceLock<String> = OnceLock::new();";
+        let source = "use std::sync::{Mutex, OnceLock}; struct AppConfig; struct State; \
+            static CONFIG: OnceLock<AppConfig> = OnceLock::new(); static STATE: OnceLock\
+            <Mutex<State>> = OnceLock::new(); static LOCKS: OnceLock<Mutex<Vec<String>>>\
+            \u{20}= OnceLock::new(); static REGISTRY: OnceLock<Vec<String>> = OnceLock::\
+            new(); static RECONFIGURE: OnceLock<String> = OnceLock::new();";
         let values = findings(source);
         assert_eq!(values.len(), 2);
         assert!(
@@ -161,11 +183,19 @@ fn load() { read("A"); process_environment::vars_os(); host::current_exe(); cwd(
             )
             .is_empty()
         );
-        assert_eq!(findings("use std::sync::OnceLock as Cell; struct Settings; static STORAGE: Cell<Settings> = Cell::new();").len(), 1);
+        assert_eq!(
+            findings(
+                "use std::sync::OnceLock as Cell; struct Settings; static ST\
+            ORAGE: Cell<Settings> = Cell::new();"
+            )
+            .len(),
+            1
+        );
     }
     #[test]
     fn compile_time_metadata_is_an_explicit_policy_choice() {
-        let source = r#"fn reads() { std::env::var("A"); std::env::var_os("B"); std::env::vars(); std::env::vars_os(); env!("C"); option_env!("D"); }"#;
+        let source = "fn reads() { std::env::var(\"A\"); std::env::var_os(\"B\"); std::e\
+            nv::vars(); std::env::vars_os(); env!(\"C\"); option_env!(\"D\"); }";
         assert_eq!(findings(source).len(), 4);
         assert_eq!(
             report(source, "macros = ['env', 'option_env']", "src/lib.rs")
@@ -173,7 +203,13 @@ fn load() { read("A"); process_environment::vars_os(); host::current_exe(); cwd(
                 .len(),
             6
         );
-        assert!(findings(r#"fn identity() { option_env!("BUILD_ID"); std::path::Path::new(env!("CARGO_MANIFEST_DIR")); env!("CARGO_PKG_VERSION"); }"#).is_empty());
+        assert!(
+            findings(
+                "fn identity() { option_env!(\"BUILD_ID\"); std::path::Path::ne\
+            w(env!(\"CARGO_MANIFEST_DIR\")); env!(\"CARGO_PKG_VERSION\"); }"
+            )
+            .is_empty()
+        );
         assert!(
             report(
                 "macro_rules! env { () => { 1 }; } fn value() { env!(); }",
@@ -222,7 +258,9 @@ fn load() { read("A"); process_environment::vars_os(); host::current_exe(); cwd(
             .is_empty()
         );
         let result = report(
-            "fn run() {\n// linter:disable rust/environment-variable-access -- Reads one platform fallback before dependency injection.\nstd::env::var(\"A\");\n}",
+            "fn run() {\n// linter:disable rust/environment-variable-access -- Reads one\
+                \u{20}platform fallback before dependency injection.\nstd::env::var(\"A\
+                \");\n}",
             "",
             "src/lib.rs",
         );

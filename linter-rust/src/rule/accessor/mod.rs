@@ -58,7 +58,26 @@ impl Rule for RedundantAccessor {
                         continue;
                     }
                     if candidate.exposed {
-                        findings.push(report(candidate,assertion,format!("`{}` only forwards `{}.{}`, which callers can already access with equal or broader visibility",candidate.name,structure.id.name,candidate.field_name),Evidence{path:structure.source.path.clone(),span:Some(Span::new(&structure.source.text,candidate.field.byte_range())),message:"Already exposed field".into()}));
+                        findings.push(report(
+                            candidate,
+                            assertion,
+                            format!(
+                                "`{}` only forw\
+                ards `{}.{}`, which callers can already access with equal or broader vis\
+                ibility",
+                                candidate.name, structure.id.name, candidate.field_name
+                            ),
+                            Evidence {
+                                path: structure.source.path.clone(),
+                                span: Some(Span::new(
+                                    &structure.source.text,
+                                    candidate.field.byte_range(),
+                                )),
+                                message: "\
+                Already exposed field"
+                                    .into(),
+                            },
+                        ));
                     }
                     if let Some(previous) = values[..position]
                         .iter()
@@ -155,7 +174,21 @@ fn report(
     message: String,
     evidence: Evidence,
 ) -> Finding {
-    Finding{rule:RedundantAccessor::ID,path:candidate.source.path.clone(),span:Some(Span::new(&candidate.source.text,candidate.method.byte_range())),related:vec![evidence],configuration:assertion.setting.clone(),message,instruction:"Keep one meaningful accessor contract, or make the field private when the method intentionally owns the public boundary.".into()}
+    Finding {
+        rule: RedundantAccessor::ID,
+        path: candidate.source.path.clone(),
+        span: Some(Span::new(
+            &candidate.source.text,
+            candidate.method.byte_range(),
+        )),
+        related: vec![evidence],
+        configuration: assertion.setting.clone(),
+        message,
+        instruction: "\
+        Keep one meaningful accessor contract, or make the field private when the method\
+        \u{20}intentionally owns the public boundary."
+            .into(),
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -357,11 +390,19 @@ impl Data {
     }
     #[test]
     fn wallet_private_boundary_and_distinct_nominal_wrappers_are_preserved() {
-        let source = "struct Address(String);struct WalletId(String);pub struct Wallet{address:Address,pub id:WalletId}impl Wallet{pub fn address(&self)->&Address{&self.address}pub fn id(&self)->WalletId{self.id}}";
+        let source = "struct Address(String);struct WalletId(String);pub struct Wallet{a\
+            ddress:Address,pub id:WalletId}impl Wallet{pub fn address(&self)->&Address{&\
+            self.address}pub fn id(&self)->WalletId{self.id}}";
         let found = findings(source);
         assert_eq!(found.len(), 1);
         assert!(found[0].message.contains("Wallet.id"));
-        assert!(findings("struct Email(String);struct WalletId(String);impl Email{fn value(&self)->&String{&self.0}}impl WalletId{fn value(&self)->&String{&self.0}}").is_empty());
+        assert!(
+            findings(
+                "struct Email(String);struct WalletId(String);impl Email{fn val\
+            ue(&self)->&String{&self.0}}impl WalletId{fn value(&self)->&String{&self.0}}"
+            )
+            .is_empty()
+        );
         assert!(
             findings(
                 "pub struct Wallet{pub id:Missing}impl Wallet{pub fn id(&self)->Missing{self.id}}"
@@ -371,24 +412,64 @@ impl Data {
     }
     #[test]
     fn duplicate_contracts_preserve_receiver_mutability_ownership_and_conversion() {
-        let source = "struct Wallet{value:String}impl Wallet{fn value(&self)->&String{&self.value}fn other(&mut self)->&String{&self.value}fn owned(self)->String{self.value}fn cloned(&self)->String{self.value.clone()}fn view(&self)->&str{&self.value}}";
+        let source = "struct Wallet{value:String}impl Wallet{fn value(&self)->&String{&s\
+            elf.value}fn other(&mut self)->&String{&self.value}fn owned(self)->String{se\
+            lf.value}fn cloned(&self)->String{self.value.clone()}fn view(&self)->&str{&s\
+            elf.value}}";
         assert!(findings(source).is_empty());
-        assert!(findings("pub struct Wallet{pub value:String}impl Wallet{pub fn view(&self)->&str{&self.value}}").is_empty());
-        assert!(findings("struct Wallet{value:String}impl Wallet{fn value(&self)->&String{&self.value}const fn other(&self)->&String{&self.value}}").is_empty());
+        assert!(
+            findings(
+                "pub struct Wallet{pub value:String}impl Wallet{pub fn view(&se\
+            lf)->&str{&self.value}}"
+            )
+            .is_empty()
+        );
+        assert!(
+            findings(
+                "struct Wallet{value:String}impl Wallet{fn value(&self)->&Strin\
+            g{&self.value}const fn other(&self)->&String{&self.value}}"
+            )
+            .is_empty()
+        );
     }
     #[test]
     fn aliases_and_split_impls_resolve_without_module_name_conflation() {
-        let source = "struct Wallet{value:String}type Alias=Wallet;impl Wallet{fn value(&self)->&String{&self.value}}impl Alias{fn other(&self)->&String{&self.value}}";
+        let source = "struct Wallet{value:String}type Alias=Wallet;impl Wallet{fn value(\
+            &self)->&String{&self.value}}impl Alias{fn other(&self)->&String{&self.value\
+            }}";
         assert_eq!(findings(source).len(), 1);
-        let separate = "mod first{struct Wallet{value:String}impl Wallet{fn value(&self)->&String{&self.value}}}mod second{struct Wallet{value:String}impl Wallet{fn other(&self)->&String{&self.value}}}";
+        let separate = "mod first{struct Wallet{value:String}impl Wallet{fn value(&self)\
+            ->&String{&self.value}}}mod second{struct Wallet{value:String}impl Wallet{fn\
+            \u{20}other(&self)->&String{&self.value}}}";
         assert!(findings(separate).is_empty());
     }
     #[test]
     fn visibility_scope_and_validation_are_not_erased() {
-        assert!(findings("struct Wallet{pub(crate) value:String}impl Wallet{pub fn value(&self)->&String{&self.value}}").is_empty());
-        assert_eq!(findings("struct Wallet{pub(crate) value:String}impl Wallet{pub(crate) fn value(&self)->&String{&self.value}}").len(),1);
-        assert!(findings("struct Wallet{value:u8}impl Wallet{fn set_value(&mut self,value:u8){assert!(value>0);self.value=value;}fn update(&mut self,value:u8){self.value=value;}}").is_empty());
-        let source = "#[cfg(test)]mod checks{struct Wallet{pub value:u8}impl Wallet{pub fn value(&self)->u8{self.value}}}";
+        assert!(
+            findings(
+                "struct Wallet{pub(crate) value:String}impl Wallet{pub fn value\
+            (&self)->&String{&self.value}}"
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            findings(
+                "struct Wallet{pub(crate) value:String}impl Wallet{pub(crate\
+            ) fn value(&self)->&String{&self.value}}"
+            )
+            .len(),
+            1
+        );
+        assert!(
+            findings(
+                "struct Wallet{value:u8}impl Wallet{fn set_value(&mut self,valu\
+            e:u8){assert!(value>0);self.value=value;}fn update(&mut self,value:u8){self.\
+            value=value;}}"
+            )
+            .is_empty()
+        );
+        let source = "#[cfg(test)]mod checks{struct Wallet{pub value:u8}impl Wallet{pub \
+            fn value(&self)->u8{self.value}}}";
         assert!(findings(source).is_empty());
         assert_eq!(check(source, "scope='tests'").unwrap().len(), 1);
         assert!(
@@ -402,7 +483,9 @@ impl Data {
         for config in ["scope='unknown'", "exclude=[]", "unknown=true"] {
             assert!(matches!(check("", config), Err(Error::Configuration(_))));
         }
-        let source = "struct Wallet{pub value:u8}impl Wallet{\n// linter:disable rust/redundant-accessor -- externally fixed API boundary\nfn value(&self)->u8{self.value}}";
+        let source = "struct Wallet{pub value:u8}impl Wallet{\n// linter:disable rust/re\
+            dundant-accessor -- externally fixed API boundary\nfn value(&self)->u8{self.\
+            value}}";
         assert!(findings(source).is_empty());
         for source in [
             include_str!("mod.rs"),

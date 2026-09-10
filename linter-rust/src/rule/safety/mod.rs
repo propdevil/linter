@@ -153,9 +153,17 @@ impl Scan<'_, '_> {
         }
     }
     fn report(&mut self, node: Node<'_>, message: &str) {
-        self.findings.push(Finding { rule: UnsafeBoundary::ID, path: self.source.path.clone(), configuration: self.assertion.setting.clone(),
-            span: Some(Span::new(&self.source.text, node.byte_range())), related: Vec::new(), message: message.into(),
-            instruction: "Keep unsafe operations inside an explicitly configured boundary and explain each unsafe block's validity with an attached SAFETY: comment.".into(),
+        self.findings.push(Finding {
+            rule: UnsafeBoundary::ID,
+            path: self.source.path.clone(),
+            configuration: self.assertion.setting.clone(),
+            span: Some(Span::new(&self.source.text, node.byte_range())),
+            related: Vec::new(),
+            message: message.into(),
+            instruction: "Keep unsafe operations inside an explicitly configured boundar\
+                y and explain each unsafe block's validity with an attached SAFETY: comm\
+                ent."
+                .into(),
         });
     }
 }
@@ -252,7 +260,9 @@ mod tests {
     }
     #[test]
     fn detects_each_unsafe_construct_outside_boundary() {
-        let source = "unsafe fn free() {} struct Value; unsafe trait Contract { unsafe fn invoke(); } unsafe impl Contract for Value { unsafe fn invoke() {} } fn call() { unsafe {} }";
+        let source = "unsafe fn free() {} struct Value; unsafe trait Contract { unsafe f\
+            n invoke(); } unsafe impl Contract for Value { unsafe fn invoke() {} } fn ca\
+            ll() { unsafe {} }";
         assert_eq!(report(source, "").findings.len(), 6);
         assert!(
             report("unsafe extern \"C\" { fn call(); }", "")
@@ -263,14 +273,16 @@ mod tests {
     }
     #[test]
     fn approved_files_and_exact_modules_preserve_item_contracts() {
-        let source = "unsafe fn entry() {} fn call() {\n// SAFETY: Pointer contract was validated.\nunsafe {}\n}";
+        let source = "unsafe fn entry() {} fn call() {\n// SAFETY: Pointer contract was \
+            validated.\nunsafe {}\n}";
         assert!(
             report(source, "allowed_targets = ['lib.rs']")
                 .findings
                 .is_empty()
         );
         let source = format!(
-            "mod ffi {{ {source} mod nested {{ unsafe fn export() {{}} }} }} mod not_ffi {{ unsafe fn export() {{}} }}"
+            "mod ffi {{ {source} mod nested {{ unsafe fn export() {{}} }} }} mod not_ffi\
+                \u{20}{{ unsafe fn export() {{}} }}"
         );
         let findings = report(&source, "allowed_modules = ['ffi']").findings;
         assert_eq!(findings.len(), 1);
@@ -295,7 +307,8 @@ mod tests {
     #[test]
     fn rationale_is_real_attached_nonempty_and_can_start_the_block() {
         for body in [
-            "// SAFETY: Allocation remains live.\n// Long explanation.\n// More detail.\n// Fourth line.\nunsafe {}",
+            "// SAFETY: Allocation remains live.\n// Long explanation.\n// More detail.\
+                \n// Fourth line.\nunsafe {}",
             "/* SAFETY: Allocation remains live. */ unsafe {}",
             "unsafe {\n// SAFETY: Allocation remains live.\n}",
             "// SAFETY:\n// Allocation remains live.\nlet value = unsafe { 1 };",
@@ -368,7 +381,8 @@ mod tests {
         ] {
             assert_eq!(report(source, "").findings.len(), 1, "{source}");
         }
-        let source = "macro_rules! trampoline { ($name:ident) => { fn $name() {\n// SAFETY: Export table validated.\nunsafe {}\n} }; }";
+        let source = "macro_rules! trampoline { ($name:ident) => { fn $name() {\n// SAFE\
+            TY: Export table validated.\nunsafe {}\n} }; }";
         assert!(
             report(source, "allowed_targets = 'lib.rs'")
                 .findings
@@ -391,7 +405,8 @@ mod tests {
         assert_eq!(report(source, "scope = 'tests'").findings.len(), 1);
         assert_eq!(report(source, "scope = 'all'").findings.len(), 2);
         assert!(report(source, "exclude = 'lib.rs'").findings.is_empty());
-        let source = "// linter:disable rust/unsafe-boundary -- Compiler integration requires this exact boundary here.\nunsafe fn entry() {}";
+        let source = "// linter:disable rust/unsafe-boundary -- Compiler integration req\
+            uires this exact boundary here.\nunsafe fn entry() {}";
         let report = report(source, "");
         assert!(report.findings.is_empty());
         assert_eq!(report.suppressed.len(), 1);

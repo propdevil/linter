@@ -71,12 +71,21 @@ fn visit(
             .iter()
             .filter(|assertion| lines > assertion.max_lines)
         {
-            findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
                 rule: FunctionLength::ID,
                 path: source.path.clone(),
                 configuration: assertion.setting.clone(),
-                message: format!("C function at line {} has {lines} effective code lines; maximum is {}", node.start_position().row + 1, assertion.max_lines),
-                instruction: "Extract cohesive behavior behind a named C function or module boundary; comments and blank lines already do not count.".into(),
+                message: format!(
+                    "C function at line {} has {lines} effective code lines\
+                ; maximum is {}",
+                    node.start_position().row + 1,
+                    assertion.max_lines
+                ),
+                instruction: "Extract cohesive behavior behind a named C function or mod\
+                ule boundary; comments and blank lines already do not count."
+                    .into(),
             });
         }
         return;
@@ -118,7 +127,8 @@ mod tests {
         write(
             root.path(),
             "sample.c",
-            "int\nexample(void)\n{\n\n/* multiline\n ü comment */\nreturn 0; // trailing comment\n}\n",
+            "int\nexample(void)\n{\n\n/* multiline\n ü comment */\nreturn 0; // trailing\
+                \u{20}comment\n}\n",
         );
         assert!(check(root.path()).unwrap().findings.is_empty());
         config(root.path(), "target = '**/*.c'\nmax_lines = 4");
@@ -161,7 +171,8 @@ mod tests {
         write(
             root.path(),
             "small.c",
-            "/* int fake(void) { {{{{{{{ */\nconst char *text = \"int fake(void) { {{{{{{{\";\nint prototype(void);\nint small(void) { return 0; }\n",
+            "/* int fake(void) { {{{{{{{ */\nconst char *text = \"int fake(void) { {{{{{\
+                {{\";\nint prototype(void);\nint small(void) { return 0; }\n",
         );
         assert!(check(root.path()).unwrap().findings.is_empty());
         write(

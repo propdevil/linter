@@ -68,12 +68,16 @@ impl Rule for Layout {
                 } else {
                     "file"
                 };
-                findings.push(Finding { span: None, related: Vec::new(),
+                findings.push(Finding {
+                    span: None,
+                    related: Vec::new(),
                     rule: Self::ID,
                     path: entry.path.clone(),
                     configuration: decision.setting.clone(),
                     message: format!("forbidden {label} {}", entry.path.display()),
-                    instruction: "Remove or move this file, or add a later allow block with a purpose description.".into(),
+                    instruction: "Remove or move this file, or add a later allow block w\
+                ith a purpose description."
+                        .into(),
                 });
             }
         }
@@ -357,13 +361,11 @@ files.required = ["src/extra.rs"]
         write(
             root.path(),
             "linter.toml",
-            r#"
-[[rules.layout]]
-target = "rules/*"
-mode = "restrictive"
-files = { required = ["mod.rs"], allowed = [{ target = "*.snap", description = "Test entries." }] }
-directories = { required = ["tests"], allowed = [{ target = "fixtures", description = "Test entries." }] }
-"#,
+            "\n[[rules.layout]]\ntarget = \"rules/*\"\nmode = \"restrictive\"\nfiles = {\
+                \u{20}required = [\"mod.rs\"], allowed = [{ target = \"*.snap\", descrip\
+                tion = \"Test entries.\" }] }\ndirectories = { required = [\"tests\"], a\
+                llowed = [{ target = \"fixtures\", description = \"Test entries.\" }] }\
+                \n",
         );
         write(root.path(), "rules/layout/mod.rs", "");
         fs::create_dir(root.path().join("rules/layout/tests")).unwrap();
@@ -674,7 +676,8 @@ target = "src"
         let root = tempfile::tempdir().unwrap();
         write(root.path(), "docs/goal.md", "content");
         let ban = "[[rules.layout]]\ntarget = ['**/*.md']\nallow = false\n";
-        let allow = "[[rules.layout]]\ntarget = ['docs/*.md']\nallow = true\ndescription = 'Project documentation.'\n";
+        let allow = "[[rules.layout]]\ntarget = ['docs/*.md']\nallow = true\ndescription\
+            \u{20}= 'Project documentation.'\n";
         write(root.path(), "linter.toml", &format!("{ban}{allow}"));
         assert!(check(root.path()).unwrap().findings.is_empty());
         for policy in [format!("{allow}{ban}"), format!("{ban}{allow}{ban}")] {
@@ -811,7 +814,9 @@ description = "Source files."
         write(
             root.path(),
             "linter.toml",
-            "[[rules.layout]]\ntarget='old{,/**}'\nkind='any'\nallow=false\n[[rules.layout]]\ntarget='old{,/**}'\nkind='any'\nallow=true\ndescription='Retained migration inputs.'",
+            "[[rules.layout]]\ntarget='old{,/**}'\nkind='any'\nallow=false\n[[rules.layo\
+                ut]]\ntarget='old{,/**}'\nkind='any'\nallow=true\ndescription='Retained \
+                migration inputs.'",
         );
         assert!(check(root.path()).unwrap().findings.is_empty());
     }
@@ -824,7 +829,8 @@ description = "Source files."
         write(
             root.path(),
             "linter.toml",
-            "[[rules.layout]]\ntarget='src'\ndirectories.allow_empty=false\ndirectories.allow_single_file=false\ndirectories.content_ignored=['.gitkeep']",
+            "[[rules.layout]]\ntarget='src'\ndirectories.allow_empty=false\ndirectories.\
+                allow_single_file=false\ndirectories.content_ignored=['.gitkeep']",
         );
         let report = check(root.path()).unwrap();
         assert_eq!(report.findings.len(), 2);

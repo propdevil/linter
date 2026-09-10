@@ -49,10 +49,15 @@ fn collect(node: Node<'_>, source: &Source, assertion: &Assertion, findings: &mu
         && assertion.functions.contains(name)
     {
         findings.push(Finding {
-            rule: ResultUse::ID, path: source.path.clone(), configuration: assertion.setting.clone(),
-            span: Some(Span::new(&source.text, node.byte_range())), related: Vec::new(),
+            rule: ResultUse::ID,
+            path: source.path.clone(),
+            configuration: assertion.setting.clone(),
+            span: Some(Span::new(&source.text, node.byte_range())),
+            related: Vec::new(),
             message: format!("result of configured must-use C function '{name}' is discarded"),
-            instruction: "Handle the result, return it to the caller, or attach a reasoned directive for this exact intentional discard.".into(),
+            instruction: "Handle the result, return it to the caller, or attach a reason\
+                ed directive for this exact intentional discard."
+                .into(),
         });
         return;
     }
@@ -120,7 +125,8 @@ mod tests {
     #[test]
     fn accepts_consumed_returned_conditional_nested_and_other_calls() {
         for source in [
-            "int run(void) { int value = open_resource(); value = open_resource(); return open_resource(); }",
+            "int run(void) { int value = open_resource(); value = open_resource(); retur\
+                n open_resource(); }",
             "void run(void) { if (open_resource()) consume(); while (open_resource()) break; }",
             "void run(void) { consume(open_resource()); other_resource(); }",
             "void run(void) { int (*alias)(void) = open_resource; alias(); }",
@@ -139,12 +145,14 @@ mod tests {
     #[test]
     fn reasoned_directive_is_exact_and_stale_directive_fails() {
         let report = run(
-            "void run(void) {\n// linter:disable c/ignored-result -- best-effort cleanup\n(void)open_resource();\nopen_resource();\n}",
+            "void run(void) {\n// linter:disable c/ignored-result -- best-effort cleanup\
+                \n(void)open_resource();\nopen_resource();\n}",
         );
         assert_eq!(report.suppressed.len(), 1);
         assert_eq!(report.findings.len(), 1);
         let report = run(
-            "void run(void) {\n// linter:disable c/ignored-result -- best-effort cleanup\nint value = open_resource();\n}",
+            "void run(void) {\n// linter:disable c/ignored-result -- best-effort cleanup\
+                \nint value = open_resource();\n}",
         );
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].rule, "directive");
@@ -170,7 +178,12 @@ mod tests {
                 "{fields}"
             );
         }
-        fs::write(root.path().join("linter.toml"), "[[rules.\"c/ignored-result\"]]\ntarget = ['*.c']\nexclude = 'skip.c'\nfunctions = ['open_resource']").unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"c/ignored-result\"]]\ntarg\
+            et = ['*.c']\nexclude = 'skip.c'\nfunctions = ['open_resource']",
+        )
+        .unwrap();
         for name in ["skip.c", "skip.h"] {
             fs::write(
                 root.path().join(name),

@@ -86,20 +86,47 @@ impl Rule for Layers {
                 })?;
                 let Some(target_layer) = ownership.get(&target) else {
                     if !analysis.packages.contains_key(&target) {
-                        findings.push(finding(manifest.strip_prefix(&root).unwrap_or(manifest),
-                            format!("{} depends on local package {} outside analyzed layers", source.name, dependency.name),
-                            "Include the local dependency in the analyzed project and assign it a layer.".into()));
+                        findings.push(finding(
+                            manifest.strip_prefix(&root).unwrap_or(manifest),
+                            format!(
+                                "{} depends on local package {} outside analyzed layers",
+                                source.name, dependency.name
+                            ),
+                            "Include the local dependency in the analyzed project and as\
+                sign it a layer."
+                                .into(),
+                        ));
                     }
                     continue;
                 };
                 if !source_layer.dependencies.contains(&target_layer.name) {
                     let alias = dependency.rename.as_deref().unwrap_or(&dependency.name);
-                    findings.push(finding(manifest.strip_prefix(&root).unwrap_or(manifest),
-                        format!("{} -> {} via {alias}: layer {} cannot depend on {} ({:?}, target {})",
-                            source.name, dependency.name, source_layer.name, target_layer.name, dependency.kind,
-                            dependency.target.as_ref().map_or_else(|| "all".into(), ToString::to_string)),
-                        format!("Remove or invert this dependency; place the reusable contract in a permitted layer. Allowed dependency layers: {}.",
-                            source_layer.dependencies.iter().cloned().collect::<Vec<_>>().join(", "))));
+                    findings.push(finding(
+                        manifest.strip_prefix(&root).unwrap_or(manifest),
+                        format!(
+                            "{} -> {} via {alias}: layer {} cannot depend on {} ({:?\
+                }, target {})",
+                            source.name,
+                            dependency.name,
+                            source_layer.name,
+                            target_layer.name,
+                            dependency.kind,
+                            dependency
+                                .target
+                                .as_ref()
+                                .map_or_else(|| "all".into(), ToString::to_string)
+                        ),
+                        format!(
+                            "Remove or invert this dependency; place the reusable co\
+                ntract in a permitted layer. Allowed dependency layers: {}.",
+                            source_layer
+                                .dependencies
+                                .iter()
+                                .cloned()
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                    ));
                 }
             }
         }
@@ -139,7 +166,8 @@ mod tests {
         write(
             root.path(),
             "Cargo.toml",
-            "[workspace]\nresolver='3'\nmembers=['apps/*','usecase/*','packages/*']\n[workspace.dependencies]\nbase = {path='packages/base'}\n",
+            "[workspace]\nresolver='3'\nmembers=['apps/*','usecase/*','packages/*']\n[wo\
+                rkspace.dependencies]\nbase = {path='packages/base'}\n",
         );
         for (path, name) in [
             ("apps/one", "one"),

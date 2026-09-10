@@ -48,9 +48,17 @@ impl Directive {
     }
 
     fn finding(&self, message: &str) -> Finding {
-        Finding { rule: "directive", path: self.path.clone(), span: Some(self.span.clone()),
-            related: Vec::new(), configuration: "source directive".into(), message: message.into(),
-            instruction: "Attach one registered rule ID and a concrete reason to the next item or statement; remove unused directives.".into() }
+        Finding {
+            rule: "directive",
+            path: self.path.clone(),
+            span: Some(self.span.clone()),
+            related: Vec::new(),
+            configuration: "source directive".into(),
+            message: message.into(),
+            instruction: "Attach one registered rule ID and a concrete reason to the nex\
+                t item or statement; remove unused directives."
+                .into(),
+        }
     }
 }
 

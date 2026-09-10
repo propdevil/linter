@@ -68,10 +68,19 @@ fn inspect(
             Scope::All => true,
         };
         if selected && let Some(name) = node.child_by_field_name("name") {
-            findings.push(Finding { rule: EmptyStruct::ID, path: source.path.clone(), configuration: assertion.setting.clone(),
-                span: Some(Span::new(&source.text, node.byte_range())), related: Vec::new(),
-                message: format!("struct '{}' carries no fields", &source.text[name.byte_range()]),
-                instruction: "Use a module, function, trait, enum or meaningful state; justify intentional marker types with a narrow reasoned directive.".into(),
+            findings.push(Finding {
+                rule: EmptyStruct::ID,
+                path: source.path.clone(),
+                configuration: assertion.setting.clone(),
+                span: Some(Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
+                message: format!(
+                    "struct '{}' carries no fields",
+                    &source.text[name.byte_range()]
+                ),
+                instruction: "Use a module, function, trait, enum or meaningful state; j\
+                ustify intentional marker types with a narrow reasoned directive."
+                    .into(),
             });
         }
     }
@@ -124,7 +133,9 @@ mod tests {
     #[test]
     fn rejects_all_three_empty_forms_but_preserves_named_and_tuple_fields() {
         let root = fixture(
-            "struct Unit; struct Named {} struct Tuple(); struct Comment { /* state? */ } struct Value { field: u8 } struct Wrapper(String); struct Marker(std::marker::PhantomData<()>);",
+            "struct Unit; struct Named {} struct Tuple(); struct Comment { /* state? */ \
+                } struct Value { field: u8 } struct Wrapper(String); struct Marker(std::\
+                marker::PhantomData<()>);",
             "",
         );
         let report = check(root.path()).unwrap();
@@ -134,7 +145,9 @@ mod tests {
     }
     #[test]
     fn production_tests_and_all_scopes_share_test_classification() {
-        let source = "struct Production; #[cfg(test)] struct Test; #[cfg(test)] mod tests { struct Nested; } #[cfg(any(test, feature = \"other\"))] struct MaybeProduction;";
+        let source = "struct Production; #[cfg(test)] struct Test; #[cfg(test)] mod test\
+            s { struct Nested; } #[cfg(any(test, feature = \"other\"))] struct MaybeProd\
+            uction;";
         let root = fixture(source, "");
         write(root.path(), "tests/integration.rs", "struct Integration;");
         assert_eq!(check(root.path()).unwrap().findings.len(), 2);
@@ -150,7 +163,8 @@ mod tests {
     #[test]
     fn reasoned_markers_are_explicit_and_stale_directives_fail() {
         let root = fixture(
-            "// linter:disable rust/empty-struct -- Marker distinguishes authorized capability in the type system.\nstruct Marker;\nstruct Empty;",
+            "// linter:disable rust/empty-struct -- Marker distinguishes authorized capa\
+                bility in the type system.\nstruct Marker;\nstruct Empty;",
             "",
         );
         let report = check(root.path()).unwrap();
@@ -159,7 +173,8 @@ mod tests {
         write(
             root.path(),
             "src/lib.rs",
-            "// linter:disable rust/empty-struct -- Marker distinguishes authorized capability in the type system.\nstruct Marker(u8);",
+            "// linter:disable rust/empty-struct -- Marker distinguishes authorized capa\
+                bility in the type system.\nstruct Marker(u8);",
         );
         assert_eq!(check(root.path()).unwrap().findings[0].rule, "directive");
     }

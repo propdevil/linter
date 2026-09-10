@@ -56,22 +56,24 @@ impl Rule for AsyncBlocking {
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
-    const POLICY: &str = r#"
-[[rules."rust/async-blocking-operation"]]
-target = "**/*.rs"
-blocking_functions = ["std::thread::sleep", "std::fs::read", "std::fs::read_to_string", "std::fs::write", "std::fs::File::open", "std::fs::File::create"]
-blocking_contexts = ["tokio::task::spawn_blocking", "tokio::task::block_in_place"]
-guard_adapters = ["unwrap", "expect"]
-blocking_methods = [
-    { receiver = "std::process::Command", methods = ["spawn", "status", "output", "wait", "wait_with_output"], constructors = ["std::process::Command::new"], fluent_methods = ["arg", "args"] },
-    { receiver = "std::fs::OpenOptions", methods = ["open"], constructors = ["std::fs::OpenOptions::new"], fluent_methods = ["read", "write", "create"] },
-    { receiver = "std::sync::Mutex", methods = ["lock"], constructors = ["std::sync::Mutex::new"], returns_guard = true },
-    { receiver = "std::sync::RwLock", methods = ["read", "write"], constructors = ["std::sync::RwLock::new"], returns_guard = true },
-    { receiver = "parking_lot::Mutex", methods = ["lock"], constructors = ["parking_lot::Mutex::new"], returns_guard = true },
-    { receiver = "tokio::sync::Mutex", methods = ["blocking_lock"], constructors = ["tokio::sync::Mutex::new"] },
-    { receiver = "tokio::sync::mpsc::Receiver", methods = ["blocking_recv"] },
-]
-"#;
+    const POLICY: &str = "\n[[rules.\"rust/async-blocking-operation\"]]\ntarget = \"**/*\
+        .rs\"\nblocking_functions = [\"std::thread::sleep\", \"std::fs::read\", \"std::f\
+        s::read_to_string\", \"std::fs::write\", \"std::fs::File::open\", \"std::fs::Fil\
+        e::create\"]\nblocking_contexts = [\"tokio::task::spawn_blocking\", \"tokio::tas\
+        k::block_in_place\"]\nguard_adapters = [\"unwrap\", \"expect\"]\nblocking_method\
+        s = [\n    { receiver = \"std::process::Command\", methods = [\"spawn\", \"statu\
+        s\", \"output\", \"wait\", \"wait_with_output\"], constructors = [\"std::process\
+        ::Command::new\"], fluent_methods = [\"arg\", \"args\"] },\n    { receiver = \"s\
+        td::fs::OpenOptions\", methods = [\"open\"], constructors = [\"std::fs::OpenOpti\
+        ons::new\"], fluent_methods = [\"read\", \"write\", \"create\"] },\n    { receiv\
+        er = \"std::sync::Mutex\", methods = [\"lock\"], constructors = [\"std::sync::Mu\
+        tex::new\"], returns_guard = true },\n    { receiver = \"std::sync::RwLock\", me\
+        thods = [\"read\", \"write\"], constructors = [\"std::sync::RwLock::new\"], retu\
+        rns_guard = true },\n    { receiver = \"parking_lot::Mutex\", methods = [\"lock\
+        \"], constructors = [\"parking_lot::Mutex::new\"], returns_guard = true },\n    \
+        { receiver = \"tokio::sync::Mutex\", methods = [\"blocking_lock\"], constructors\
+        \u{20}= [\"tokio::sync::Mutex::new\"] },\n    { receiver = \"tokio::sync::mpsc::\
+        Receiver\", methods = [\"blocking_recv\"] },\n]\n";
     fn check(root: &Path) -> Result<linter::Report, linter::Error> {
         linter::Registry::default()
             .register::<super::AsyncBlocking>()?
@@ -222,30 +224,56 @@ fn closures(builder: Builder) {
     }
     #[test]
     fn sdk_storage_adapter_and_test_only_impl_regressions() {
-        let source = "async fn restore() {\nlet _ = std::fs::read(\"wallets.db\");\ntokio::task::spawn_blocking(|| std::fs::read(\"wallets.db\")).await;\ntokio::task::block_in_place(|| std::fs::read(\"wallets.db\"));\n}";
+        let source = "async fn restore() {\nlet _ = std::fs::read(\"wallets.db\");\ntoki\
+            o::task::spawn_blocking(|| std::fs::read(\"wallets.db\")).await;\ntokio::tas\
+            k::block_in_place(|| std::fs::read(\"wallets.db\"));\n}";
         let values = findings(source);
         assert_eq!(values.len(), 1);
         assert_eq!(values[0].related.len(), 1);
-        assert!(findings("struct Fixture; #[cfg(all(test, feature = \"fixtures\"))] impl Fixture { async fn prepare() { std::fs::read(\"fixture\"); } }").is_empty());
+        assert!(
+            findings(
+                "struct Fixture; #[cfg(all(test, feature = \"fixtures\"))] impl\
+            \u{20}Fixture { async fn prepare() { std::fs::read(\"fixture\"); } }"
+            )
+            .is_empty()
+        );
     }
     #[test]
     fn aliases_and_shadowing_do_not_turn_custom_apis_into_known_blockers() {
         for source in [
             "use std::thread::sleep as pause; async fn run(pause: fn(u8)) { pause(1); }",
-            "use std::thread::sleep as pause; async fn run() { let pause = |value| value; pause(1); }",
-            "mod std { pub mod thread { pub fn sleep() {} } } async fn run() { std::thread::sleep(); }",
-            "use std::sync::Mutex; struct Custom; async fn run(lock: &Mutex<u8>) { { let lock = Custom; lock.lock(); } }",
+            "use std::thread::sleep as pause; async fn run() { let pause = |value| value\
+                ; pause(1); }",
+            "mod std { pub mod thread { pub fn sleep() {} } } async fn run() { std::thre\
+                ad::sleep(); }",
+            "use std::sync::Mutex; struct Custom; async fn run(lock: &Mutex<u8>) { { let\
+                \u{20}lock = Custom; lock.lock(); } }",
             "async fn outer() { fn nested() { std::fs::read(\"x\"); } }",
         ] {
             assert!(findings(source).is_empty(), "{source}");
         }
-        assert_eq!(findings("use std::thread::sleep as pause; async fn run() { { let pause = || {}; pause(); } pause(); }").len(), 1);
+        assert_eq!(
+            findings(
+                "use std::thread::sleep as pause; async fn run() { { let pau\
+            se = || {}; pause(); } pause(); }"
+            )
+            .len(),
+            1
+        );
     }
     #[test]
     fn worker_context_only_exempts_callback_not_evaluated_arguments() {
-        let source = "async fn run() { tokio::task::spawn_blocking({ std::fs::read(\"before\"); || std::fs::read(\"inside\") }).await; }";
+        let source = "async fn run() { tokio::task::spawn_blocking({ std::fs::read(\"bef\
+            ore\"); || std::fs::read(\"inside\") }).await; }";
         assert_eq!(findings(source).len(), 1);
-        assert_eq!(findings("async fn run() { tokio::task::spawn_blocking(|| std::fs::read(\"inside\"), std::fs::read(\"before\")).await; }").len(), 1);
+        assert_eq!(
+            findings(
+                "async fn run() { tokio::task::spawn_blocking(|| std::fs::re\
+            ad(\"inside\"), std::fs::read(\"before\")).await; }"
+            )
+            .len(),
+            1
+        );
     }
     #[test]
     fn guard_liveness_handles_aliases_shadowing_scope_and_conditional_drop() {
@@ -271,7 +299,8 @@ fn closures(builder: Builder) {
             "{ let guard = lock.lock().unwrap(); consume(&guard); } ready().await;",
             "let guard = lock.lock().unwrap(); std::mem::drop(guard); ready().await;",
             "let guard = lock.lock().unwrap(); consume(guard); ready().await;",
-            "let guard = lock.lock().unwrap(); if condition { drop(guard); } else { drop(guard); } ready().await;",
+            "let guard = lock.lock().unwrap(); if condition { drop(guard); } else { drop\
+                (guard); } ready().await;",
             "let guard = lock.lock().unwrap(); let unused = async { ready().await; }; drop(guard);",
         ] {
             let source =
@@ -286,7 +315,9 @@ fn closures(builder: Builder) {
     }
     #[test]
     fn directives_scopes_and_allowed_paths_are_explicit() {
-        let source = "async fn run() {\n// linter:disable rust/async-blocking-operation -- Single startup task uses the bounded compatibility adapter.\nstd::fs::read(\"x\");\n}";
+        let source = "async fn run() {\n// linter:disable rust/async-blocking-operation \
+            -- Single startup task uses the bounded compatibility adapter.\nstd::fs::rea\
+            d(\"x\");\n}";
         let result = report(source, "");
         assert!(result.findings.is_empty());
         assert_eq!(result.suppressed.len(), 1);

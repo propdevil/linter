@@ -82,12 +82,21 @@ fn inspect(
                     .child_by_field_name("name")
                     .map(|name| &source.text[name.byte_range()])
                     .unwrap_or("<anonymous>");
-                findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
+                findings.push(Finding {
+                    span: Some(linter::Span::new(&source.text, node.byte_range())),
+                    related: Vec::new(),
                     rule: FunctionLength::ID,
                     path: source.path.clone(),
                     configuration: format!("{}.max_lines", assertion.setting),
-                    message: format!("Rust function `{name}` at line {} has {lines} lines; maximum is {}", node.start_position().row + 1, assertion.max_lines),
-                    instruction: "Split the function into cohesive operations owned by the appropriate domain.".into(),
+                    message: format!(
+                        "Rust function `{name}` at line {} has {lines} line\
+                s; maximum is {}",
+                        node.start_position().row + 1,
+                        assertion.max_lines
+                    ),
+                    instruction: "Split the function into cohesive operations owned by t\
+                he appropriate domain."
+                        .into(),
                 });
             }
         }
@@ -153,7 +162,8 @@ mod tests {
 
     #[test]
     fn includes_nested_functions_but_excludes_methods_and_trait_bodies() {
-        let text = "fn outer() {\nfn nested() {\n}\n}\nstruct Item;\nimpl Item { fn method() {\n}\n}\ntrait Trait { fn method() {\n}\nfn absent(); }";
+        let text = "fn outer() {\nfn nested() {\n}\n}\nstruct Item;\nimpl Item { fn meth\
+            od() {\n}\n}\ntrait Trait { fn method() {\n}\nfn absent(); }";
         let findings = check(text, "max_lines=1");
         assert_eq!(findings.len(), 2);
         assert!(
@@ -227,7 +237,14 @@ mod tests {
             .register::<FunctionLength>()
             .unwrap();
         for (scope, expected) in [("production", 0), ("tests", 1), ("all", 1)] {
-            fs::write(root.path().join("linter.toml"), format!("[[rules.\"rust/function-length\"]]\ntarget='**/*.rs'\nmax_lines=2\nscope='{scope}'")).unwrap();
+            fs::write(
+                root.path().join("linter.toml"),
+                format!(
+                    "[[rules.\"rust/function-\
+                length\"]]\ntarget='**/*.rs'\nmax_lines=2\nscope='{scope}'"
+                ),
+            )
+            .unwrap();
             assert_eq!(
                 registry.check(root.path()).unwrap().findings.len(),
                 expected

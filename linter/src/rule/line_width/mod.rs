@@ -148,7 +148,8 @@ mod tests {
     #[test]
     fn target_and_exclusions_skip_unselected_files_including_invalid_utf8() {
         let root = setup(
-            "[files]\nexclude = ['global.rs']\n[[rules.\"line-width\"]]\ntarget = ['*.rs']\nexclude = ['skip.rs']\nmax_columns = 1\ntab_width = 2",
+            "[files]\nexclude = ['global.rs']\n[[rules.\"line-width\"]]\ntarget = ['*.rs\
+                ']\nexclude = ['skip.rs']\nmax_columns = 1\ntab_width = 2",
             "\t",
         );
         for path in ["skip.rs", "global.rs", "other.txt"] {

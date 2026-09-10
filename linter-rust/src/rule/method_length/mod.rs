@@ -82,12 +82,21 @@ fn inspect(
                     .child_by_field_name("name")
                     .map(|name| &source.text[name.byte_range()])
                     .unwrap_or("<anonymous>");
-                findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
+                findings.push(Finding {
+                    span: Some(linter::Span::new(&source.text, node.byte_range())),
+                    related: Vec::new(),
                     rule: MethodLength::ID,
                     path: source.path.clone(),
                     configuration: format!("{}.max_lines", assertion.setting),
-                    message: format!("Rust method `{name}` at line {} has {lines} lines; maximum is {}", node.start_position().row + 1, assertion.max_lines),
-                    instruction: "Split the function into cohesive operations owned by the appropriate domain.".into(),
+                    message: format!(
+                        "Rust method `{name}` at line {} has {lines} lines;\
+                \u{20}maximum is {}",
+                        node.start_position().row + 1,
+                        assertion.max_lines
+                    ),
+                    instruction: "Split the function into cohesive operations owned by t\
+                he appropriate domain."
+                        .into(),
                 });
             }
         }
@@ -144,7 +153,9 @@ mod tests {
 
     #[test]
     fn checks_associated_functions_methods_and_trait_default_bodies() {
-        let text = "struct Item; impl Item { fn new() -> Self {\nSelf\n} fn value(&self) {\n}\n} trait Trait { fn default(&self) {\n} fn declaration(&self); } impl Trait for Item { fn default(&self) {\n} } fn free() {\n}";
+        let text = "struct Item; impl Item { fn new() -> Self {\nSelf\n} fn value(&self)\
+            \u{20}{\n}\n} trait Trait { fn default(&self) {\n} fn declaration(&self); } \
+            impl Trait for Item { fn default(&self) {\n} } fn free() {\n}";
         let findings = check(text, "max_lines=1");
         assert_eq!(findings.len(), 4);
         for name in ["new", "value", "default"] {
@@ -163,7 +174,8 @@ mod tests {
 
     #[test]
     fn counts_complete_signatures_comments_blanks_and_closures() {
-        let text = "struct Item<T>(T); impl<T> Item<T> {\nfn value(\n&self,\n) where T: Clone {\n// comment\n\nlet closure = || {\n};\n}\n}";
+        let text = "struct Item<T>(T); impl<T> Item<T> {\nfn value(\n&self,\n) where T: \
+            Clone {\n// comment\n\nlet closure = || {\n};\n}\n}";
         assert!(check(text, "max_lines=8").is_empty());
         let findings = check(text, "max_lines=7");
         assert_eq!(findings.len(), 1);
@@ -172,7 +184,8 @@ mod tests {
 
     #[test]
     fn nested_methods_count_but_nested_free_functions_do_not() {
-        let text = "fn enclosing() { struct Inner; impl Inner { fn nested() {\n}\n}} struct Outer; impl Outer { fn method() {\nfn nested_free() {\n}\n}\n}";
+        let text = "fn enclosing() { struct Inner; impl Inner { fn nested() {\n}\n}} str\
+            uct Outer; impl Outer { fn method() {\nfn nested_free() {\n}\n}\n}";
         let findings = check(text, "max_lines=1");
         assert_eq!(findings.len(), 2);
         assert!(
@@ -184,7 +197,8 @@ mod tests {
 
     #[test]
     fn scopes_exclude_test_items_in_production_methods() {
-        let text = "struct Item; impl Item { fn production() {\n#[cfg(test)] fn nested() {\n\n}\n}\n#[cfg(test)] fn test_method() {\n\n}\n}";
+        let text = "struct Item; impl Item { fn production() {\n#[cfg(test)] fn nested()\
+            \u{20}{\n\n}\n}\n#[cfg(test)] fn test_method() {\n\n}\n}";
         assert!(check(text, "max_lines=2").is_empty());
         assert_eq!(check(text, "max_lines=2\nscope='tests'").len(), 1);
         assert_eq!(check(text, "max_lines=2\nscope='all'").len(), 2);
@@ -257,7 +271,14 @@ mod tests {
             .register::<MethodLength>()
             .unwrap();
         for (scope, expected) in [("production", 0), ("tests", 1), ("all", 1)] {
-            fs::write(root.path().join("linter.toml"), format!("[[rules.\"rust/method-length\"]]\ntarget='**/*.rs'\nmax_lines=2\nscope='{scope}'")).unwrap();
+            fs::write(
+                root.path().join("linter.toml"),
+                format!(
+                    "[[rules.\"rust/method-le\
+                ngth\"]]\ntarget='**/*.rs'\nmax_lines=2\nscope='{scope}'"
+                ),
+            )
+            .unwrap();
             assert_eq!(
                 registry.check(root.path()).unwrap().findings.len(),
                 expected

@@ -84,12 +84,22 @@ fn inspect(
                 .filter(|word| assertion.forbidden_words.contains(*word))
                 .collect();
             if !hits.is_empty() {
-                findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
+                findings.push(Finding {
+                    span: Some(linter::Span::new(&source.text, node.byte_range())),
+                    related: Vec::new(),
                     rule: ModuleName::ID,
                     path: source.path.clone(),
                     configuration: assertion.setting.clone(),
-                    message: format!("Rust module `{name}` contains forbidden word(s): {}", hits.into_iter().collect::<Vec<_>>().join(", ")),
-                    instruction: "Name the module for its owned entity, capability, algorithm, or external mechanism.".into(),
+                    message: format!(
+                        "Rust module `{name}` contains forbidden word(s): {}",
+                        hits.into_iter().collect::<Vec<_>>().join(
+                            "\
+                , "
+                        )
+                    ),
+                    instruction: "Name the module for its owned entity, capability, algo\
+                rithm, or external mechanism."
+                        .into(),
                 });
             }
         }
@@ -121,7 +131,8 @@ mod tests {
         "forbidden_words=['util','utils','core','common','shared','helper','helpers','misc']";
     #[test]
     fn checks_rust_module_declarations_only() {
-        let source = "mod util {} mod r#common {} mod utility {} fn helper() {} struct SharedState; use external_crate::core; const PROSE:&str=\"mod misc {}\";";
+        let source = "mod util {} mod r#common {} mod utility {} fn helper() {} struct S\
+            haredState; use external_crate::core; const PROSE:&str=\"mod misc {}\";";
         let found = check("lib.rs", source, CONFIG).unwrap();
         assert_eq!(found.len(), 2);
         assert!(
@@ -137,7 +148,9 @@ mod tests {
     }
     #[test]
     fn uses_complete_words_and_finds_nested_external_and_path_modules() {
-        let source = "mod owner {mod shared_values; mod helper_domain{} mod CoreData{}} #[path=\"entities.rs\"] mod common; #[path=\"helpers.rs\"] mod transactions; mod utility; mod score;";
+        let source = "mod owner {mod shared_values; mod helper_domain{} mod CoreData{}} \
+            #[path=\"entities.rs\"] mod common; #[path=\"helpers.rs\"] mod transactions;\
+            \u{20}mod utility; mod score;";
         let found = check("src/lib.rs", source, CONFIG).unwrap();
         assert_eq!(found.len(), 4);
         assert!(

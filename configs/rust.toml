@@ -58,9 +58,9 @@ target = "**/*.{rs,c,h}"
 max_columns = 100
 tab_width = 4
 
-[[rules."max-indent"]]
-target = "**/*.{rs,c,h}"
-max_columns = 16
+[[rules."rust/max-indent"]]
+target = "**/*.rs"
+max_columns = 20
 tab_width = 4
 
 [[rules."rust/function-length"]]

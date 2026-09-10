@@ -47,12 +47,19 @@ impl Rule for FileLength {
                 .into_iter()
                 .filter(|assertion| lines > assertion.max_lines)
             {
-                findings.push(Finding { span: None, related: Vec::new(),
+                findings.push(Finding {
+                    span: None,
+                    related: Vec::new(),
                     rule: Self::ID,
                     path: source.path.clone(),
                     configuration: assertion.setting.clone(),
-                    message: format!("C file has {lines} effective code lines; maximum is {}", assertion.max_lines),
-                    instruction: "Split cohesive state and behavior behind a named C module boundary; comments and blank lines already do not count.".into(),
+                    message: format!(
+                        "C file has {lines} effective code lines; maximum is {}",
+                        assertion.max_lines
+                    ),
+                    instruction: "Split cohesive state and behavior behind a named C mod\
+                ule boundary; comments and blank lines already do not count."
+                        .into(),
                 });
             }
         }
@@ -110,7 +117,9 @@ mod tests {
         write(
             root.path(),
             "sample.c",
-            "/* multiline\r\nü comment */\r\n\r\n#define NUMBER 1\r\nint example(void)\r\n{\r\nconst char *text = \"/* string */\"; // inline\r\n}\r\n// trailing comment\r\n",
+            "/* multiline\r\nü comment */\r\n\r\n#define NUMBER 1\r\nint example(void)\r\
+                \n{\r\nconst char *text = \"/* string */\"; // inline\r\n}\r\n// trailin\
+                g comment\r\n",
         );
         assert!(check(root.path()).unwrap().findings.is_empty());
         config(root.path(), "target = '**/*.c'\nmax_lines = 4");

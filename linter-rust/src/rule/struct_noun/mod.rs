@@ -84,12 +84,19 @@ fn inspect(
                 .iter()
                 .any(|word| assertion.accepted_words.contains(word) || language.noun(word))
             {
-                findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
+                findings.push(Finding {
+                    span: Some(linter::Span::new(&source.text, node.byte_range())),
+                    related: Vec::new(),
                     rule: StructNoun::ID,
                     path: source.path.clone(),
                     configuration: assertion.setting.clone(),
-                    message: format!("Rust struct `{name}` at line {} contains no recognized noun", node.start_position().row + 1),
-                    instruction: "Name the value with a precise domain noun, or configure its technical vocabulary in accepted_words.".into(),
+                    message: format!(
+                        "Rust struct `{name}` at line {} contains no recognized noun",
+                        node.start_position().row + 1
+                    ),
+                    instruction: "Name the value with a precise domain noun, or configur\
+                e its technical vocabulary in accepted_words."
+                        .into(),
                 });
             }
         }
@@ -197,14 +204,22 @@ mod tests {
     }
     #[test]
     fn checks_only_structs_without_donor_macro_suppressions() {
-        let findings = check("struct Workspace; struct Selected; #[hl_design::naming(reason=\"external\")] struct Updated; enum Changed { Value } type Chosen = usize;", "").unwrap();
+        let findings = check(
+            "struct Workspace; struct Selected; #[hl_design::naming(rea\
+            son=\"external\")] struct Updated; enum Changed { Value } type Chosen = usiz\
+            e;",
+            "",
+        )
+        .unwrap();
         assert_eq!(findings.len(), 2);
         assert!(findings[0].message.contains("`Selected`"));
         assert!(findings[1].message.contains("`Updated`"));
     }
     #[test]
     fn scope_does_not_hide_later_production_and_words_extend_classifier() {
-        let text = "#[cfg(test)] mod checks { struct Selected; }\n#[cfg(test)] struct Updated;\n#[test] fn example() { struct Selected; }\nstruct Selected; struct Wallet;";
+        let text = "#[cfg(test)] mod checks { struct Selected; }\n#[cfg(test)] struct Up\
+            dated;\n#[test] fn example() { struct Selected; }\nstruct Selected; struct W\
+            allet;";
         let findings = check(text, "").unwrap();
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("line 4"));

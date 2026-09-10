@@ -104,7 +104,14 @@ impl Scan<'_, '_> {
                         .and_then(|name| imports.resolve(name, &self.source.text))
                     && self.assertion.macros.contains(&path)
                 {
-                    self.report(node, &format!("configured compile-time environment macro '{path}' is outside an approved boundary"), None);
+                    self.report(
+                        node,
+                        &format!(
+                            "configured compile-time environment macr\
+                o '{path}' is outside an approved boundary"
+                        ),
+                        None,
+                    );
                 }
                 return;
             }
@@ -148,7 +155,14 @@ impl Scan<'_, '_> {
             .resolve(outer, &self.source.text)
             .is_some_and(|path| self.assertion.global_types.contains(&path))
         {
-            self.report(node, &format!("ambient configuration/state global '{name}' hides process-wide input and lifecycle"), Some(ty));
+            self.report(
+                node,
+                &format!(
+                    "ambient configuration/state global '{name}' hide\
+                s process-wide input and lifecycle"
+                ),
+                Some(ty),
+            );
         }
     }
     fn report(&mut self, node: Node<'_>, message: &str, evidence: Option<Node<'_>>) {
@@ -161,10 +175,23 @@ impl Scan<'_, '_> {
         }
         let evidence = evidence.unwrap_or(owner);
         self.findings.push(Finding {
-            rule: EnvironmentAccess::ID, path: self.source.path.clone(), configuration: self.assertion.setting.clone(),
+            rule: EnvironmentAccess::ID,
+            path: self.source.path.clone(),
+            configuration: self.assertion.setting.clone(),
             span: Some(Span::new(&self.source.text, node.byte_range())),
-            related: vec![Evidence { path: self.source.path.clone(), span: Some(Span::new(&self.source.text, evidence.byte_range())), message: "Owning scope or configured global type requires explicit input ownership.".into() }],
-            message: message.into(), instruction: "Capture and validate process input at a configured composition or platform boundary, then inject owned configuration or a capability.".into(),
+            related: vec![Evidence {
+                path: self.source.path.clone(),
+                span: Some(Span::new(&self.source.text, evidence.byte_range())),
+                message: "\
+                Owning scope or configured global type requires explicit input ownership\
+                ."
+                .into(),
+            }],
+            message: message.into(),
+            instruction: "Capture and validate process input at\
+                \u{20}a configured composition or platform boundary, then inject owned c\
+                onfiguration or a capability."
+                .into(),
         });
     }
 }

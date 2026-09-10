@@ -159,7 +159,8 @@ fn finding(
             "method `{name}` repeats receiver namespace `{namespace}` as a {position}"
         ),
         instruction: format!(
-            "Prefer `{namespace}::{suggestion}`; retain repeated words only when they name a distinct domain concept."
+            "Prefer `{namespace}::{suggestion}`; retain repeated words only when they na\
+                me a distinct domain concept."
         ),
     })
 }
@@ -311,7 +312,9 @@ fn wallet_address(&self){}
     }
     #[test]
     fn conversion_prefix_alone_is_insufficient() {
-        let source = "struct Wallet;struct Other;impl Wallet{fn to_wallet(&self){} fn as_wallet(&self)->&Other{todo!()} fn into_wallet(self)->Self{self} fn to_wallet_copy(&self){} fn wallet_address(&self){} }";
+        let source = "struct Wallet;struct Other;impl Wallet{fn to_wallet(&self){} fn as\
+            _wallet(&self)->&Other{todo!()} fn into_wallet(self)->Self{self} fn to_walle\
+            t_copy(&self){} fn wallet_address(&self){} }";
         let found = check("lib.rs", source, "").unwrap();
         assert_eq!(found.len(), 3);
         assert!(
@@ -332,7 +335,9 @@ fn wallet_address(&self){}
     }
     #[test]
     fn nominal_alias_generic_and_typed_receivers_are_resolved() {
-        let source = "mod entities{pub struct Wallet<T>(T);}type Alias=entities::Wallet<u8>;impl Alias{fn wallet_address(&self){}}impl<T> entities::Wallet<T>{fn wallet_balance(self:Box<Self>){}fn wallet_metadata(&self){}}";
+        let source = "mod entities{pub struct Wallet<T>(T);}type Alias=entities::Wallet<\
+            u8>;impl Alias{fn wallet_address(&self){}}impl<T> entities::Wallet<T>{fn wal\
+            let_balance(self:Box<Self>){}fn wallet_metadata(&self){}}";
         assert_eq!(check("lib.rs", source, "").unwrap().len(), 3);
         assert!(
             check("lib.rs", "impl Unknown{fn unknown_value(&self){}}", "")
@@ -377,7 +382,9 @@ fn wallet_address(&self){}
     }
     #[test]
     fn directives_and_implementation_pass() {
-        let source = "struct Wallet;impl Wallet{\n// linter:disable rust/receiver-name-repetition -- distinguishes owner from peer address\nfn wallet_address(&self){}}";
+        let source = "struct Wallet;impl Wallet{\n// linter:disable rust/receiver-name-r\
+            epetition -- distinguishes owner from peer address\nfn wallet_address(&self)\
+            {}}";
         assert!(check("lib.rs", source, "").unwrap().is_empty());
         for text in [
             include_str!("mod.rs"),

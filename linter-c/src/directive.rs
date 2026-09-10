@@ -41,8 +41,15 @@ mod tests {
     #[test]
     fn suppresses_only_named_rule_and_rejects_obsolete_directive() {
         let root = tempfile::tempdir().unwrap();
-        std::fs::write(root.path().join("linter.toml"), "[[rules.\"c/function-length\"]]\ntarget='*.c'\nmax_lines=1\n[[rules.\"c/file-length\"]]\ntarget='*.c'\nmax_lines=1").unwrap();
-        let source = "// linter:disable c/function-length -- Fixed generated algorithm.\nint run(void) {\nreturn 0;\n}\n";
+        std::fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"c/function-length\"]]\
+            \ntarget='*.c'\nmax_lines=1\n[[rules.\"c/file-length\"]]\ntarget='*.c'\nmax_\
+            lines=1",
+        )
+        .unwrap();
+        let source = "// linter:disable c/function-length -- Fixed generated algorithm.\
+            \nint run(void) {\nreturn 0;\n}\n";
         std::fs::write(root.path().join("input.c"), source).unwrap();
         let registry = linter::Registry::default()
             .register::<crate::FunctionLength>()

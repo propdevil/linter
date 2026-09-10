@@ -147,7 +147,8 @@ fn finding(
         configuration: setting.into(),
         message: format!("production predicate reads '{label}', which only test-only code writes"),
         instruction: format!(
-            "Give '{label}' a production writer or guard the predicate with the same test-only condition as its writers."
+            "Give '{label}' a production writer or guard the predicate with the same tes\
+                t-only condition as its writers."
         ),
     }
 }

@@ -61,12 +61,20 @@ impl Rule for ParentName {
                     continue;
                 }
                 let repeated = repeated.join(", ");
-                findings.push(Finding { span: None, related: Vec::new(),
+                findings.push(Finding {
+                    span: None,
+                    related: Vec::new(),
                     rule: Self::ID,
                     path: entry.path.clone(),
                     configuration: assertion.setting.clone(),
-                    message: format!("filename '{stem}' repeats parent '{parent}' words: {repeated}"),
-                    instruction: format!("Remove repeated words ({repeated}) from the filename; the immediate parent already supplies that context. Check name collisions before renaming."),
+                    message: format!(
+                        "filename '{stem}' repeats parent '{parent}' words: {repeated}"
+                    ),
+                    instruction: format!(
+                        "Remove repeated words ({repeated}) from the fi\
+                lename; the immediate parent already supplies that context. Check name c\
+                ollisions before renaming."
+                    ),
                 });
             }
         }

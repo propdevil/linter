@@ -72,7 +72,8 @@ pub(super) fn conditional_statement_directive(node: tree_sitter::Node<'_>, sourc
             .rev()
             .take_while(|line| {
                 let line = line.trim_start();
-                !matches!(line, line if line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("#ifndef "))
+                !matches!(line, line if line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("\
+                #ifndef "))
             })
             .any(|line| line.trim_start().starts_with("else if ("));
         let directive = lines[..row - 1].iter().rev().find(|line| {
@@ -84,12 +85,20 @@ pub(super) fn conditional_statement_directive(node: tree_sitter::Node<'_>, sourc
         }
     }
     let window = &lines[row.saturating_sub(16)..row.min(lines.len())];
-    if window.iter().any(|line| line.trim_start().starts_with("#endif"))
-        && window.iter().any(|line| line.trim_start().starts_with("#else"))
+    if window
+        .iter()
+        .any(|line| line.trim_start().starts_with("#endif"))
         && window
             .iter()
-            .any(|line| matches!(line.trim_start(), line if line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("#ifndef ")))
-        && window.iter().any(|line| line.trim_start().starts_with("if ("))
+            .any(|line| line.trim_start().starts_with("#else"))
+        && window.iter().any(|line| {
+            matches!(line.trim_start(), line if line.starts_with("#if ") || line.starts_with("\
+                #ifdef ") || line.starts_with("\
+                #ifndef "))
+        })
+        && window
+            .iter()
+            .any(|line| line.trim_start().starts_with("if ("))
     {
         return true;
     }

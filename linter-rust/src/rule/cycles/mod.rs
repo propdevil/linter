@@ -80,10 +80,30 @@ impl Rule for DependencyCycles {
                         ),
                     });
                 }
-                findings.push(Finding{
-                    rule:Self::ID,path:packages[start].manifest.clone(),span:evidence.first().and_then(|e|e.span.clone()),related:evidence,configuration:assertion.setting.clone(),
-                    message:format!("declared Cargo dependency cycle: {}",path.iter().map(|i|format!("{} [{}]",packages[*i].name,packages[*i].directory.display())).collect::<Vec<_>>().join(" -> ")),
-                    instruction:"Remove a reverse dependency or move the shared contract to its owning lower layer.".into(),
+                findings.push(Finding {
+                    rule: Self::ID,
+                    path: packages[start].manifest.clone(),
+                    span: evidence.first().and_then(|e| e.span.clone()),
+                    related: evidence,
+                    configuration: assertion.setting.clone(),
+                    message: format!(
+                        "declared Cargo dependency cycle: {}",
+                        path.iter()
+                            .map(|i| format!(
+                                "\
+                {} [{}]",
+                                packages[*i].name,
+                                packages[*i].directory.display()
+                            ))
+                            .collect::<Vec<_>>()
+                            .join(
+                                "\
+                \u{20}-> "
+                            )
+                    ),
+                    instruction: "Remove a reverse dependency or move the shared contract\
+                \u{20}to its owning lower layer."
+                        .into(),
                 });
             }
         }
@@ -144,7 +164,12 @@ mod tests {
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].related.len(), 2);
         assert!(report.findings[0].related.iter().all(|e| e.span.is_some()));
-        fs::write(root.path().join("linter.toml"),"[[rules.\"rust/dependency-cycles\"]]\ntarget='*'\nkinds=['normal','build','development']").unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"rust/dependency-cycles\"]]\
+            \ntarget='*'\nkinds=['normal','build','development']",
+        )
+        .unwrap();
         assert_eq!(check(&root).unwrap().findings.len(), 2);
     }
     #[test]
@@ -157,7 +182,13 @@ mod tests {
             "",
             "",
         );
-        fs::write(root.path().join("linter.toml"),"[[rules.\"rust/dependency-cycles\"]]\ntarget='*'\n[[rules.\"rust/function-length\"]]\ntarget='**/*.rs'\nmax_lines=50").unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"rust/dependency-cycles\"]]\
+            \ntarget='*'\n[[rules.\"rust/function-length\"]]\ntarget='**/*.rs'\nmax_line\
+            s=50",
+        )
+        .unwrap();
         let report = linter::Registry::default()
             .register::<DependencyCycles>()
             .unwrap()

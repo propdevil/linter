@@ -81,9 +81,29 @@ impl Assertion {
                 continue;
             }
             paths.sort();
-            findings.push(Finding { span: None, related: Vec::new(), rule: SharedAffix::ID, path: parent, configuration: self.setting.clone(),
-                message: format!("{} files share {label} word '{word}': {}", paths.len(), paths.iter().map(|path| path.display().to_string()).collect::<Vec<_>>().join(", ")),
-                instruction: format!("Consider grouping these files under {word}/ and removing the repeated {label}; check ownership and name collisions first.") });
+            findings.push(Finding {
+                span: None,
+                related: Vec::new(),
+                rule: SharedAffix::ID,
+                path: parent,
+                configuration: self.setting.clone(),
+                message: format!(
+                    "{} files share {label} word '{word}': {}",
+                    paths.len(),
+                    paths
+                        .iter()
+                        .map(|path| path.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(
+                            "\
+                , "
+                        )
+                ),
+                instruction: format!(
+                    "Consider grouping these files under {word}/ and re\
+                moving the repeated {label}; check ownership and name collisions first."
+                ),
+            });
         }
     }
 }

@@ -169,7 +169,10 @@ mod tests {
     }
     #[test]
     fn preserves_directory_context_without_duplicating_receiver_checks() {
-        let source = "struct LauncherPlan;struct RuntimePlan;fn launcher_start(){}struct Runner;impl Runner{fn launcher_prepare(){}}impl external::Contract for Runner{fn launcher_external_name(){}}trait Drive{fn launcher_publish();}#[cfg(test)]mod tests{struct LauncherFixture;}";
+        let source = "struct LauncherPlan;struct RuntimePlan;fn launcher_start(){}struct\
+            \u{20}Runner;impl Runner{fn launcher_prepare(){}}impl external::Contract for\
+            \u{20}Runner{fn launcher_external_name(){}}trait Drive{fn launcher_publish()\
+            ;}#[cfg(test)]mod tests{struct LauncherFixture;}";
         let found = check(&[("src/launcher/plan.rs", source)], "").unwrap();
         assert_eq!(found.len(), 3);
         assert!(
@@ -185,7 +188,8 @@ mod tests {
     }
     #[test]
     fn checks_current_and_ancestor_modules_without_substring_matching() {
-        let source = "struct LauncherPlan;struct PlanSpec;struct PlanetSpec;enum PlanKind{A}mod nested{struct NestedValue;struct PlanOther;}";
+        let source = "struct LauncherPlan;struct PlanSpec;struct PlanetSpec;enum PlanKin\
+            d{A}mod nested{struct NestedValue;struct PlanOther;}";
         assert_eq!(
             check(&[("src/launcher/plan.rs", source)], "")
                 .unwrap()
@@ -288,7 +292,18 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
-        assert!(check(&[("src/launcher/plan.rs","// linter:disable rust/redundant-module-prefix -- public API name is externally fixed\nstruct LauncherPlan;")],"").unwrap().is_empty());
+        assert!(
+            check(
+                &[(
+                    "src/launcher/plan.rs",
+                    "// linter:disable rust/redundant-module\
+            -prefix -- public API name is externally fixed\nstruct LauncherPlan;"
+                )],
+                ""
+            )
+            .unwrap()
+            .is_empty()
+        );
     }
     #[test]
     fn rejects_bad_configuration_and_accepts_empty_sources() {

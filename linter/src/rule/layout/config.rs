@@ -179,13 +179,15 @@ impl Definition {
     fn validate(&self, setting: &str) -> Result<(), Error> {
         if !self.files.content_ignored.is_empty() || self.files.allow_single_file.is_some() {
             return Err(Error::Configuration(format!(
-                "{setting}.files: content_ignored and allow_single_file are only valid for directories"
+                "{setting}.files: content_ignored and allow_single_file are only valid f\
+                or directories"
             )));
         }
         for (label, selection) in [("files", &self.files), ("directories", &self.directories)] {
             if self.mode == Mode::Permissive && !selection.allowed.is_empty() {
                 return Err(Error::Configuration(format!(
-                    "{setting}.{label}.allowed: requires restrictive mode; use an ordered allow block to override a ban"
+                    "{setting}.{label}.allowed: requires restrictive mode; use an ordere\
+                d allow block to override a ban"
                 )));
             }
         }

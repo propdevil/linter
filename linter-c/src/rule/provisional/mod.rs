@@ -106,8 +106,16 @@ terms = ["temporary", "diagnostic"]
                 .len(),
             1
         );
-        assert!(check("// Temporary directory owned by this call.\n// Bounded lifecycle diagnostics.\nconst char *text = \"temporary diagnostics\";", "")
-            .unwrap().findings.is_empty());
+        assert!(
+            check(
+                "// Temporary directory owned by this call.\n// Bounded lifecycle \
+            diagnostics.\nconst char *text = \"temporary diagnostics\";",
+                ""
+            )
+            .unwrap()
+            .findings
+            .is_empty()
+        );
     }
     #[test]
     fn target_configuration_and_directives_remain_observable() {
@@ -124,7 +132,12 @@ terms = ["temporary", "diagnostic"]
             check("void run(void) {}", "unknown = true"),
             Err(Error::Configuration(_))
         ));
-        let report = check("// linter:disable c/provisional-diagnostic -- Documented bounded investigation.\n// temporary diagnostics\nvoid run(void) {}", "").unwrap();
+        let report = check(
+            "// linter:disable c/provisional-diagnostic -- Documented bou\
+            nded investigation.\n// temporary diagnostics\nvoid run(void) {}",
+            "",
+        )
+        .unwrap();
         assert!(report.findings.is_empty());
         assert_eq!(report.suppressed.len(), 1);
     }

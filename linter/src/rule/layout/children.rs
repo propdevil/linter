@@ -80,8 +80,15 @@ impl Assertion {
                 })
                 .collect();
             if !policy.allow_single_file && contents.len() == 1 && contents[0].kind.is_file() {
-                findings.push(self.finding(&entry.path, "directory contains only one file".into(),
-                    "Flatten this directory when appropriate, or narrow the configured target to preserve intentional boundaries.".into()));
+                findings.push(
+                    self.finding(
+                        &entry.path,
+                        "directory contains only one file".into(),
+                        "Flatten this directory when appropriate, or narrow the configured t\
+                arget to preserve intentional boundaries."
+                            .into(),
+                    ),
+                );
             }
             contents.is_empty()
         } else {
@@ -97,8 +104,15 @@ impl Assertion {
             } else {
                 "file"
             };
-            findings.push(self.finding(&entry.path, format!("empty {noun} is not allowed"),
-                format!("Add meaningful content, remove this {noun}, or set {}.{label}.allow_empty = true.", self.setting)));
+            findings.push(self.finding(
+                &entry.path,
+                format!("empty {noun} is not allowed"),
+                format!(
+                    "Add meaningful content, remove this {noun}, or set {}.{label}.a\
+                llow_empty = true.",
+                    self.setting
+                ),
+            ));
         }
         Ok(())
     }

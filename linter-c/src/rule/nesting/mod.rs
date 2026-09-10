@@ -62,12 +62,21 @@ fn visit(node: Node<'_>, source: &Source, assertions: &[&Assertion], findings: &
             .iter()
             .filter(|assertion| depth > assertion.max_depth)
         {
-            findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
                 rule: NestingRule::ID,
                 path: source.path.clone(),
                 configuration: assertion.setting.clone(),
-                message: format!("C function at line {} has control-flow depth {depth}; maximum is {}", node.start_position().row + 1, assertion.max_depth),
-                instruction: "Reduce nested decisions with early exits or extract cohesive behavior into a named function.".into(),
+                message: format!(
+                    "C function at line {} has control-flow depth {depth}; \
+                maximum is {}",
+                    node.start_position().row + 1,
+                    assertion.max_depth
+                ),
+                instruction: "Reduce nested decisions with early exits or extract cohesi\
+                ve behavior into a named function."
+                    .into(),
             });
         }
         return;
@@ -159,19 +168,12 @@ mod tests {
         write(
             root.path(),
             "portable.c",
-            r#"
-#define WRAP(value) do { value; } while (0)
-/* if (fake) { while (fake) { */
-const char *text = "if (fake) { while (fake) {";
-int sample(int value) {
-    struct Local { int nested[8]; } local = {0};
-    {{{ value += 1; }}}
-#if ENABLED
-    if (value) { while (value) { for (;;) { switch (value) { default: do { value--; } while (value); } } } }
-#endif
-    return local.nested[0];
-}
-"#,
+            "\n#define WRAP(value) do { value; } while (0)\n/* if (fake) { while (fake) \
+                { */\nconst char *text = \"if (fake) { while (fake) {\";\nint sample(int\
+                \u{20}value) {\n    struct Local { int nested[8]; } local = {0};\n    {{\
+                { value += 1; }}}\n#if ENABLED\n    if (value) { while (value) { for (;;\
+                ) { switch (value) { default: do { value--; } while (value); } } } }\n#e\
+                ndif\n    return local.nested[0];\n}\n",
         );
         assert!(check(root.path()).unwrap().findings.is_empty());
         config(root.path(), "target = '**/*.c'\nmax_depth = 4");
@@ -189,13 +191,15 @@ int sample(int value) {
         write(
             root.path(),
             "classification.c",
-            "int classify(int value) {\nif (value == 1) return 1;\nelse if (value == 2) return 2;\nelse if (value == 3) return 3;\nelse return 0;\n}",
+            "int classify(int value) {\nif (value == 1) return 1;\nelse if (value == 2) \
+                return 2;\nelse if (value == 3) return 3;\nelse return 0;\n}",
         );
         assert!(check(root.path()).unwrap().findings.is_empty());
         write(
             root.path(),
             "classification.c",
-            "int classify(int value) {\nif (value == 1) return 1;\nelse { if (value == 2) return 2; }\nreturn 0;\n}",
+            "int classify(int value) {\nif (value == 1) return 1;\nelse { if (value == 2\
+                ) return 2; }\nreturn 0;\n}",
         );
         assert!(
             check(root.path()).unwrap().findings[0]
@@ -211,7 +215,8 @@ int sample(int value) {
             root.path(),
             "target = ['src/*.c']\nexclude = 'src/skip.c'\nmax_depth = 1",
         );
-        let text = "int a(int x) { if(x) { if(x) { return 0; } } return 1; }\nint b(int x) { while(x) { while(x) { x--; } } return x; }";
+        let text = "int a(int x) { if(x) { if(x) { return 0; } } return 1; }\nint b(int \
+            x) { while(x) { while(x) { x--; } } return x; }";
         for path in ["src/run.c", "src/skip.c", "other/run.c"] {
             write(root.path(), path, text);
         }

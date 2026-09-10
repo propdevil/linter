@@ -510,7 +510,9 @@ mod tests {
     #[test]
     fn resolves_aliases_imports_and_nominal_wrappers_without_erasing_identity() {
         let analysis = analysis(
-            "mod ids { pub struct Email(String); pub struct WalletId(String); } use crate::ids::{Email, WalletId as Id}; type Address = Email; struct Value { a: Address, b: Email, c: Id, d: String, e: Vec<Email> }",
+            "mod ids { pub struct Email(String); pub struct WalletId(String); } use crat\
+                e::ids::{Email, WalletId as Id}; type Address = Email; struct Value { a:\
+                \u{20}Address, b: Email, c: Id, d: String, e: Vec<Email> }",
         );
         let index = Index::new(&analysis, Path::new("/project"));
         let fields = &index.structures[0].fields;
@@ -540,7 +542,8 @@ mod tests {
     #[test]
     fn generic_parameters_and_glob_imports_are_not_guessed() {
         let data = analysis(
-            "struct Id; struct Value<Id> { id:Id } mod child { use crate::*; struct Example { name:String } }",
+            "struct Id; struct Value<Id> { id:Id } mod child { use crate::*; struct Exam\
+                ple { name:String } }",
         );
         let index = Index::new(&data, Path::new("/project"));
         assert!(index.structures[0].fields["id"].ty.is_none());
@@ -549,7 +552,9 @@ mod tests {
     #[test]
     fn standard_containers_require_known_paths_and_keep_nominal_shadowing() {
         let data = analysis(
-            "use std::sync::Arc; struct Value { a:Arc<String>,b:std::sync::Weak<String>,c:std::rc::Weak<String> } mod child { struct Arc<T>(T); struct Local { value:Arc<String> } }",
+            "use std::sync::Arc; struct Value { a:Arc<String>,b:std::sync::Weak<String>,\
+                c:std::rc::Weak<String> } mod child { struct Arc<T>(T); struct Local { v\
+                alue:Arc<String> } }",
         );
         let index = Index::new(&data, Path::new("/project"));
         assert_eq!(

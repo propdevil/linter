@@ -220,7 +220,23 @@ fn candidate(
     if count < assertion.min_methods {
         return None;
     }
-    Some(Finding{rule:RedundantWrapper::ID,path:source.path.clone(),span:Some(Span::new(&source.text,node.byte_range())),related,configuration:assertion.setting.clone(),message:format!("`{}` only wraps local `{}` and forwards {count} methods with identical names and signatures",structure.id.name,matches[0].id.name),instruction:"Use the inner entity directly unless the wrapper owns an invariant, translation, synchronization, instrumentation, adapter, or compatibility contract.".into()})
+    Some(Finding {
+        rule: RedundantWrapper::ID,
+        path: source.path.clone(),
+        span: Some(Span::new(&source.text, node.byte_range())),
+        related,
+        configuration: assertion.setting.clone(),
+        message: format!(
+            "\
+        `{}` only wraps local `{}` and forwards {count} methods with identical names and\
+        \u{20}signatures",
+            structure.id.name, matches[0].id.name
+        ),
+        instruction: "\
+        Use the inner entity directly unless the wrapper owns an invariant, translation,\
+        \u{20}synchronization, instrumentation, adapter, or compatibility contract."
+            .into(),
+    })
 }
 fn ignored(implementation: &Implementation<'_>, node: Node<'_>, test: bool) -> bool {
     !test
@@ -340,7 +356,15 @@ mod tests {
             .unwrap()
             .is_empty()
         );
-        assert!(check("struct WalletId(String);struct TransferId(String);impl WalletId{fn as_str(&self)->&str{self.0.as_str()}}","").unwrap().is_empty());
+        assert!(
+            check(
+                "struct WalletId(String);struct TransferId(String);impl WalletId{f\
+            n as_str(&self)->&str{self.0.as_str()}}",
+                ""
+            )
+            .unwrap()
+            .is_empty()
+        );
         assert!(
             check(&SOURCE.replace("inner:Store", "inner:String"), "")
                 .unwrap()
@@ -354,7 +378,18 @@ mod tests {
             "type Alias=Store;struct Storage {inner:Alias}",
         );
         assert_eq!(check(&input, "").unwrap().len(), 1);
-        assert_eq!(check(&format!("{SOURCE} mod another {{struct Store; impl Store{{fn read(&self,id:u64)->usize{{0}}}}}}"),"").unwrap().len(),1);
+        assert_eq!(
+            check(
+                &format!(
+                    "{SOURCE} mod another {{struct Store; impl Store{{fn r\
+            ead(&self,id:u64)->usize{{0}}}}}}"
+                ),
+                ""
+            )
+            .unwrap()
+            .len(),
+            1
+        );
     }
     #[test]
     fn test_helpers_do_not_change_production_evidence() {
@@ -410,7 +445,18 @@ mod tests {
         let tests = format!("#[cfg(test)] mod cases {{{SOURCE}}}");
         assert!(check(&tests, "").unwrap().is_empty());
         assert_eq!(check(&tests, "scope='tests'").unwrap().len(), 1);
-        assert!(check(&SOURCE.replace("struct Storage","// linter:disable rust/redundant-wrapper -- preserves a deliberate compatibility contract\nstruct Storage"),"").unwrap().is_empty());
+        assert!(
+            check(
+                &SOURCE.replace(
+                    "struct Storage",
+                    "// linter:disable rust/redundant\
+            -wrapper -- preserves a deliberate compatibility contract\nstruct Storage"
+                ),
+                ""
+            )
+            .unwrap()
+            .is_empty()
+        );
         for config in [
             "min_methods=2",
             "min_methods=0",

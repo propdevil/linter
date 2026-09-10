@@ -54,7 +54,8 @@ impl Definition {
         if definition.min_shared_fields < 3 || !(1..=100).contains(&definition.min_overlap_percent)
         {
             return Err(Error::Configuration(format!(
-                "{setting}: min_shared_fields must be at least 3 and min_overlap_percent between 1 and 100"
+                "{setting}: min_shared_fields must be at least 3 and min_overlap_percent\
+                \u{20}between 1 and 100"
             )));
         }
         Ok(Assertion {

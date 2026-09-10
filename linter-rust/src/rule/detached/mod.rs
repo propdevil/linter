@@ -293,12 +293,15 @@ fn plan() -> Plan { Builder::plan() }
     }
     #[test]
     fn resolves_local_aliases_without_collapsing_ambiguous_or_external_types() {
-        let source = "mod owner { pub struct Value { pub x: u8 } } use owner::Value as Alias; fn make() -> Alias { Alias { x: 1 } }";
+        let source = "mod owner { pub struct Value { pub x: u8 } } use owner::Value as A\
+            lias; fn make() -> Alias { Alias { x: 1 } }";
         assert_eq!(findings(source).len(), 1);
         for source in [
-            "struct Value; mod other { pub struct Value; } use other::*; fn make() -> Value { Value }",
+            "struct Value; mod other { pub struct Value; } use other::*; fn make() -> Va\
+                lue { Value }",
             "struct Value; fn make() -> external::Value { external::Value }",
-            "mod one { pub struct Value; } mod two { pub struct Value; } fn make() -> one::Value { two::Value }",
+            "mod one { pub struct Value; } mod two { pub struct Value; } fn make() -> on\
+                e::Value { two::Value }",
             "struct Owner; struct Input; fn convert(input: Input) -> Owner { Owner }",
             "struct Owner; fn transform(input: &Owner) -> Owner { Owner }",
         ] {
@@ -314,19 +317,22 @@ fn plan() -> Plan { Builder::plan() }
             "struct Value; fn make<T>() -> Value { Value }",
             "struct Value; fn make() -> Value { let Value = other(); Value }",
             "struct Value(u8); fn make(Value: fn(u8) -> Value) -> Value { Value(1) }",
-            "struct Value; fn Ok(value: Value) -> Result<Value, ()> { todo!() } fn make() -> Result<Value, ()> { Ok(Value) }",
+            "struct Value; fn Ok(value: Value) -> Result<Value, ()> { todo!() } fn make(\
+                ) -> Result<Value, ()> { Ok(Value) }",
         ] {
             assert!(findings(source).is_empty(), "{source}");
         }
     }
     #[test]
     fn scope_exclusions_directives_and_evidence_are_consistent() {
-        let source = "struct Value; #[cfg(test)] fn test_factory() -> Value { Value } fn make() -> Value { Value }";
+        let source = "struct Value; #[cfg(test)] fn test_factory() -> Value { Value } fn\
+            \u{20}make() -> Value { Value }";
         assert_eq!(report(source, "").findings.len(), 1);
         assert_eq!(report(source, "scope = 'tests'").findings.len(), 1);
         assert_eq!(report(source, "scope = 'all'").findings.len(), 2);
         assert!(report(source, "exclude = 'lib.rs'").findings.is_empty());
-        let source = "struct Value;\n// linter:disable rust/detached-constructor -- Framework requires this free function signature.\nfn make() -> Value { Value }";
+        let source = "struct Value;\n// linter:disable rust/detached-constructor -- Fram\
+            ework requires this free function signature.\nfn make() -> Value { Value }";
         let result = report(source, "");
         assert_eq!(result.suppressed.len(), 1);
         assert!(result.findings.is_empty());

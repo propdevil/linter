@@ -40,24 +40,36 @@ pub(super) struct Assertion {
 
 impl Config {
     pub(super) fn compile(self) -> Result<Vec<Assertion>, Error> {
-        self.0.into_iter().enumerate().map(|(index, value)| {
-            let setting = format!("rules.\"c/format\"[{index}]");
-            if value.executable.as_os_str().is_empty() || value.style.trim().is_empty()
-                || value.fallback_style.trim().is_empty()
-                || value.timeout_ms == 0 || value.max_output_bytes == 0 {
-                return Err(Error::Configuration(format!(
-                    "{setting}: executable, style and fallback_style are required; limits must be positive"
-                )));
-            }
-            Ok(Assertion {
-                target: value.target.compile(&format!("{setting}.target"), true)?,
-                exclude: value.exclude.map(|target| {
-                    target.compile(&format!("{setting}.exclude"), true)
-                }).transpose()?,
-                executable: value.executable, style: value.style,
-                fallback_style: value.fallback_style,
-                timeout_ms: value.timeout_ms, max_output_bytes: value.max_output_bytes, setting,
+        self.0
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let setting = format!("rules.\"c/format\"[{index}]");
+                if value.executable.as_os_str().is_empty()
+                    || value.style.trim().is_empty()
+                    || value.fallback_style.trim().is_empty()
+                    || value.timeout_ms == 0
+                    || value.max_output_bytes == 0
+                {
+                    return Err(Error::Configuration(format!(
+                        "{setting}: executable, style and fallback_style are required; limit\
+                s must be positive"
+                    )));
+                }
+                Ok(Assertion {
+                    target: value.target.compile(&format!("{setting}.target"), true)?,
+                    exclude: value
+                        .exclude
+                        .map(|target| target.compile(&format!("{setting}.exclude"), true))
+                        .transpose()?,
+                    executable: value.executable,
+                    style: value.style,
+                    fallback_style: value.fallback_style,
+                    timeout_ms: value.timeout_ms,
+                    max_output_bytes: value.max_output_bytes,
+                    setting,
+                })
             })
-        }).collect()
+            .collect()
     }
 }

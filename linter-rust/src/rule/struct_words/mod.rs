@@ -175,7 +175,14 @@ mod tests {
     }
     #[test]
     fn checks_named_unit_tuple_structs_but_not_other_declarations() {
-        let found=check("lib.rs","struct ThreeWordRecord{x:u8} struct AnotherLongName; struct ThirdLongName(u8); struct RecordV2{x:u8} trait ThreeWordTrait{} enum ThreeWordEnum{A} type ThreeWordAlias=u8;", "").unwrap();
+        let found = check(
+            "lib.rs",
+            "struct ThreeWordRecord{x:u8} struct AnotherLongName; s\
+            truct ThirdLongName(u8); struct RecordV2{x:u8} trait ThreeWordTrait{} enum T\
+            hreeWordEnum{A} type ThreeWordAlias=u8;",
+            "",
+        )
+        .unwrap();
         assert_eq!(found.len(), 3);
         assert!(
             found

@@ -69,10 +69,25 @@ impl Rule for DependencyBudget {
                         })
                     })
                     .collect::<Vec<_>>();
-                findings.push(Finding{
-                    rule:Self::ID,path:package.manifest.clone(),span:related.first().and_then(|e|e.span.clone()),related,configuration:format!("{}.max_dependencies",assertion.setting),
-                    message:format!("crate `{}` declares {} distinct dependencies; maximum is {}",package.name,dependencies.len(),assertion.max_dependencies),
-                    instruction:"Remove unnecessary dependencies or move unrelated responsibilities to their owning package.".into(),
+                findings.push(Finding {
+                    rule: Self::ID,
+                    path: package.manifest.clone(),
+                    span: related.first().and_then(|e| e.span.clone()),
+                    related,
+                    configuration: format!(
+                        "\
+                {}.max_dependencies",
+                        assertion.setting
+                    ),
+                    message: format!(
+                        "crate `{}` declares {} distinct dependencies; maximum is {}",
+                        package.name,
+                        dependencies.len(),
+                        assertion.max_dependencies
+                    ),
+                    instruction: "Remove unnecessary dependencies or move unrelated respo\
+                nsibilities to their owning package."
+                        .into(),
                 });
             }
         }
@@ -89,7 +104,12 @@ mod tests {
     use std::fs;
     fn fixture(dependencies: &str, options: &str) -> tempfile::TempDir {
         let root = tempfile::tempdir().unwrap();
-        fs::write(root.path().join("Cargo.toml"),"[workspace]\nmembers=['packages/*']\n[workspace.dependencies]\njson={package='serde_json',version='1'}").unwrap();
+        fs::write(
+            root.path().join("Cargo.toml"),
+            "[workspace]\nmembers=['packages/*']\n[\
+            workspace.dependencies]\njson={package='serde_json',version='1'}",
+        )
+        .unwrap();
         for (name, deps) in [("owner", dependencies), ("first", ""), ("second", "")] {
             let directory = root.path().join("packages").join(name);
             fs::create_dir_all(&directory).unwrap();
@@ -119,7 +139,13 @@ mod tests {
             "max_dependencies=1",
         );
         assert!(check(&root).unwrap().findings.is_empty());
-        fs::write(root.path().join("linter.toml"),"[[rules.\"rust/dependency-budget\"]]\ntarget='packages/*'\nmax_dependencies=1\nkinds=['normal','build','development']").unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            "[[rules.\"rust/dependency-budget\"]]\
+            \ntarget='packages/*'\nmax_dependencies=1\nkinds=['normal','build','developm\
+            ent']",
+        )
+        .unwrap();
         let report = check(&root).unwrap();
         assert_eq!(report.findings.len(), 1);
         assert!(
@@ -132,12 +158,15 @@ mod tests {
     #[test]
     fn aliases_targets_versions_and_kinds_do_not_inflate() {
         let root = fixture(
-            "[dependencies]\none={package='first',path='../first'}\n[build-dependencies]\nfirst={path='../first'}\n[target.'cfg(unix)'.dependencies]\nother={package='first',path='../first'}",
+            "[dependencies]\none={package='first',path='../first'}\n[build-dependencies]\
+                \nfirst={path='../first'}\n[target.'cfg(unix)'.dependencies]\nother={pac\
+                kage='first',path='../first'}",
             "max_dependencies=1",
         );
         assert!(check(&root).unwrap().findings.is_empty());
         let root = fixture(
-            "[dependencies]\na={package='serde',version='1'}\n[target.'cfg(unix)'.dependencies]\nb={package='serde',version='2'}",
+            "[dependencies]\na={package='serde',version='1'}\n[target.'cfg(unix)'.depend\
+                encies]\nb={package='serde',version='2'}",
             "max_dependencies=1",
         );
         assert!(check(&root).unwrap().findings.is_empty());
@@ -145,7 +174,8 @@ mod tests {
     #[test]
     fn inherited_external_optional_dependencies_count() {
         let root = fixture(
-            "[dependencies]\njson={workspace=true,optional=true,features=['raw_value']}\nfirst={path='../first'}",
+            "[dependencies]\njson={workspace=true,optional=true,features=['raw_value']}\
+                \nfirst={path='../first'}",
             "max_dependencies=1",
         );
         let report = check(&root).unwrap();
@@ -160,7 +190,10 @@ mod tests {
     #[test]
     fn registries_and_git_revisions_are_distinct() {
         let root = fixture(
-            "[dependencies]\na={package='value',version='1'}\nb={package='value',version='1',registry='private'}\nc={package='value',git='https://example.invalid/value',rev='first'}\nd={package='value',git='https://example.invalid/value',rev='second'}",
+            "[dependencies]\na={package='value',version='1'}\nb={package='value',version\
+                ='1',registry='private'}\nc={package='value',git='https://example.invali\
+                d/value',rev='first'}\nd={package='value',git='https://example.invalid/v\
+                alue',rev='second'}",
             "max_dependencies=3",
         );
         let report = check(&root).unwrap();
@@ -197,7 +230,23 @@ mod tests {
             )
             .unwrap();
         }
-        fs::write(root.path().join("packages/owner/Cargo.toml"),format!("[package]\nname='owner'\nversion='0.1.0'\n[dependencies]\nleft={{package='same',path={:?}}}\nright={{package='same',path={:?}}}",external.path().join("left"),external.path().join("right"))).unwrap();
+        fs::write(
+            root.path().join("packages/owner/Cargo.toml"),
+            format!(
+                "[package]\nname\
+            ='owner'\nversion='0.1.0'\n[dependencies]\nleft={{package='same',path={:?}}}\
+            \nright={{package='same',path={:?}}}",
+                external.path().join(
+                    "\
+            left"
+                ),
+                external.path().join(
+                    "\
+            right"
+                )
+            ),
+        )
+        .unwrap();
         let report = check(&root).unwrap();
         assert_eq!(report.findings.len(), 1);
         assert!(

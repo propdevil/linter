@@ -144,12 +144,14 @@ void admit(void) { g_member_bound = 1; }
             (
                 "writer.c",
                 &format!(
-                    "{WRITER}\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) {{ admit(); }}\n#endif\n"
+                    "{WRITER}\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) {{ admi\
+                t(); }}\n#endif\n"
                 ),
             ),
             (
                 "dump.c",
-                "extern int g_member_bound;\nint dump(void) { if (!g_member_bound) { return -1; } return 0; }\n",
+                "extern int g_member_bound;\nint dump(void) { if (!g_member_bound) { ret\
+                urn -1; } return 0; }\n",
             ),
         ]);
         assert_eq!(result.len(), 1, "{result:#?}");
@@ -170,12 +172,14 @@ void admit(void) { g_member_bound = 1; }
             (
                 "writer.c",
                 &format!(
-                    "{WRITER}\nvoid boot(void) {{ admit(); }}\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) {{ admit(); }}\n#endif\n"
+                    "{WRITER}\nvoid boot(void) {{ admit(); }}\n#if defined(HL_NATIVE_TES\
+                T_HOOKS)\nvoid arm(void) {{ admit(); }}\n#endif\n"
                 ),
             ),
             (
                 "dump.c",
-                "extern int g_member_bound;\nint dump(void) { if (!g_member_bound) { return -1; } return 0; }\n",
+                "extern int g_member_bound;\nint dump(void) { if (!g_member_bound) { ret\
+                urn -1; } return 0; }\n",
             ),
         ]);
         assert!(result.is_empty(), "{result:#?}");
@@ -186,8 +190,9 @@ void admit(void) { g_member_bound = 1; }
         let result = findings(&[(
             "chain.c",
             &format!(
-                "{WRITER}\nvoid stage(void) {{ admit(); }}\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) {{ stage(); }}\n#endif\n\
-             int dump(void) {{ return g_member_bound ? 0 : -1; }}\n"
+                "{WRITER}\nvoid stage(void) {{ admit(); }}\n#if defined(HL_NATIVE_TEST_H\
+                OOKS)\nvoid arm(void) {{ stage(); }}\n#endif\nint dump(void) {{ return g\
+                _member_bound ? 0 : -1; }}\n"
             ),
         )]);
         assert_eq!(result.len(), 1, "{result:#?}");
@@ -198,8 +203,9 @@ void admit(void) { g_member_bound = 1; }
     fn test_only_predicates_and_test_only_symbols_alone_are_not_reported() {
         let result = findings(&[(
             "hooks.c",
-            "static int g_probe;\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { g_probe = 1; }\n\
-         int observe(void) { if (!g_probe) { return -1; } return 0; }\n#endif\n",
+            "static int g_probe;\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { g_\
+                probe = 1; }\nint observe(void) { if (!g_probe) { return -1; } return 0;\
+                \u{20}}\n#endif\n",
         )]);
         assert!(result.is_empty(), "{result:#?}");
     }
@@ -208,8 +214,9 @@ void admit(void) { g_member_bound = 1; }
     fn the_production_branch_of_a_test_hook_conditional_is_production() {
         let result = findings(&[(
             "either.c",
-            "static int g_ready;\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { g_ready = 2; }\n\
-         #else\nvoid arm(void) { g_ready = 1; }\n#endif\nint use(void) { return g_ready == 1; }\n",
+            "static int g_ready;\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { g_\
+                ready = 2; }\n#else\nvoid arm(void) { g_ready = 1; }\n#endif\nint use(vo\
+                id) { return g_ready == 1; }\n",
         )]);
         assert!(result.is_empty(), "{result:#?}");
     }
@@ -228,8 +235,9 @@ void admit(void) { g_member_bound = 1; }
     fn state_carrying_a_real_production_initializer_is_not_unwritten() {
         let result = findings(&[(
             "seeded.c",
-            "static int g_ready = 1;\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { g_ready = 0; }\n#endif\n\
-         int use(void) { if (!g_ready) { return -1; } return 0; }\n",
+            "static int g_ready = 1;\n#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) \
+                { g_ready = 0; }\n#endif\nint use(void) { if (!g_ready) { return -1; } r\
+                eturn 0; }\n",
         )]);
         assert!(result.is_empty(), "{result:#?}");
     }
@@ -238,7 +246,8 @@ void admit(void) { g_member_bound = 1; }
     fn a_function_with_no_call_site_is_a_production_entry_point() {
         let result = findings(&[(
             "exported.c",
-            "static int g_ready;\nvoid hl_admit(void) { g_ready = 1; }\nint use(void) { return g_ready == 1; }\n",
+            "static int g_ready;\nvoid hl_admit(void) { g_ready = 1; }\nint use(void) { \
+                return g_ready == 1; }\n",
         )]);
         assert!(result.is_empty(), "{result:#?}");
     }
@@ -247,8 +256,8 @@ void admit(void) { g_member_bound = 1; }
     fn local_state_that_is_not_file_scope_is_not_tracked() {
         let result = findings(&[(
             "local.c",
-            "#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { int ready = 1; (void)ready; }\n#endif\n\
-         int use(void) { int ready = 0; return ready == 1; }\n",
+            "#if defined(HL_NATIVE_TEST_HOOKS)\nvoid arm(void) { int ready = 1; (void)re\
+                ady; }\n#endif\nint use(void) { int ready = 0; return ready == 1; }\n",
         )]);
         assert!(result.is_empty(), "{result:#?}");
     }
@@ -270,7 +279,8 @@ void arm(void) { g_table = 0; }
             ),
             (
                 "read.c",
-                "extern struct entry *g_table;\nint use(void) { if (!g_table) { return -1; } return 0; }\n",
+                "extern struct entry *g_table;\nint use(void) { if (!g_table) { return -\
+                1; } return 0; }\n",
             ),
         ]);
         assert!(
@@ -294,7 +304,8 @@ void arm(void) { g_table[0].viable = 0; }
             ),
             (
                 "read.c",
-                "extern struct entry g_table[8];\nint use(void) { if (!g_table[0].viable) { return -1; } return 0; }\n",
+                "extern struct entry g_table[8];\nint use(void) { if (!g_table[0].viable\
+                ) { return -1; } return 0; }\n",
             ),
         ]);
         assert!(
@@ -331,7 +342,8 @@ void arm(void) { (void)resolve(); }
             ("#if HL_NATIVE_TEST_HOOKS || UNKNOWN", 0),
         ] {
             let source = format!(
-                "static int state;\n{condition}\nvoid arm(void) {{ state = 1; }}\n#endif\nint read(void) {{ return state != 0; }}"
+                "static int state;\n{condition}\nvoid arm(void) {{ state = 1; }}\n#endif\
+                \nint read(void) {{ return state != 0; }}"
             );
             assert_eq!(
                 findings(&[("state.c", &source)]).len(),
@@ -339,12 +351,15 @@ void arm(void) { (void)resolve(); }
                 "{condition}"
             );
         }
-        let source = "static int state;\n#ifndef HL_NATIVE_TEST_HOOKS\nint noop;\n#else\nvoid arm(void) { state = 1; }\n#endif\nint read(void) { return state != 0; }";
+        let source = "static int state;\n#ifndef HL_NATIVE_TEST_HOOKS\nint noop;\n#else\
+            \nvoid arm(void) { state = 1; }\n#endif\nint read(void) { return state != 0;\
+            \u{20}}";
         assert_eq!(findings(&[("state.c", source)]).len(), 1);
     }
     #[test]
     fn local_and_parameter_shadowing_cannot_read_or_write_global_state() {
-        let prefix = "static int state;\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { state = 1; }\n#endif\n";
+        let prefix = "static int state;\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { s\
+            tate = 1; }\n#endif\n";
         for reader in [
             "int read(int state) { return state != 0; }",
             "int read(void) { int state = 0; return state != 0; }",
@@ -352,17 +367,20 @@ void arm(void) { (void)resolve(); }
             assert!(findings(&[("state.c", &format!("{prefix}{reader}"))]).is_empty());
         }
         let source = format!(
-            "{prefix}void write(void) {{ int state; state = 2; }}\nint read(void) {{ return state != 0; }}"
+            "{prefix}void write(void) {{ int state; state = 2; }}\nint read(void) {{ ret\
+                urn state != 0; }}"
         );
         assert_eq!(findings(&[("state.c", &source)]).len(), 1);
         let source = format!(
-            "{prefix}int read(void) {{ for (int state = 0; state < 1; state++) {{}} return state != 0; }}"
+            "{prefix}int read(void) {{ for (int state = 0; state < 1; state++) {{}} retu\
+                rn state != 0; }}"
         );
         assert_eq!(findings(&[("state.c", &source)]).len(), 1);
     }
     #[test]
     fn static_state_and_static_helpers_are_isolated_per_file() {
-        let writer = "static int state;\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { state = 1; }\n#endif\n";
+        let writer = "static int state;\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { s\
+            tate = 1; }\n#endif\n";
         assert!(
             findings(&[
                 ("writer.c", writer),
@@ -373,8 +391,11 @@ void arm(void) { (void)resolve(); }
             ])
             .is_empty()
         );
-        let first = "static int state; static void change(void) { state = 1; }\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { change(); }\n#endif\nint read(void) { return state != 0; }";
-        let second = "static int state; static void change(void) { state = 1; } void boot(void) { change(); }";
+        let first = "static int state; static void change(void) { state = 1; }\n#ifdef H\
+            L_NATIVE_TEST_HOOKS\nvoid arm(void) { change(); }\n#endif\nint read(void) { \
+            return state != 0; }";
+        let second = "static int state; static void change(void) { state = 1; } void boo\
+            t(void) { change(); }";
         assert_eq!(
             findings(&[("first.c", first), ("second.c", second)]).len(),
             1
@@ -382,11 +403,17 @@ void arm(void) { (void)resolve(); }
     }
     #[test]
     fn evidence_and_directives_attach_to_production_predicate() {
-        let source = "static int state;\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { state = 1; }\n#endif\nint read(void) {\n// linter:disable c/test-only-state -- compatibility test state intentionally observed\nreturn state != 0;\n}";
+        let source = "static int state;\n#ifdef HL_NATIVE_TEST_HOOKS\nvoid arm(void) { s\
+            tate = 1; }\n#endif\nint read(void) {\n// linter:disable c/test-only-state -\
+            - compatibility test state intentionally observed\nreturn state != 0;\n}";
         let result = report(&[("state.c", source)]);
         assert!(result.findings.is_empty());
         assert_eq!(result.suppressed.len(), 1);
-        let source = source.replace("// linter:disable c/test-only-state -- compatibility test state intentionally observed\n", "");
+        let source = source.replace(
+            "// linter:disable c/test-only-state -- compatibilit\
+            y test state intentionally observed\n",
+            "",
+        );
         let result = findings(&[("state.c", &source)]);
         assert_eq!(result[0].related.len(), 2);
         assert!(result[0].related[0].message.contains("declared"));

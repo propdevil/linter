@@ -245,7 +245,27 @@ fn compare(
             message: "Resolved field-copy conversion connects the models".into(),
         });
     }
-    Some(Finding { rule: ModelDuplication::ID, path: candidate.structure.source.path.clone(), span: Some(Span::new(&candidate.structure.source.text, candidate.structure.node.byte_range())), related, configuration: assertion.setting.clone(), message: format!("Wire model `{}` duplicates `{}` across {} matching named fields", candidate.structure.id.name, owner.structure.id.name, common.len()), instruction: "Reuse or compose the owned model; keep a separate representation only for a concrete boundary contract.".into() })
+    Some(Finding {
+        rule: ModelDuplication::ID,
+        path: candidate.structure.source.path.clone(),
+        span: Some(Span::new(
+            &candidate.structure.source.text,
+            candidate.structure.node.byte_range(),
+        )),
+        related,
+        configuration: assertion.setting.clone(),
+        message: format!(
+            "\
+        Wire model `{}` duplicates `{}` across {} matching named fields",
+            candidate.structure.id.name,
+            owner.structure.id.name,
+            common.len()
+        ),
+        instruction: "\
+        Reuse or compose the owned model; keep a separate representation only for a conc\
+        rete boundary contract."
+            .into(),
+    })
 }
 
 fn scope_selected(scope: Scope, test: bool) -> bool {
@@ -572,11 +592,19 @@ pub struct ApiImage {
         );
         assert!(found.is_empty());
     }
-    const MODEL: &str = "#[derive(serde::Serialize)] struct WireImage { pub id:u64, pub name:String, pub path:String } struct Image { id:u64, name:String, path:String } impl Image { fn validate(&self) {} }";
+    const MODEL: &str = "#[derive(serde::Serialize)] struct WireImage { pub id:u64, pub \
+        name:String, pub path:String } struct Image { id:u64, name:String, path:String }\
+        \u{20}impl Image { fn validate(&self) {} }";
 
     #[test]
     fn wrappers_nominal_types_and_unrelated_records_never_merge() {
-        assert!(findings("struct Email(String); struct WalletId(String); struct One {value:String} struct Two {value:String}").is_empty());
+        assert!(
+            findings(
+                "struct Email(String); struct WalletId(String); struct One {val\
+            ue:String} struct Two {value:String}"
+            )
+            .is_empty()
+        );
         let distinct = MODEL
             .replace("pub id:u64", "pub id:Email")
             .replace("{ id:u64", "{ id:WalletId");
@@ -592,7 +620,8 @@ pub struct ApiImage {
 
     #[test]
     fn resolved_copy_conversion_relates_names_but_transformations_are_exempt() {
-        let copy = "impl From<Image> for WireVolume { fn from(value:Image)->Self { Self { id:value.id, name:value.name, path:value.path } } }";
+        let copy = "impl From<Image> for WireVolume { fn from(value:Image)->Self { Self \
+            { id:value.id, name:value.name, path:value.path } } }";
         let source = format!("{} {copy}", MODEL.replace("WireImage", "WireVolume"));
         let found = findings(&source);
         assert_eq!(found.len(), 1);
@@ -646,7 +675,10 @@ pub struct ApiImage {
     fn unresolved_fields_shadowing_and_platforms_do_not_establish_evidence() {
         assert!(findings(&MODEL.replace("u64", "Unknown")).is_empty());
         assert!(findings(&MODEL.replace("struct Image", "#[cfg(unix)] struct Image")).is_empty());
-        let source = "mod a { pub struct Id(String); #[derive(serde::Serialize)] pub struct WireImage {pub id:Id,pub name:String,pub path:String} } mod b { struct Id(String); struct Image {id:Id,name:String,path:String} impl Image {fn validate(&self){}} }";
+        let source = "mod a { pub struct Id(String); #[derive(serde::Serialize)] pub str\
+            uct WireImage {pub id:Id,pub name:String,pub path:String} } mod b { struct I\
+            d(String); struct Image {id:Id,name:String,path:String} impl Image {fn valid\
+            ate(&self){}} }";
         assert!(findings(source).is_empty());
     }
 
@@ -681,7 +713,8 @@ pub struct ApiImage {
                 .all(|evidence| evidence.span.is_some())
         );
         let suppressed = format!(
-            "// linter:disable rust/wire-domain-model-duplication -- external contract fixes field layout\n{MODEL}"
+            "// linter:disable rust/wire-domain-model-duplication -- external contract f\
+                ixes field layout\n{MODEL}"
         );
         assert!(findings(&suppressed).is_empty());
     }

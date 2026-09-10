@@ -34,7 +34,9 @@ struct Check {
 #[tool_router(server_handler)]
 impl Server {
     #[tool(
-        description = "Validate saved repository files against linter.toml. Returns registered rule findings with repair instructions; does not edit files. An unconfigured layout status means no layout was checked.",
+        description = "Validate saved repository files against linter.toml. Returns regi\
+            stered rule findings with repair instructions; does not edit files. An uncon\
+            figured layout status means no layout was checked.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,

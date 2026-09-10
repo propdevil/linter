@@ -169,7 +169,10 @@ mod tests {
     }
     #[test]
     fn skips_static_pointers_typedefs_variables_and_local_declarations() {
-        let source = "static int helper(void);\ninline static int reordered(void);\nint (*callback)(void);\ntypedef int Function(void);\ntypedef int (*Callback)(void);\nint numbers[4];\nstruct Table { int (*callback)(void); };\nstatic int implementation(void) { int local(void); return 0; }\nint *public_api(void);\n";
+        let source = "static int helper(void);\ninline static int reordered(void);\nint \
+            (*callback)(void);\ntypedef int Function(void);\ntypedef int (*Callback)(voi\
+            d);\nint numbers[4];\nstruct Table { int (*callback)(void); };\nstatic int i\
+            mplementation(void) { int local(void); return 0; }\nint *public_api(void);\n";
         assert!(run(source, 1).findings.is_empty());
         let source = format!("{source}int (*factory(void))(int);\n");
         let report = run(&source, 1);
@@ -178,14 +181,17 @@ mod tests {
     }
     #[test]
     fn counts_each_declarator_and_preprocessor_branch_not_macro_text() {
-        let source = "#define DECLARE() int fake(void);\n/* int fake(void); */\nconst char *text = \"int fake(void);\";\n#ifndef API_H\n#define API_H\nint a(void), b(void);\n#if FLAG\nint c(void);\n#else\nint d(void);\n#endif\n#endif\n";
+        let source = "#define DECLARE() int fake(void);\n/* int fake(void); */\nconst ch\
+            ar *text = \"int fake(void);\";\n#ifndef API_H\n#define API_H\nint a(void), \
+            b(void);\n#if FLAG\nint c(void);\n#else\nint d(void);\n#endif\n#endif\n";
         let report = run(source, 3);
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].related.len(), 4);
     }
     #[test]
     fn directives_attach_to_first_declaration_and_stale_directives_fail() {
-        let source = "// linter:disable c/interface-breadth -- generated protocol surface\nint a(void);\nint b(void);\n";
+        let source = "// linter:disable c/interface-breadth -- generated protocol surfac\
+            e\nint a(void);\nint b(void);\n";
         let report = run(source, 1);
         assert!(report.findings.is_empty());
         assert_eq!(report.suppressed.len(), 1);

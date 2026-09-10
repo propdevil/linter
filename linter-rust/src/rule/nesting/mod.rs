@@ -77,27 +77,11 @@ fn functions(
             maximum: 0,
             line: 0,
             construct: "",
+            range: body.byte_range(),
         };
         depth.visit(body, 0, true);
         if depth.maximum > assertion.max_depth {
-            let name = node
-                .child_by_field_name("name")
-                .map(|name| &source.text[name.byte_range()])
-                .unwrap_or("<anonymous>");
-            findings.push(Finding {
-                span: Some(linter::Span::new(&source.text, node.byte_range())),
-                related: Vec::new(),
-                rule: NestingRule::ID,
-                path: source.path.clone(),
-                configuration: format!("{}.max_depth", assertion.setting),
-                message: format!(
-                    "`{name}` reaches syntactic nesting depth {} at {} on line {}; maximum is {}",
-                    depth.maximum, depth.construct, depth.line, assertion.max_depth
-                ),
-                instruction:
-                    "Use early returns, extract receiver behavior, or model the nested state."
-                        .into(),
-            });
+            findings.push(depth.finding(node, body));
         }
     }
     for child in children(node) {
@@ -112,15 +96,74 @@ struct Depth<'a> {
     maximum: usize,
     line: usize,
     construct: &'static str,
+    range: std::ops::Range<usize>,
 }
 
 impl Depth<'_> {
+    fn finding(&self, node: Node<'_>, body: Node<'_>) -> Finding {
+        let name = node
+            .child_by_field_name("name")
+            .map(|name| &self.source.text[name.byte_range()])
+            .unwrap_or("<anonymous>");
+        let mut related = vec![linter::Evidence {
+            path: self.source.path.clone(),
+            span: Some(linter::Span::new(&self.source.text, self.range.clone())),
+            message: format!("Deepest {} reaches depth {}", self.construct, self.maximum),
+        }];
+        let instruction = self.guidance(node, body, &mut related);
+        Finding {
+            span: Some(linter::Span::new(&self.source.text, node.byte_range())),
+            related,
+            rule: NestingRule::ID,
+            path: self.source.path.clone(),
+            configuration: format!("{}.max_depth", self.assertion.setting),
+            message: format!(
+                "`{name}` reaches syntactic nesting depth {} at {} on line {}; maximum is {}",
+                self.maximum, self.construct, self.line, self.assertion.max_depth
+            ),
+            instruction,
+        }
+    }
+
+    fn guidance(
+        &self,
+        node: Node<'_>,
+        body: Node<'_>,
+        related: &mut Vec<linter::Evidence>,
+    ) -> String {
+        if let Some(condition) = terminal_condition(node, body, &self.range, &self.source.text) {
+            related.push(linter::Evidence {
+                path: self.source.path.clone(),
+                span: Some(linter::Span::new(&self.source.text, condition.byte_range())),
+                message: concat!(
+                    "Final conditional in a unit-returning function; ",
+                    "no later statements are skipped by an early return."
+                )
+                .into(),
+            });
+            concat!(
+                "Consider inverting this final condition into an early-return guard, ",
+                "then moving its body after the guard. ",
+                "Keep condition evaluation and effects in their original order."
+            )
+            .into()
+        } else {
+            concat!(
+                "Reduce dependent control-flow levels or extract a cohesive operation. ",
+                "No semantics-preserving early-return rewrite has been established ",
+                "for this finding."
+            )
+            .into()
+        }
+    }
+
     fn enter(&mut self, node: Node<'_>, depth: usize, construct: &'static str) -> usize {
         let next = depth + 1;
         if next > self.maximum {
             self.maximum = next;
             self.line = node.start_position().row + 1;
             self.construct = construct;
+            self.range = node.byte_range();
         }
         next
     }
@@ -266,35 +309,151 @@ fn children(node: Node<'_>) -> Vec<Node<'_>> {
 
 fn guard(node: Node<'_>, text: &str) -> bool {
     node.child_by_field_name("consequence")
-        .is_some_and(|body| diverging(body, text))
+        .is_some_and(|body| diverging(body, text, body))
         && node
             .child_by_field_name("alternative")
-            .is_none_or(|alternative| diverging(alternative, text))
+            .is_none_or(|alternative| diverging(alternative, text, alternative))
 }
 
-fn diverging(node: Node<'_>, text: &str) -> bool {
+fn diverging(node: Node<'_>, text: &str, boundary: Node<'_>) -> bool {
     match node.kind() {
-        "return_expression" | "break_expression" | "continue_expression" => true,
+        "return_expression" => true,
+        "break_expression" | "continue_expression" => escaping_jump(node, boundary, text),
         "block" | "expression_statement" | "else_clause" => children(node)
             .last()
-            .is_some_and(|child| diverging(*child, text)),
-        "if_expression" => node.child_by_field_name("alternative").is_some() && guard(node, text),
+            .is_some_and(|child| diverging(*child, text, boundary)),
+        "if_expression" => {
+            node.child_by_field_name("alternative")
+                .is_some_and(|alternative| diverging(alternative, text, boundary))
+                && node
+                    .child_by_field_name("consequence")
+                    .is_some_and(|body| diverging(body, text, boundary))
+        }
         "match_expression" => node.child_by_field_name("body").is_some_and(|body| {
             let arms = children(body);
             !arms.is_empty()
                 && arms.iter().all(|arm| {
                     arm.child_by_field_name("value")
-                        .is_some_and(|value| diverging(value, text))
+                        .is_some_and(|value| diverging(value, text, boundary))
                 })
         }),
-        "macro_invocation" => node.child_by_field_name("macro").is_some_and(|name| {
-            matches!(
-                text[name.byte_range()].rsplit("::").next(),
-                Some("panic" | "unreachable" | "todo" | "unimplemented")
-            )
-        }),
+        "macro_invocation" => standard_exit(node, text),
         _ => false,
     }
+}
+
+fn escaping_jump(node: Node<'_>, boundary: Node<'_>, text: &str) -> bool {
+    let label = node
+        .named_child(0)
+        .filter(|child| matches!(child.kind(), "label" | "loop_label" | "lifetime"))
+        .map(|label| text[label.byte_range()].trim_end_matches(':').to_owned());
+    let mut parent = node.parent();
+    while let Some(target) = parent {
+        if matches!(
+            target.kind(),
+            "function_item" | "closure_expression" | "async_block"
+        ) {
+            return false;
+        }
+        let looping = matches!(
+            target.kind(),
+            "loop_expression" | "while_expression" | "for_expression"
+        );
+        let target_label = target
+            .named_child(0)
+            .filter(|child| matches!(child.kind(), "label" | "loop_label" | "lifetime"))
+            .map(|label| text[label.byte_range()].trim_end_matches(':'));
+        let matches = match &label {
+            Some(label) => target_label == Some(label.as_str()),
+            None => looping,
+        };
+        if matches {
+            return (looping || node.kind() == "break_expression")
+                && (target.start_byte() < boundary.start_byte()
+                    || target.end_byte() > boundary.end_byte());
+        }
+        parent = target.parent();
+    }
+    false
+}
+fn standard_exit(node: Node<'_>, text: &str) -> bool {
+    let Some(name) = node.child_by_field_name("macro") else {
+        return false;
+    };
+    let path = text[name.byte_range()].trim_start_matches("::");
+    let name = path.rsplit("::").next().unwrap_or_default();
+    if !matches!(name, "panic" | "unreachable" | "todo" | "unimplemented") {
+        return false;
+    }
+    let mut root = node;
+    while let Some(parent) = root.parent() {
+        root = parent;
+    }
+    if path.contains("::") {
+        let prefix = path.split("::").next().unwrap_or_default();
+        return (path == format!("std::{name}") || path == format!("core::{name}"))
+            && !macro_shadow(root, prefix, text);
+    }
+    !macro_shadow(root, name, text)
+}
+fn macro_shadow(node: Node<'_>, name: &str, text: &str) -> bool {
+    if matches!(node.kind(), "macro_definition" | "mod_item")
+        && node
+            .child_by_field_name("name")
+            .is_some_and(|value| &text[value.byte_range()] == name)
+    {
+        return true;
+    }
+    if matches!(node.kind(), "use_declaration" | "extern_crate_declaration") {
+        let value = &text[node.byte_range()];
+        if value.contains('*')
+            || value
+                .split(|ch: char| !ch.is_alphanumeric() && ch != '_')
+                .any(|word| word == name)
+        {
+            return true;
+        }
+    }
+    children(node)
+        .into_iter()
+        .any(|child| macro_shadow(child, name, text))
+}
+fn terminal_condition<'a>(
+    function: Node<'a>,
+    body: Node<'a>,
+    deepest: &std::ops::Range<usize>,
+    text: &str,
+) -> Option<Node<'a>> {
+    if function
+        .child_by_field_name("return_type")
+        .is_some_and(|ty| text[ty.byte_range()].trim() != "()")
+    {
+        return None;
+    }
+    let statement = *children(body).last()?;
+    let mut tail = statement;
+    if tail.kind() == "expression_statement" {
+        tail = tail.named_child(0)?;
+    }
+    if tail.kind() != "if_expression"
+        || tail.child_by_field_name("alternative").is_some()
+        || deepest.start < tail.start_byte()
+        || deepest.end > tail.end_byte()
+    {
+        return None;
+    }
+    let mut previous = statement.prev_named_sibling();
+    while let Some(sibling) = previous {
+        if sibling.kind() == "attribute_item" {
+            return None;
+        }
+        if !matches!(sibling.kind(), "line_comment" | "block_comment") {
+            break;
+        }
+        previous = sibling.prev_named_sibling();
+    }
+    let condition = tail.child_by_field_name("condition")?;
+    (!matches!(condition.kind(), "let_condition" | "let_chain")).then_some(condition)
 }
 
 #[cfg(test)]
@@ -743,9 +902,12 @@ fn summarize(row: &ResultRow) {
     }
     #[test]
     fn strict_mode_preserves_structural_branches_closures_and_tests() {
-        let source = "fn shallow(value: bool) { if value {} else if value {} else if value {} } fn deep(value: bool) { if value { for _ in 0..1 { match value { true => {}, false => {} } } } }";
+        let source = "fn shallow(value: bool) { if value {} else if value {} else if val\
+            ue {} } fn deep(value: bool) { if value { for _ in 0..1 { match value { true\
+            \u{20}=> {}, false => {} } } } }";
         assert_eq!(configured(source, "ignore_guard_clauses=false").len(), 1);
-        let source = "fn compose(value: bool) { let _ = || async { if value {} }; } #[test] fn scenario() { if true { while false { loop { break; } } } }";
+        let source = "fn compose(value: bool) { let _ = || async { if value {} }; } #[te\
+            st] fn scenario() { if true { while false { loop { break; } } } }";
         assert_eq!(
             configured(source, "ignore_guard_clauses=false\nscope='all'").len(),
             2
@@ -787,7 +949,8 @@ fn summarize(row: &ResultRow) {
 
     #[test]
     fn configuration_targets_thresholds_and_test_exclusions() {
-        let source = "fn work() { loop { loop { loop {} } } } #[cfg(test)] fn test_work() { loop { loop { loop {} } } }";
+        let source = "fn work() { loop { loop { loop {} } } } #[cfg(test)] fn test_work(\
+            ) { loop { loop { loop {} } } }";
         assert!(configured(source, "max_depth=3").is_empty());
         assert_eq!(findings(source).len(), 1);
         assert_eq!(configured(source, "scope='tests'").len(), 1);
@@ -828,5 +991,79 @@ fn summarize(row: &ResultRow) {
                 .map(|finding| &finding.message)
                 .collect::<Vec<_>>()
         );
+    }
+    #[test]
+    fn function_depth_ignores_module_and_impl_wrappers() {
+        let body = "if a { if b { if c { work(); } } }";
+        for source in [
+            format!("fn run(){{{body}}}"),
+            format!("struct Value; impl Value {{fn run(&self){{{body}}}}}"),
+            [
+                "mod outer { mod inner {struct Value; impl Value {fn run(&self){",
+                body,
+                "}}}}",
+            ]
+            .concat(),
+        ] {
+            let report = findings(&source);
+            assert_eq!(report.len(), 1);
+            assert!(report[0].message.contains("depth 3"));
+        }
+    }
+    #[test]
+    fn proven_terminal_condition_suggests_early_return() {
+        let positive = findings("fn run(){if ready {if valid {if enabled {work();}}}}");
+        assert_eq!(positive.len(), 1);
+        assert!(
+            positive[0]
+                .instruction
+                .contains("inverting this final condition")
+        );
+        assert_eq!(positive[0].related.len(), 2);
+        assert!(
+            findings("fn run(){if !ready {return;} if !valid {return;} if enabled {work();}}")
+                .is_empty()
+        );
+        for source in [
+            "fn run(){if ready {if valid {if enabled {work();}}} finish();}",
+            "fn run()->u8{if ready {if valid {if enabled {work();}}} 0}",
+            "fn run(){if let Some(value)=input {if valid {if enabled {work();}}}}",
+        ] {
+            let report = findings(source);
+            assert_eq!(report.len(), 1);
+            assert!(
+                !report[0]
+                    .instruction
+                    .contains("inverting this final condition")
+            );
+        }
+    }
+    #[test]
+    fn inner_labeled_break_rejoins_and_cannot_hide_nesting() {
+        let report = findings("fn run(){if a {if b {if c {'local: {break 'local;}}}}}");
+        assert_eq!(report.len(), 1);
+        assert!(report[0].message.contains("depth 3"));
+        assert!(findings("fn run(){'outer: loop {if a {if b {break 'outer;}}}}").is_empty());
+        assert!(findings("fn run(){loop {if a {if b {continue;}}}}").is_empty());
+    }
+    #[test]
+    fn closures_and_local_loops_do_not_exit_the_outer_branch() {
+        for tail in [
+            "let callback=||{return;};",
+            "let future=async{return;};",
+            "loop {break;}",
+        ] {
+            let source = format!("fn run(){{if a {{if b {{if c {{{tail}}}}}}}}}");
+            assert!(!findings(&source).is_empty(), "{source}");
+        }
+    }
+    #[test]
+    fn exit_macros_need_known_identity() {
+        assert!(!findings("fn run(){if a {if b {if c {custom::panic!();}}}}").is_empty());
+        assert!(
+            !findings("macro_rules! panic {()=>{()}} fn run(){if a {if b {if c {panic!();}}}}")
+                .is_empty()
+        );
+        assert!(findings("fn run(){if a {if b {if c {std::panic!();}}}}").is_empty());
     }
 }

@@ -113,10 +113,19 @@ fn finding(
         })
         .collect();
     Some(Finding {
-        rule: TraitMethodCount::ID, path: source.path.clone(), span: Some(Span::new(&source.text, node.byte_range())), related,
+        rule: TraitMethodCount::ID,
+        path: source.path.clone(),
+        span: Some(Span::new(&source.text, node.byte_range())),
+        related,
         configuration: format!("{}.max_methods", assertion.setting),
-        message: format!("trait `{name}` declares {} functions; maximum is {}", methods.len(), assertion.max_methods),
-        instruction: "Keep each trait focused on a small cohesive capability; split independent operations into separate traits.".into(),
+        message: format!(
+            "trait `{name}` declares {} functions; maximum is {}",
+            methods.len(),
+            assertion.max_methods
+        ),
+        instruction: "Keep each trait focused on a small cohesive capability; split inde\
+            pendent operations into separate traits."
+            .into(),
     })
 }
 
@@ -139,7 +148,8 @@ mod tests {
     }
     #[test]
     fn threshold_counts_declarations_and_default_bodies_only() {
-        let text = "trait Capability { type Value; const NAME: &str; fn one(&self); fn two()->Self; fn three(&self) {} }";
+        let text = "trait Capability { type Value; const NAME: &str; fn one(&self); fn t\
+            wo()->Self; fn three(&self) {} }";
         assert!(check(text, "").findings.is_empty());
         let report = check(text, "max_methods=2");
         assert_eq!(report.findings.len(), 1);
@@ -151,7 +161,11 @@ mod tests {
     }
     #[test]
     fn payment_decorated_traits_keep_exact_counts_and_method_evidence() {
-        let text = "trait Wallet { fn address(&self); fn history(&self); fn transfer(&self); fn balance(&self); }\n/// Distinct capabilities.\n#[allow(dead_code)]\n#[must_use]\ntrait Runtime { fn load_wallet(&self);fn save_wallet(&self);fn start_sync(&self);fn stop_sync(&self);fn inspect_checkpoint(&self);fn query_height(&self);fn configure_rpc(&self);fn update_rpc(&self); }";
+        let text = "trait Wallet { fn address(&self); fn history(&self); fn transfer(&se\
+            lf); fn balance(&self); }\n/// Distinct capabilities.\n#[allow(dead_code)]\n\
+            #[must_use]\ntrait Runtime { fn load_wallet(&self);fn save_wallet(&self);fn \
+            start_sync(&self);fn stop_sync(&self);fn inspect_checkpoint(&self);fn query_\
+            height(&self);fn configure_rpc(&self);fn update_rpc(&self); }";
         let report = check(text, "");
         assert_eq!(report.findings.len(), 2);
         let runtime = report
@@ -165,14 +179,18 @@ mod tests {
     }
     #[test]
     fn production_excludes_test_only_methods_and_traits() {
-        let text = "trait Capability { fn production(); #[cfg(test)] fn fixture(); #[cfg(test)] fn scenario() {} } #[cfg(test)] trait Tests { fn one();fn two();fn three();fn four(); }";
+        let text = "trait Capability { fn production(); #[cfg(test)] fn fixture(); #[cfg\
+            (test)] fn scenario() {} } #[cfg(test)] trait Tests { fn one();fn two();fn t\
+            hree();fn four(); }";
         assert!(check(text, "max_methods=1").findings.is_empty());
         assert_eq!(check(text, "scope='all'\nmax_methods=1").findings.len(), 2);
         assert_eq!(check(text, "scope='tests'").findings.len(), 1);
     }
     #[test]
     fn does_not_count_inherited_or_impl_or_nested_function_methods() {
-        let text = "trait Base { fn one(); fn two(); fn three(); } trait Child: Base { fn four() { fn nested() {} } } struct Value; impl Value { fn one() {} fn two() {} fn three() {} fn four() {} }";
+        let text = "trait Base { fn one(); fn two(); fn three(); } trait Child: Base { f\
+            n four() { fn nested() {} } } struct Value; impl Value { fn one() {} fn two(\
+            ) {} fn three() {} fn four() {} }";
         assert!(check(text, "").findings.is_empty());
     }
     #[test]
@@ -181,7 +199,8 @@ mod tests {
         assert!(check(text, "exclude='lib.rs'").findings.is_empty());
         let report = check(
             &format!(
-                "// linter:disable rust/trait-method-count -- External protocol requires this capability set.\n{text}"
+                "// linter:disable rust/trait-method-count -- External protocol requires\
+                \u{20}this capability set.\n{text}"
             ),
             "",
         );

@@ -160,7 +160,40 @@ fn candidate(
     {
         return None;
     }
-    Some(Finding{rule:RedundantNamespace::ID,path:source.path.clone(),span:Some(Span::new(&source.text,child.byte_range())),related:vec![Evidence{path:parent.path.clone(),span:Some(Span::new(&parent.text,declaration.byte_range())),message:"Private parent declaration".into()},Evidence{path:implementation.path.clone(),span:Some(Span::new(&implementation.text,implementation.syntax.root_node().byte_range())),message:"Sole child implementation".into()}],configuration:assertion.setting.clone(),message:format!("private module `{name}` contains only child `{child_name}` and transparent re-exports"),instruction:"Flatten the child into the parent module unless a concrete public, platform, generation, FFI, or privacy boundary requires this namespace.".into()})
+    Some(Finding {
+        rule: RedundantNamespace::ID,
+        path: source.path.clone(),
+        span: Some(Span::new(&source.text, child.byte_range())),
+        related: vec![
+            Evidence {
+                path: parent.path.clone(),
+                span: Some(Span::new(&parent.text, declaration.byte_range())),
+                message: "\
+        Private parent declaration"
+                    .into(),
+            },
+            Evidence {
+                path: implementation.path.clone(),
+                span: Some(Span::new(
+                    &implementation.text,
+                    implementation.syntax.root_node().byte_range(),
+                )),
+                message: "\
+        Sole child implementation"
+                    .into(),
+            },
+        ],
+        configuration: assertion.setting.clone(),
+        message: format!(
+            "\
+        private module `{name}` contains only child `{child_name}` and transparent re-ex\
+        ports"
+        ),
+        instruction: "\
+        Flatten the child into the parent module unless a concrete public, platform, gen\
+        eration, FFI, or privacy boundary requires this namespace."
+            .into(),
+    })
 }
 #[cfg(test)]
 mod tests {
@@ -269,7 +302,9 @@ mod tests {
         assert!(check(&tests, "").unwrap().is_empty());
         assert_eq!(check(&tests, "scope='tests'").unwrap().len(), 1);
         let mut files = FILES;
-        files[1].1 = "// linter:disable rust/redundant-namespace -- module remains a deliberate compatibility boundary\nmod process;pub(crate) use process::{Child,Status};";
+        files[1].1 = "// linter:disable rust/redundant-namespace -- module remains a del\
+            iberate compatibility boundary\nmod process;pub(crate) use process::{Child,S\
+            tatus};";
         assert!(check(&files, "").unwrap().is_empty());
         for config in ["scope='unknown'", "exclude=[]", "unknown=true"] {
             assert!(matches!(check(&[], config), Err(Error::Configuration(_))));
@@ -278,7 +313,8 @@ mod tests {
     #[test]
     fn ordinary_comments_do_not_hide_extra_logic() {
         let mut files = FILES;
-        files[1].1 = "// module groups process values\nmod process;pub(crate) use process::Child;const LIMIT:u8=1;";
+        files[1].1 = "// module groups process values\nmod process;pub(crate) use proces\
+            s::Child;const LIMIT:u8=1;";
         assert!(check(&files, "").unwrap().is_empty());
         for source in [
             include_str!("mod.rs"),

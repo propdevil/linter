@@ -140,12 +140,37 @@ fn finding(
         })
         .collect::<Vec<_>>()
         .join("; ");
-    Some(Finding{
-        rule:BroadTrait::ID,path:source.path.clone(),span:Some(Span::new(&source.text,node.byte_range())),
-        related:methods.iter().map(|method| Evidence{path:source.path.clone(),span:Some(Span::new(&source.text,method.range.clone())),message:format!("method `{}`; signature types: {}",method.name,method.types.iter().cloned().collect::<Vec<_>>().join(", "))}).collect(),
-        configuration:format!("{}.min_clusters",assertion.setting),
-        message:format!("`{name}` has {} methods spanning {} distinct capability clusters; {summary}",methods.len(),clusters.len()),
-        instruction:"Split the contract into cohesive capabilities that consumers can request independently; retain composition only where the complete set is required.".into(),
+    Some(Finding {
+        rule: BroadTrait::ID,
+        path: source.path.clone(),
+        span: Some(Span::new(&source.text, node.byte_range())),
+        related: methods
+            .iter()
+            .map(|method| Evidence {
+                path: source.path.clone(),
+                span: Some(Span::new(&source.text, method.range.clone())),
+                message: format!(
+                    "\
+            method `{}`; signature types: {}",
+                    method.name,
+                    method.types.iter().cloned().collect::<Vec<_>>().join(
+                        "\
+            , "
+                    )
+                ),
+            })
+            .collect(),
+        configuration: format!("{}.min_clusters", assertion.setting),
+        message: format!(
+            "`{name}` has {} methods spanning {} distinct capability cluster\
+            s; {summary}",
+            methods.len(),
+            clusters.len()
+        ),
+        instruction: "Split the contract into cohesive capabilities that consumers can re\
+            quest independently; retain composition only where the complete set is requi\
+            red."
+            .into(),
     })
 }
 fn included(node: Node<'_>, mask: &[bool], scope: Scope) -> bool {
@@ -480,7 +505,11 @@ pub trait Odd {
         );
         assert_eq!(found.len(), 0);
     }
-    const RUNTIME: &str = "trait Runtime { fn load_wallet(&self,id:WalletId)->Wallet;fn save_wallet(&self,wallet:Wallet);fn start_sync(&self,scope:Scope);fn stop_sync(&self,scope:Scope);fn inspect_checkpoint(&self,scope:Scope)->Checkpoint;fn query_height(&self,scope:Scope)->Height;fn configure_rpc(&self,endpoint:Endpoint);fn update_rpc(&self,timeout:Timeout); }";
+    const RUNTIME: &str = "trait Runtime { fn load_wallet(&self,id:WalletId)->Wallet;fn \
+        save_wallet(&self,wallet:Wallet);fn start_sync(&self,scope:Scope);fn stop_sync(&\
+        self,scope:Scope);fn inspect_checkpoint(&self,scope:Scope)->Checkpoint;fn query_\
+        height(&self,scope:Scope)->Height;fn configure_rpc(&self,endpoint:Endpoint);fn u\
+        pdate_rpc(&self,timeout:Timeout); }";
 
     #[test]
     fn payment_signatures_and_test_only_methods_supply_exact_evidence() {
@@ -488,7 +517,13 @@ pub trait Odd {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].related.len(), 8);
         assert!(found[0].message.contains("lifecycle"));
-        assert!(findings("trait Wallet { fn address(&self);fn history(&self);fn transfer(&self);fn balance(&self); }").is_empty());
+        assert!(
+            findings(
+                "trait Wallet { fn address(&self);fn history(&self);fn transfer\
+            (&self);fn balance(&self); }"
+            )
+            .is_empty()
+        );
         let text = RUNTIME
             .replace("fn start_sync", "#[cfg(test)] fn start_sync")
             .replace("fn stop_sync", "#[cfg(test)] fn stop_sync");
@@ -513,7 +548,8 @@ pub trait Odd {
         assert!(check(RUNTIME, "exclude='lib.rs'").findings.is_empty());
         let report = check(
             &format!(
-                "// linter:disable rust/broad-trait-responsibilities -- External runtime protocol requires this combined capability.\n{RUNTIME}"
+                "// linter:disable rust/broad-trait-responsibilities -- External runtime\
+                \u{20}protocol requires this combined capability.\n{RUNTIME}"
             ),
             "",
         );

@@ -299,7 +299,14 @@ impl Scan<'_> {
                     policy.receiver == ty && policy.methods.iter().any(|name| name == method)
                 })
             {
-                self.report(node, &format!("configured blocking method '{ty}::{method}' can block the async executor thread"), None);
+                self.report(
+                    node,
+                    &format!(
+                        "configured blocking method '{ty}::{method}' \
+                can block the async executor thread"
+                    ),
+                    None,
+                );
             }
         }
         if let Some(function) = function {
@@ -405,9 +412,36 @@ impl Scan<'_> {
         }
     }
     fn report(&mut self, node: Node<'_>, message: &str, guard: Option<Range<usize>>) {
-        self.findings.push(Finding { rule: AsyncBlocking::ID, path: self.source.path.clone(), configuration: self.assertion.setting.clone(),
-            span: Some(Span::new(&self.source.text, node.byte_range())), related: guard.map(|range| Evidence { path: self.source.path.clone(), span: Some(Span::new(&self.source.text, range)), message: "Synchronous guard acquired here and not proven dropped before suspension.".into() }).into_iter().chain(async_owner(node).map(|scope| Evidence { path: self.source.path.clone(), span: Some(Span::new(&self.source.text, scope.byte_range())), message: "Operation executes in this async lexical scope.".into() })).collect(),
-            message: message.into(), instruction: "Use an asynchronous operation or isolate blocking work in a configured worker callback; release synchronous guards before awaiting.".into(),
+        self.findings.push(Finding {
+            rule: AsyncBlocking::ID,
+            path: self.source.path.clone(),
+            configuration: self.assertion.setting.clone(),
+            span: Some(Span::new(&self.source.text, node.byte_range())),
+            related: guard
+                .map(|range| Evidence {
+                    path: self.source.path.clone(),
+                    span: Some(Span::new(&self.source.text, range)),
+                    message: "\
+                Synchronous guard acquired here and not proven dropped before suspension\
+                ."
+                    .into(),
+                })
+                .into_iter()
+                .chain(async_owner(node).map(|scope| {
+                    Evidence {
+                        path: self.source.path.clone(),
+                        span: Some(Span::new(&self.source.text, scope.byte_range())),
+                        message: "\
+                Operation executes in this async lexical scope."
+                            .into(),
+                    }
+                }))
+                .collect(),
+            message: message.into(),
+            instruction: "Use an asynchronous operation or isol\
+                ate blocking work in a configured worker callback; release synchronous g\
+                uards before awaiting."
+                .into(),
         });
     }
 }

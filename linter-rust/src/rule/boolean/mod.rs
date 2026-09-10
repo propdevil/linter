@@ -164,10 +164,22 @@ fn finding(
     });
     related.dedup();
     Some(Finding {
-        rule: BooleanState::ID, path: item.source.path.clone(), span: Some(Span::new(&item.source.text, item.node.byte_range())), related,
+        rule: BooleanState::ID,
+        path: item.source.path.clone(),
+        span: Some(Span::new(&item.source.text, item.node.byte_range())),
+        related,
         configuration: format!("{}.min_fields", assertion.setting),
-        message: format!("`{}` coordinates boolean fields as mutually exclusive state: {}", item.id.name, implicated.into_iter().collect::<Vec<_>>().join(", ")),
-        instruction: "Replace the coordinated boolean state with a named enum or composed state entity; keep independent capabilities as booleans.".into(),
+        message: format!(
+            "`{}` coordinates boolean fields as mutually exclusive state: {}",
+            item.id.name,
+            implicated.into_iter().collect::<Vec<_>>().join(
+                "\
+            , "
+            )
+        ),
+        instruction: "Replace the coordinated boolean state with a named enum or compose\
+            d state entity; keep independent capabilities as booleans."
+            .into(),
     })
 }
 fn one_hot(values: &BTreeMap<String, bool>, fields: &BTreeSet<String>) -> Option<String> {
@@ -419,14 +431,20 @@ fn failure() -> Actions {
     }
     #[test]
     fn payment_test_only_constructions_and_transitions_are_excluded() {
-        let source = "struct Phase { queued:bool,running:bool,finished:bool } #[test] fn combinations() { let _ = Phase { queued:true,running:false,finished:false }; let _ = Phase { queued:false,running:true,finished:false }; } impl Phase { #[cfg(test)] fn fixture(&mut self) { self.queued=false;self.running=true;self.finished=false; } }";
+        let source = "struct Phase { queued:bool,running:bool,finished:bool } #[test] fn\
+            \u{20}combinations() { let _ = Phase { queued:true,running:false,finished:fa\
+            lse }; let _ = Phase { queued:false,running:true,finished:false }; } impl Ph\
+            ase { #[cfg(test)] fn fixture(&mut self) { self.queued=false;self.running=tr\
+            ue;self.finished=false; } }";
         assert!(findings(source).is_empty());
         assert_eq!(configured(source, "scope='all'").findings.len(), 1);
     }
     #[test]
     fn payment_synchronizer_evidence_is_an_error_with_method_location() {
         let found = findings(
-            "struct Synchronizer { catching_up:bool,ready:bool,failed:bool } impl Synchronizer { fn ready(&mut self) { self.catching_up=false; self.ready=true; self.failed=false; } }",
+            "struct Synchronizer { catching_up:bool,ready:bool,failed:bool } impl Synchr\
+                onizer { fn ready(&mut self) { self.catching_up=false; self.ready=true; \
+                self.failed=false; } }",
         );
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].rule, BooleanState::ID);
@@ -435,7 +453,9 @@ fn failure() -> Actions {
     }
     #[test]
     fn mutually_exclusive_paths_and_independent_conjunctions_are_not_combined() {
-        let source = "struct State { a:bool,b:bool,c:bool } impl State { fn work(&mut self,x:bool) { if x { self.a=true; } else { self.b=false;self.c=false; } } fn valid(&self)->bool { (self.a&&self.b)&&(self.b&&self.c) } }";
+        let source = "struct State { a:bool,b:bool,c:bool } impl State { fn work(&mut se\
+            lf,x:bool) { if x { self.a=true; } else { self.b=false;self.c=false; } } fn \
+            valid(&self)->bool { (self.a&&self.b)&&(self.b&&self.c) } }";
         assert!(findings(source).is_empty());
         assert!(
             findings(&source.replace(
@@ -447,25 +467,35 @@ fn failure() -> Actions {
     }
     #[test]
     fn contradictory_or_partial_constructions_do_not_prove_exclusion() {
-        let source = "struct State { a:bool,b:bool,c:bool } fn a()->State { State { a:true,b:false,c:false } } fn b()->State { State { a:false,b:true,c:false } } fn c(x:bool)->State { State { a:x,b:false,c:true } }";
+        let source = "struct State { a:bool,b:bool,c:bool } fn a()->State { State { a:tr\
+            ue,b:false,c:false } } fn b()->State { State { a:false,b:true,c:false } } fn\
+            \u{20}c(x:bool)->State { State { a:x,b:false,c:true } }";
         assert!(findings(source).is_empty());
         assert!(findings(&source.replace("a:x", "a:true")).is_empty());
     }
     #[test]
     fn nominal_namespaces_and_local_shadowing_keep_constructions_separate() {
-        let source = "mod a { pub struct State { pub a:bool,pub b:bool,pub c:bool } } mod b { pub struct State { pub a:bool,pub b:bool,pub c:bool } } fn one() { let _=a::State { a:true,b:false,c:false }; let _=b::State { a:false,b:true,c:false }; }";
+        let source = "mod a { pub struct State { pub a:bool,pub b:bool,pub c:bool } } mo\
+            d b { pub struct State { pub a:bool,pub b:bool,pub c:bool } } fn one() { let\
+            \u{20}_=a::State { a:true,b:false,c:false }; let _=b::State { a:false,b:true\
+            ,c:false }; }";
         assert!(findings(source).is_empty());
-        let source = "struct State { a:bool,b:bool,c:bool } fn a() { let _=State { a:true,b:false,c:false }; } fn b() { struct State { a:bool,b:bool,c:bool } let _=State { a:false,b:true,c:false }; }";
+        let source = "struct State { a:bool,b:bool,c:bool } fn a() { let _=State { a:tru\
+            e,b:false,c:false }; } fn b() { struct State { a:bool,b:bool,c:bool } let _=\
+            State { a:false,b:true,c:false }; }";
         assert!(findings(source).is_empty());
     }
     #[test]
     fn self_constructors_and_definitions_after_impls_are_resolved() {
-        let source = "impl State { fn a()->Self { Self { a:true,b:false,c:false } } fn b()->Self { Self { a:false,b:true,c:false } } } struct State { a:bool,b:bool,c:bool }";
+        let source = "impl State { fn a()->Self { Self { a:true,b:false,c:false } } fn b\
+            ()->Self { Self { a:false,b:true,c:false } } } struct State { a:bool,b:bool,\
+            c:bool }";
         assert_eq!(findings(source).len(), 1);
     }
     #[test]
     fn thresholds_selectors_and_directives_are_enforced() {
-        let source = "struct State { a:bool,b:bool } impl State { fn a(&mut self) { self.a=true; self.b=false; } }";
+        let source = "struct State { a:bool,b:bool } impl State { fn a(&mut self) { self\
+            .a=true; self.b=false; } }";
         assert!(findings(source).is_empty());
         assert_eq!(configured(source, "min_fields=2").findings.len(), 1);
         assert!(
@@ -474,7 +504,8 @@ fn failure() -> Actions {
                 .is_empty()
         );
         let source = format!(
-            "// linter:disable rust/boolean-state-cluster -- External protocol fixes these state fields.\n{source}"
+            "// linter:disable rust/boolean-state-cluster -- External protocol fixes the\
+                se state fields.\n{source}"
         );
         assert_eq!(configured(&source, "min_fields=2").suppressed.len(), 1);
         for setting in [

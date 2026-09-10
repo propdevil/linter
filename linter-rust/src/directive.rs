@@ -94,7 +94,13 @@ mod tests {
             "[[rules.\"rust/function-length\"]]\ntarget='*.rs'\n",
         )
         .unwrap();
-        std::fs::write(root.path().join("input.rs"), "// linter:disable rust/function-length -- reason\nfn run() {}\n// linter:disable rust/function-length -- reason").unwrap();
+        std::fs::write(
+            root.path().join("input.rs"),
+            "// linter:disable rust/function-le\
+            ngth -- reason\nfn run() {}\n// linter:disable rust/function-length -- reaso\
+            n",
+        )
+        .unwrap();
         let report = Registry::default()
             .register::<crate::FunctionLength>()
             .unwrap()

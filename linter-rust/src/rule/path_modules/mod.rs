@@ -141,11 +141,36 @@ impl Scan<'_> {
         let declarations: Vec<_> = domains.values().flatten().collect();
         let names = domains.keys().cloned().collect::<Vec<_>>().join(", ");
         self.findings.push(Finding {
-            rule: PathModules::ID, path: self.source.path.clone(), configuration: self.assertion.setting.clone(),
-            span: declarations.iter().map(|(node, _)| *node).min_by_key(Node::start_byte).map(|node| Span::new(&self.source.text, node.byte_range())),
-            related: declarations.iter().map(|(node, path)| Evidence { path: self.source.path.clone(), span: Some(Span::new(&self.source.text, node.byte_range())), message: format!("Explicit module resolves to '{}'.", path.display()) }).collect(),
-            message: format!("{} explicit module paths flatten {} child domains into one namespace: {names}; maximum is {}", declarations.len(), domains.len(), self.assertion.max_child_domains),
-            instruction: "Declare cohesive child modules through their natural module boundary and deliberately re-export the public surface.".into(),
+            rule: PathModules::ID,
+            path: self.source.path.clone(),
+            configuration: self.assertion.setting.clone(),
+            span: declarations
+                .iter()
+                .map(|(node, _)| *node)
+                .min_by_key(Node::start_byte)
+                .map(|node| Span::new(&self.source.text, node.byte_range())),
+            related: declarations
+                .iter()
+                .map(|(node, path)| Evidence {
+                    path: self.source.path.clone(),
+                    span: Some(Span::new(&self.source.text, node.byte_range())),
+                    message: format!(
+                        "\
+                Explicit module resolves to '{}'.",
+                        path.display()
+                    ),
+                })
+                .collect(),
+            message: format!(
+                "{} explicit module paths flatten {} child domains into one\
+                \u{20}namespace: {names}; maximum is {}",
+                declarations.len(),
+                domains.len(),
+                self.assertion.max_child_domains
+            ),
+            instruction: "Declare cohesive child modules through their natural module bo\
+                undary and deliberately re-export the public surface."
+                .into(),
         });
     }
 }
@@ -290,7 +315,9 @@ mod second { #[path = "two/b.rs"] mod b; }
     #[test]
     fn directives_attach_to_first_path_module_and_empty_config_is_rejected() {
         let root = fixture(
-            "// linter:disable rust/path-module-flattening -- Generated public facade preserves an external module contract.\n#[path=\"one/a.rs\"] mod a;\n#[path=\"two/b.rs\"] mod b;",
+            "// linter:disable rust/path-module-flattening -- Generated public facade pr\
+                eserves an external module contract.\n#[path=\"one/a.rs\"] mod a;\n#[pat\
+                h=\"two/b.rs\"] mod b;",
             "",
         );
         let report = check(root.path()).unwrap();

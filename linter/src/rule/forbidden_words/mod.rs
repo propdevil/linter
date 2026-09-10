@@ -52,9 +52,23 @@ impl Assertion {
                 }
             }
             if !hits.is_empty() {
-                findings.push(Finding { span: None, related: Vec::new(), rule: ForbiddenWords::ID, path: entry.path.clone(), configuration: self.setting.clone(),
-                    message: format!("path contains forbidden word(s): {}", hits.into_iter().collect::<Vec<_>>().join(", ")),
-                    instruction: "Rename the file or offending directory component to describe its responsibility.".into() });
+                findings.push(Finding {
+                    span: None,
+                    related: Vec::new(),
+                    rule: ForbiddenWords::ID,
+                    path: entry.path.clone(),
+                    configuration: self.setting.clone(),
+                    message: format!(
+                        "path contains forbidden word(s): {}",
+                        hits.into_iter().collect::<Vec<_>>().join(
+                            "\
+                , "
+                        )
+                    ),
+                    instruction: "Rename the file or offending directory component to de\
+                scribe its responsibility."
+                        .into(),
+                });
             }
         }
     }
