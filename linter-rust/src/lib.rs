@@ -78,3 +78,8 @@ pub use rule::namespace::{Config as RedundantNamespaceConfig, RedundantNamespace
 pub use rule::single::{Config as SingleUseConfig, SingleUse};
 
 pub use rule::provisional::ProvisionalComment;
+mod cargo_graph;
+pub use cargo_graph::{CargoDependency, CargoGraph, CargoPackage, DependencyKind};
+pub use rule::cycles::{Config as DependencyCyclesConfig, DependencyCycles};
+
+mod cargo_manifest;
