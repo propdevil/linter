@@ -27,3 +27,5 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
 pub use rule::allocation::Allocation;
 
 pub use rule::result::ResultUse;
+
+pub use rule::safety::Safety;
