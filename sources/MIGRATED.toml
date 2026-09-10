@@ -15,3 +15,39 @@ removed = ["husklet/src/packages/hl-design-lint/src/rule/c/structure.rs", "huskl
 [[migrations]]
 rule = "c/unchecked-allocation"
 removed = ["husklet/src/packages/hl-design-lint/src/rule/c/allocation.rs", "husklet/src/packages/hl-design-lint/src/rule/c/allocation_test.rs"]
+
+[[migrations]]
+rule = "rust/duplicate-entity-base"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/duplicate.rs", "prop/packages/design-lint/src/rule/duplicate/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/duplicate/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/duplicate/tests.rs"]
+
+[[migrations]]
+rule = "rust/wire-domain-model-duplication"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/model/mod.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/model/dependencies.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/model/test.rs", "prop/packages/design-lint/src/rule/model/mod.rs", "prop/packages/design-lint/src/rule/model/dependencies.rs", "prop/packages/design-lint/src/rule/model/tests.rs", "payment-sdk/packages/design-lint/src/rule/adopted/model/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/model/tests.rs"]
+
+[[migrations]]
+rule = "rust/boolean-state-cluster"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/boolean/mod.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/boolean/test.rs", "prop/packages/design-lint/src/rule/boolean/mod.rs", "prop/packages/design-lint/src/rule/boolean/tests.rs", "payment-sdk/packages/design-lint/src/rule/adopted/boolean/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/boolean/tests.rs"]
+
+[[migrations]]
+rule = "rust/string-backed-finite-state"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/state/mod.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/state/syntax.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/state/test.rs", "prop/packages/design-lint/src/rule/state/mod.rs", "prop/packages/design-lint/src/rule/state/syntax.rs", "prop/packages/design-lint/src/rule/state/tests.rs", "payment-sdk/packages/design-lint/src/rule/adopted/state/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/state/syntax.rs", "payment-sdk/packages/design-lint/src/rule/adopted/state/tests.rs"]
+
+[[migrations]]
+rule = "c/ignored-result"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/result.rs", "husklet/src/packages/hl-design-lint/src/rule/c/result_test.rs"]
+
+[[migrations]]
+rule = "c/safety-rationale"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/safety.rs", "husklet/src/packages/hl-design-lint/src/rule/c/safety_test.rs"]
+
+[[migrations]]
+rule = "c/interface-breadth"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/interface.rs", "husklet/src/packages/hl-design-lint/src/rule/c/interface_test.rs"]
+
+[[migrations]]
+rule = "c/forbidden-call"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/policy.rs", "husklet/src/packages/hl-design-lint/src/rule/c/policy_test.rs"]
+
+[[migrations]]
+rule = "c/test-only-state"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/c/hook.rs", "husklet/src/packages/hl-design-lint/src/rule/c/hook_test.rs"]

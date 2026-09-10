@@ -179,3 +179,14 @@ min_fields = 3
 target = "**/*.rs"
 min_variants = 3
 state_words = ["state", "status", "phase", "mode", "kind", "stage", "condition", "lifecycle", "action"]
+
+[[rules."rust/trait-method-count"]]
+target = "**/*.rs"
+max_methods = 3
+
+[[rules."rust/struct-word-count"]]
+target = "**/*.rs"
+max_words = 2
+
+[[rules."rust/empty-struct"]]
+target = "**/*.rs"

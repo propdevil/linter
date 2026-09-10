@@ -24,7 +24,10 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<DuplicateEntity>()?
         .register::<ModelDuplication>()?
         .register::<BooleanState>()?
-        .register::<StringState>()
+        .register::<StringState>()?
+        .register::<TraitMethodCount>()?
+        .register::<StructWords>()?
+        .register::<EmptyStruct>()
 }
 
 mod declaration;
