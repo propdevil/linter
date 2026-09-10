@@ -9,6 +9,7 @@ use linter::{Error, Finding, Project, Rule, RuleResult, Span, Status};
 use tree_sitter::Node;
 mod config;
 mod context;
+mod exports;
 pub use config::Config;
 pub struct ModulePrefix(Vec<Assertion>);
 impl Rule for ModulePrefix {
@@ -26,6 +27,7 @@ impl Rule for ModulePrefix {
             .map_err(|error| Error::Analysis(error.to_string()))?;
         let index = Index::new(analysis, &root);
         let contexts = context::Context::new(analysis, &index, &root);
+        let exports = exports::Exports::new(analysis, &index, &contexts);
         let mut findings = Vec::new();
         for source in &analysis.sources {
             let Some(namespace) = contexts.namespace(&source.path) else {
@@ -48,6 +50,7 @@ impl Rule for ModulePrefix {
                     source.syntax.root_node(),
                     source,
                     &namespace,
+                    &exports,
                     &tests,
                     assertion,
                     &mut findings,
@@ -64,6 +67,7 @@ fn inspect(
     node: Node<'_>,
     source: &Source,
     namespace: &[String],
+    exports: &exports::Exports,
     tests: &[bool],
     assertion: &Assertion,
     findings: &mut Vec<Finding>,
@@ -85,7 +89,7 @@ fn inspect(
                 | "function_item"
                 | "function_signature_item"
         )
-        && let Some(finding) = finding(node, source, namespace, assertion)
+        && let Some(finding) = finding(node, source, namespace, exports, assertion)
     {
         findings.push(finding);
     }
@@ -101,13 +105,16 @@ fn inspect(
     }
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
-        inspect(child, source, &namespace, tests, assertion, findings);
+        inspect(
+            child, source, &namespace, exports, tests, assertion, findings,
+        );
     }
 }
 fn finding(
     node: Node<'_>,
     source: &Source,
     namespace: &[String],
+    exports: &exports::Exports,
     assertion: &Assertion,
 ) -> Option<Finding> {
     let name = &source.text[node.child_by_field_name("name")?.byte_range()];
@@ -122,7 +129,10 @@ fn finding(
     let module = namespace.iter().rev().find(|module| {
         let normalized = module.to_snake_case();
         let prefix: Vec<_> = normalized.split('_').collect();
-        !normalized.is_empty() && words.len() > prefix.len() && words.starts_with(&prefix)
+        !normalized.is_empty()
+            && words.len() > prefix.len()
+            && words.starts_with(&prefix)
+            && !exports.omits(source, node, module)
     })?;
     Some(Finding {
         rule: ModulePrefix::ID,
@@ -302,5 +312,57 @@ mod tests {
         ] {
             assert!(check(&[("lib.rs", source)], "").unwrap().is_empty());
         }
+    }
+    #[test]
+    fn root_reexports_do_not_inherit_private_implementation_prefixes() {
+        let files = [
+            ("src/lib.rs", "mod rule;pub use rule::RuleResult;"),
+            ("src/rule/mod.rs", "pub struct RuleResult;struct RuleCache;"),
+        ];
+        let found = check(&files, "").unwrap();
+        assert_eq!(found.len(), 1);
+        assert!(found[0].message.contains("RuleCache"));
+        let public = [
+            ("src/lib.rs", "pub mod rule;"),
+            ("src/rule/mod.rs", "pub struct RuleResult;"),
+        ];
+        assert_eq!(check(&public, "").unwrap().len(), 1);
+        let partial = [
+            ("src/lib.rs", "mod rule;pub(crate) use rule::RuleResult;"),
+            ("src/rule/mod.rs", "pub struct RuleResult;"),
+        ];
+        assert_eq!(check(&partial, "").unwrap().len(), 1);
+    }
+    #[test]
+    fn follows_grouped_alias_chained_and_glob_public_reexports() {
+        for root in [
+            "mod rule;pub use rule::{RuleResult};",
+            "mod rule;pub use rule::RuleResult as Outcome;",
+            "mod rule;pub use rule::*;",
+            "mod rule;pub mod api{pub use crate::rule::RuleResult;}",
+        ] {
+            let files = [
+                ("src/lib.rs", root),
+                ("src/rule/mod.rs", "mod hidden;pub use hidden::RuleResult;"),
+                ("src/rule/hidden.rs", "pub struct RuleResult;"),
+            ];
+            assert!(check(&files, "").unwrap().is_empty(), "{root}");
+        }
+    }
+    #[test]
+    fn reexports_from_unreachable_modules_do_not_hide_real_module_prefixes() {
+        let files = [
+            (
+                "src/lib.rs",
+                "pub mod rule;mod api{pub use crate::rule::RuleResult;}",
+            ),
+            ("src/rule/mod.rs", "pub struct RuleResult;"),
+        ];
+        assert_eq!(check(&files, "").unwrap().len(), 1);
+        let traits = [
+            ("src/lib.rs", "mod rule;pub use rule::Rules;"),
+            ("src/rule/mod.rs", "pub trait Rules{fn rule_check(&self);}"),
+        ];
+        assert!(check(&traits, "").unwrap().is_empty());
     }
 }
