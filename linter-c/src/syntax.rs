@@ -1,4 +1,4 @@
-use super::{normalize::*, recovery::*};
+use super::{normalize, recovery::*};
 use linter::Error;
 use std::path::Path;
 use tree_sitter::{Parser, Tree};
@@ -8,20 +8,23 @@ pub(crate) fn parse(path: &Path, source: &str) -> Result<Tree, Error> {
     parser
         .set_language(&tree_sitter_c::LANGUAGE.into())
         .map_err(|error| parse_error(path, error.to_string()))?;
-    let normalized = normalize_declared_macro_lines(
-        source,
-        &normalize_directives_inside_parentheses(&normalize_named_registers(
-            &normalize_va_arg_types(&normalize_offsetof_designators(&normalize_computed_goto(
-                &normalize_gnu_attributes(&normalize_atomic_specifiers(
-                    &normalize_function_pointer_annotations(&normalize_complex_macro(
-                        &normalize_macro_body_comments(
-                            &source.replace("_Thread_local", "             "),
-                        ),
-                    )),
-                )),
-            ))),
-        )),
+    let stages: [fn(&str) -> String; 10] = [
+        normalize::macro_body_comments,
+        normalize::complex_macro,
+        normalize::function_pointer_annotations,
+        normalize::atomic_specifiers,
+        normalize::gnu_attributes,
+        normalize::computed_goto,
+        normalize::offsetof_designators,
+        normalize::va_arg_types,
+        normalize::named_registers,
+        normalize::directives_inside_parentheses,
+    ];
+    let normalized = stages.into_iter().fold(
+        source.replace("_Thread_local", "             "),
+        |text, stage| stage(&text),
     );
+    let normalized = normalize::declared_macro_lines(source, &normalized);
     let tree = parser
         .parse(&normalized, None)
         .ok_or_else(|| parse_error(path, "parser returned no syntax tree"))?;

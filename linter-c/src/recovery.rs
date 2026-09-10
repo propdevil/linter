@@ -59,30 +59,8 @@ pub(super) fn declared_identifier_macro(node: tree_sitter::Node<'_>, source: &st
 pub(super) fn conditional_statement_directive(node: tree_sitter::Node<'_>, source: &str) -> bool {
     let row = node.start_position().row;
     let lines = source.lines().collect::<Vec<_>>();
-    if node.kind() == ";"
-        && node.is_missing()
-        && lines
-            .get(row)
-            .is_some_and(|line| line.trim_start().starts_with("else"))
-        && row > 0
-        && lines[row - 1].trim_start().starts_with("#endif")
-    {
-        let branch = lines[..row - 1]
-            .iter()
-            .rev()
-            .take_while(|line| {
-                let line = line.trim_start();
-                !matches!(line, line if line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("\
-                #ifndef "))
-            })
-            .any(|line| line.trim_start().starts_with("else if ("));
-        let directive = lines[..row - 1].iter().rev().find(|line| {
-            let line = line.trim_start();
-            line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("#ifndef ")
-        });
-        if branch && directive.is_some() {
-            return true;
-        }
+    if conditional_else(node, &lines, row) {
+        return true;
     }
     let window = &lines[row.saturating_sub(16)..row.min(lines.len())];
     if window
@@ -126,9 +104,40 @@ pub(super) fn conditional_statement_directive(node: tree_sitter::Node<'_>, sourc
     if !previous.ends_with(')') || !previous.trim_start().starts_with("if (") {
         return false;
     }
+    conditional_body(&lines[directive_row..])
+}
+
+fn conditional_else(node: tree_sitter::Node<'_>, lines: &[&str], row: usize) -> bool {
+    if node.kind() == ";"
+        && node.is_missing()
+        && lines
+            .get(row)
+            .is_some_and(|line| line.trim_start().starts_with("else"))
+        && row > 0
+        && lines[row - 1].trim_start().starts_with("#endif")
+    {
+        let branch = lines[..row - 1]
+            .iter()
+            .rev()
+            .take_while(|line| {
+                let line = line.trim_start();
+                !conditional_start(line)
+            })
+            .any(|line| line.trim_start().starts_with("else if ("));
+        let directive = lines[..row - 1].iter().rev().find(|line| {
+            let line = line.trim_start();
+            line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("#ifndef ")
+        });
+        if branch && directive.is_some() {
+            return true;
+        }
+    }
+    false
+}
+fn conditional_body(lines: &[&str]) -> bool {
     let mut depth = 0usize;
     let mut branch_statement = false;
-    for line in &lines[directive_row..] {
+    for line in lines {
         let line = line.trim();
         if line.starts_with("#if ") || line.starts_with("#ifdef ") || line.starts_with("#ifndef ") {
             depth += 1;
@@ -146,7 +155,6 @@ pub(super) fn conditional_statement_directive(node: tree_sitter::Node<'_>, sourc
     }
     false
 }
-
 pub(super) fn builtin_offsetof_type_argument(
     mut node: tree_sitter::Node<'_>,
     source: &str,
@@ -456,4 +464,10 @@ pub(super) fn balanced_parentheses(text: &str) -> bool {
         }
     }
     depth == 0
+}
+
+fn conditional_start(line: &str) -> bool {
+    ["#if ", "#ifdef ", "#ifndef "]
+        .iter()
+        .any(|prefix| line.starts_with(prefix))
 }

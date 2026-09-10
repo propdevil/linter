@@ -1,17 +1,17 @@
 use super::recovery::{defined_macro_invocation, identifier};
-pub(super) fn normalize_directives_inside_parentheses(source: &str) -> String {
+pub(super) fn directives_inside_parentheses(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     let mut scan = ParenthesisScan::default();
     for line in source.split_inclusive('\n') {
         let text = line.trim_start();
-        if text.starts_with('#') && !scan.block_comment {
-            if scan.depth > 0 {
-                let start = offset + line.len() - text.len();
-                let end = offset + line.trim_end_matches(['\r', '\n']).len();
-                normalized[start..end].fill(b' ');
-            }
-        } else {
+        let directive = text.starts_with('#') && !scan.block_comment;
+        if directive && scan.depth > 0 {
+            let start = offset + line.len() - text.len();
+            let end = offset + line.trim_end_matches(['\r', '\n']).len();
+            normalized[start..end].fill(b' ');
+        }
+        if !directive {
             scan.advance(line);
         }
         offset += line.len();
@@ -38,29 +38,30 @@ impl ParenthesisScan {
                 }
                 continue;
             }
-            match character {
-                '/' if characters.peek() == Some(&'/') => return,
-                '/' if characters.peek() == Some(&'*') => {
-                    characters.next();
-                    self.block_comment = true;
-                }
-                '"' | '\'' => {
-                    let quote = character;
-                    while let Some(inner) = characters.next() {
-                        match inner {
-                            '\\' => {
-                                characters.next();
-                            }
-                            _ if inner == quote => break,
-                            _ => {}
-                        }
-                    }
-                }
-                '(' => self.depth += 1,
-                ')' => self.depth = self.depth.saturating_sub(1),
-                _ => {}
+            if !self.character(character, &mut characters) {
+                return;
             }
         }
+    }
+    fn character(
+        &mut self,
+        character: char,
+        characters: &mut std::iter::Peekable<std::str::Chars<'_>>,
+    ) -> bool {
+        match character {
+            '/' if characters.peek() == Some(&'/') => return false,
+            '/' if characters.peek() == Some(&'*') => {
+                characters.next();
+                self.block_comment = true;
+            }
+            '"' | '\'' => {
+                skip_literal(character, characters);
+            }
+            '(' => self.depth += 1,
+            ')' => self.depth = self.depth.saturating_sub(1),
+            _ => {}
+        }
+        true
     }
 }
 
@@ -72,10 +73,10 @@ impl ParenthesisScan {
 /// runs on and swallows whatever declaration follows the macro -- which is reported against
 /// the declaration, far from the comment that caused it. Erasing the comment in place, at
 /// the same offset and the same length, restores the body the grammar is meant to see.
-pub(super) fn normalize_macro_body_comments(source: &str) -> String {
+pub(super) fn macro_body_comments(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
-    let mut body = MacroBodyScan::default();
+    let mut body = MacroScan::default();
     for line in source.split_inclusive('\n') {
         body.advance(line.trim_end_matches(['\r', '\n']), offset, &mut normalized);
         offset += line.len();
@@ -85,12 +86,12 @@ pub(super) fn normalize_macro_body_comments(source: &str) -> String {
 
 /// Running lexical state of the macro-body comment scan.
 #[derive(Default)]
-struct MacroBodyScan {
+struct MacroScan {
     inside: bool,
     block_comment: bool,
 }
 
-impl MacroBodyScan {
+impl MacroScan {
     /// Erases comment bytes on one line, entering and leaving a continued definition.
     fn advance(&mut self, line: &str, offset: usize, normalized: &mut [u8]) {
         let continued = line.trim_end().ends_with('\\');
@@ -164,7 +165,7 @@ pub(super) fn literal_end(bytes: &[u8], index: usize) -> usize {
     cursor
 }
 
-pub(super) fn normalize_declared_macro_lines(original: &str, source: &str) -> String {
+pub(super) fn declared_macro_lines(original: &str, source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     for line in original.split_inclusive('\n') {
@@ -180,7 +181,7 @@ pub(super) fn normalize_declared_macro_lines(original: &str, source: &str) -> St
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_named_registers(source: &str) -> String {
+pub(super) fn named_registers(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     for spelling in ["__asm__(\"", "asm(\""] {
         let mut offset = 0;
@@ -201,7 +202,7 @@ pub(super) fn normalize_named_registers(source: &str) -> String {
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_va_arg_types(source: &str) -> String {
+pub(super) fn va_arg_types(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     while let Some(relative) = source[offset..].find("va_arg(") {
@@ -212,17 +213,16 @@ pub(super) fn normalize_va_arg_types(source: &str) -> String {
         let Some(close) = source[comma..].find(')').map(|close| comma + close) else {
             break;
         };
-        for byte in &mut normalized[comma + 1..close] {
-            if *byte == b'*' {
-                *byte = b' ';
-            }
-        }
+        normalized[comma + 1..close]
+            .iter_mut()
+            .filter(|byte| **byte == b'*')
+            .for_each(|byte| *byte = b' ');
         offset = close + 1;
     }
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_offsetof_designators(source: &str) -> String {
+pub(super) fn offsetof_designators(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     while let Some(relative) = source[offset..].find("offsetof(") {
@@ -233,33 +233,32 @@ pub(super) fn normalize_offsetof_designators(source: &str) -> String {
         let Some(close) = source[comma..].find(')').map(|close| comma + close) else {
             break;
         };
-        for byte in &mut normalized[comma + 1..close] {
-            if *byte == b'.' {
-                *byte = b'_';
-            }
-        }
+        normalized[comma + 1..close]
+            .iter_mut()
+            .filter(|byte| **byte == b'.')
+            .for_each(|byte| *byte = b'_');
         offset = close + 1;
     }
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_computed_goto(source: &str) -> String {
+pub(super) fn computed_goto(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     for line in source.split_inclusive('\n') {
-        if let Some(relative) = line.find("goto *") {
+        if let Some(relative) = line.find("goto *")
+            && let Some(end) = line[relative..].find(';')
+        {
             let start = offset + relative + "goto ".len();
-            if let Some(end) = line[relative..].find(';') {
-                normalized[start..offset + relative + end].fill(b' ');
-                normalized[start] = b'L';
-            }
+            normalized[start..offset + relative + end].fill(b' ');
+            normalized[start] = b'L';
         }
         offset += line.len();
     }
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_complex_macro(source: &str) -> String {
+pub(super) fn complex_macro(source: &str) -> String {
     ["float complex", "double complex", "long double complex"]
         .into_iter()
         .fold(source.to_owned(), |source, spelling| {
@@ -267,7 +266,7 @@ pub(super) fn normalize_complex_macro(source: &str) -> String {
         })
 }
 
-pub(super) fn normalize_gnu_attributes(source: &str) -> String {
+pub(super) fn gnu_attributes(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     while let Some(relative) = source[offset..].find("__attribute__") {
@@ -284,48 +283,23 @@ pub(super) fn normalize_gnu_attributes(source: &str) -> String {
             offset = cursor;
             continue;
         }
-        let mut depth = 0usize;
-        while cursor < source.len() {
-            match source.as_bytes()[cursor] {
-                b'(' => depth += 1,
-                b')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        cursor += 1;
-                        normalized[start..cursor].fill(b' ');
-                        break;
-                    }
-                }
-                _ => {}
-            }
-            cursor += 1;
-        }
-        if depth != 0 {
+        let Some(cursor) = closing_parenthesis(source, cursor) else {
             break;
-        }
+        };
+        normalized[start..cursor].fill(b' ');
         offset = cursor;
     }
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_atomic_specifiers(source: &str) -> String {
+pub(super) fn atomic_specifiers(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut offset = 0;
     while let Some(relative) = source[offset..].find("_Atomic(") {
         let open = offset + relative + "_Atomic".len();
-        let mut depth = 1usize;
-        let mut cursor = open + 1;
-        while cursor < source.len() && depth != 0 {
-            match source.as_bytes()[cursor] {
-                b'(' => depth += 1,
-                b')' => depth -= 1,
-                _ => {}
-            }
-            cursor += 1;
-        }
-        if depth != 0 {
+        let Some(cursor) = closing_parenthesis(source, open) else {
             break;
-        }
+        };
         normalized[open] = b' ';
         normalized[cursor - 1] = b' ';
         offset = cursor;
@@ -333,7 +307,7 @@ pub(super) fn normalize_atomic_specifiers(source: &str) -> String {
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
 }
 
-pub(super) fn normalize_function_pointer_annotations(source: &str) -> String {
+pub(super) fn function_pointer_annotations(source: &str) -> String {
     let mut normalized = source.as_bytes().to_vec();
     let mut start = 0;
     while start < source.len() {
@@ -366,4 +340,32 @@ pub(super) fn normalize_function_pointer_annotations(source: &str) -> String {
         start = end;
     }
     String::from_utf8(normalized).expect("normalization preserves UTF-8")
+}
+
+fn skip_literal(quote: char, characters: &mut std::iter::Peekable<std::str::Chars<'_>>) {
+    while let Some(character) = characters.next() {
+        match character {
+            '\\' => {
+                characters.next();
+            }
+            value if value == quote => return,
+            _ => {}
+        }
+    }
+}
+fn closing_parenthesis(source: &str, open: usize) -> Option<usize> {
+    let mut depth = 1usize;
+    let mut cursor = open + 1;
+    while cursor < source.len() {
+        match source.as_bytes()[cursor] {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            _ => {}
+        }
+        cursor += 1;
+        if depth == 0 {
+            return Some(cursor);
+        }
+    }
+    None
 }
