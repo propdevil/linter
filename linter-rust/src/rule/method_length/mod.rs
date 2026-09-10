@@ -68,42 +68,53 @@ fn inspect(
     assertion: &Assertion,
     findings: &mut Vec<Finding>,
 ) {
-    if node.kind() == "function_item" && method(node) {
-        let test = tests[node.start_byte()];
-        let selected = match assertion.scope {
-            Scope::Production => !test,
-            Scope::Tests => test,
-            Scope::All => true,
-        };
-        if selected {
-            let lines = lines(node, &source.text, tests, assertion.scope);
-            if lines > assertion.max_lines {
-                let name = node
-                    .child_by_field_name("name")
-                    .map(|name| &source.text[name.byte_range()])
-                    .unwrap_or("<anonymous>");
-                findings.push(Finding {
-                    span: Some(linter::Span::new(&source.text, node.byte_range())),
-                    related: Vec::new(),
-                    rule: MethodLength::ID,
-                    path: source.path.clone(),
-                    configuration: format!("{}.max_lines", assertion.setting),
-                    message: format!(
-                        "Rust method `{name}` at line {} has {lines} lines;\
-                \u{20}maximum is {}",
-                        node.start_position().row + 1,
-                        assertion.max_lines
-                    ),
-                    instruction: "Split the function into cohesive operations owned by t\
-                he appropriate domain."
-                        .into(),
-                });
-            }
-        }
-    }
+    inspect_node(node, source, tests, assertion, findings);
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         inspect(child, source, tests, assertion, findings);
+    }
+}
+
+fn inspect_node(
+    node: Node<'_>,
+    source: &Source,
+    tests: &[bool],
+    assertion: &Assertion,
+    findings: &mut Vec<Finding>,
+) {
+    if !(node.kind() == "function_item" && method(node)) {
+        return;
+    }
+    let test = tests[node.start_byte()];
+    let selected = match assertion.scope {
+        Scope::Production => !test,
+        Scope::Tests => test,
+        Scope::All => true,
+    };
+    if selected {
+        let lines = lines(node, &source.text, tests, assertion.scope);
+        if lines > assertion.max_lines {
+            let name = node
+                .child_by_field_name("name")
+                .map(|name| &source.text[name.byte_range()])
+                .unwrap_or("<anonymous>");
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
+                rule: MethodLength::ID,
+                path: source.path.clone(),
+                configuration: format!("{}.max_lines", assertion.setting),
+                message: format!(
+                    "Rust method `{name}` at line {} has {lines} lines;\
+                \u{20}maximum is {}",
+                    node.start_position().row + 1,
+                    assertion.max_lines
+                ),
+                instruction: "Split the function into cohesive operations owned by t\
+                he appropriate domain."
+                    .into(),
+            });
+        }
     }
 }
 

@@ -196,26 +196,9 @@ fn conversion(
         node.parent().and_then(|body| body.parent()).unwrap_or(node),
     );
     context.name = namespace.into();
-    if ty.kind() == "generic_type" {
-        let Some(base) = ty.child_by_field_name("type") else {
-            return false;
-        };
-        if matches!(
-            index.resolve(source, base, &context).as_deref(),
-            Some("std:Result" | "std:Option")
-        ) {
-            let Some(arguments) = ty.child_by_field_name("type_arguments") else {
-                return false;
-            };
-            let mut cursor = arguments.walk();
-            let Some(argument) = arguments.named_children(&mut cursor).next() else {
-                return false;
-            };
-            ty = argument;
-        } else {
-            ty = base;
-        }
-    }
+    let Some(ty) = conversion_type(ty, source, index, &context) else {
+        return false;
+    };
     let destination = if &source.text[ty.byte_range()] == "Self" {
         Some(namespace.to_owned())
     } else {
@@ -227,6 +210,28 @@ fn conversion(
         })
     };
     destination.is_some_and(|destination| words(&destination) == method[offset..])
+}
+fn conversion_type<'a>(
+    mut ty: Node<'a>,
+    source: &Source,
+    index: &Index<'_>,
+    context: &crate::declaration::Identity,
+) -> Option<Node<'a>> {
+    if ty.kind() == "generic_type" {
+        let base = ty.child_by_field_name("type")?;
+        if matches!(
+            index.resolve(source, base, context).as_deref(),
+            Some("std:Result" | "std:Option")
+        ) {
+            let arguments = ty.child_by_field_name("type_arguments")?;
+            let mut cursor = arguments.walk();
+            let argument = arguments.named_children(&mut cursor).next()?;
+            ty = argument;
+        } else {
+            ty = base;
+        }
+    }
+    Some(ty)
 }
 #[cfg(test)]
 mod tests {

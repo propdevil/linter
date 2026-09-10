@@ -106,17 +106,7 @@ impl Scan<'_, '_> {
         }
     }
     fn function(&mut self, node: Node<'_>) {
-        let test = self.tests[node.start_byte()];
-        if !match self.assertion.scope {
-            Scope::Production => !test,
-            Scope::Tests => test,
-            Scope::All => true,
-        } {
-            return;
-        }
-        if node.child_by_field_name("type_parameters").is_some()
-            || construction::entrypoint(node, self.source)
-        {
+        if !self.eligible(node) {
             return;
         }
         let context = self.index.identity(self.source, node);
@@ -154,6 +144,25 @@ impl Scan<'_, '_> {
         {
             return;
         }
+        self.report(node, owner, terminal);
+    }
+    fn eligible(&self, node: Node<'_>) -> bool {
+        let test = self.tests[node.start_byte()];
+        if !match self.assertion.scope {
+            Scope::Production => !test,
+            Scope::Tests => test,
+            Scope::All => true,
+        } {
+            return false;
+        }
+        if node.child_by_field_name("type_parameters").is_some()
+            || construction::entrypoint(node, self.source)
+        {
+            return false;
+        }
+        true
+    }
+    fn report(&mut self, node: Node<'_>, owner: &Owner<'_>, terminal: Node<'_>) {
         let name = node
             .child_by_field_name("name")
             .map(|name| &self.source.text[name.byte_range()])

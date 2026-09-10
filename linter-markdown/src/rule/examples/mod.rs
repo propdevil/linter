@@ -24,15 +24,14 @@ impl Rule for Examples {
     fn check(&self, _: &Project, analysis: &Analysis) -> Result<RuleResult, Error> {
         let mut findings = Vec::new();
         for assertion in &self.assertions {
-            for source in &analysis.sources {
-                if assertion.target.matches(&source.path)
+            for source in analysis.sources.iter().filter(|source| {
+                assertion.target.matches(&source.path)
                     && !assertion
                         .exclude
                         .as_ref()
-                        .is_some_and(|s| s.matches(&source.path))
-                {
-                    assertion.inspect(source, &mut findings);
-                }
+                        .is_some_and(|selector| selector.matches(&source.path))
+            }) {
+                assertion.inspect(source, &mut findings);
             }
         }
         Ok(RuleResult {

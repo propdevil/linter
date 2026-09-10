@@ -9,8 +9,8 @@ use tree_sitter::Node;
 mod config;
 pub use config::Config;
 
-pub struct TraitMethodCount(Vec<Assertion>);
-impl Rule for TraitMethodCount {
+pub struct TraitMethods(Vec<Assertion>);
+impl Rule for TraitMethods {
     const ID: &'static str = "rust/trait-method-count";
     type Analysis = Analysis;
     type Config = Config;
@@ -113,7 +113,7 @@ fn finding(
         })
         .collect();
     Some(Finding {
-        rule: TraitMethodCount::ID,
+        rule: TraitMethods::ID,
         path: source.path.clone(),
         span: Some(Span::new(&source.text, node.byte_range())),
         related,
@@ -141,7 +141,7 @@ mod tests {
         )
         .unwrap();
         linter::Registry::default()
-            .register::<TraitMethodCount>()
+            .register::<TraitMethods>()
             .unwrap()
             .check(root.path())
             .unwrap()
@@ -222,7 +222,7 @@ mod tests {
             .unwrap();
             assert!(matches!(
                 linter::Registry::default()
-                    .register::<TraitMethodCount>()
+                    .register::<TraitMethods>()
                     .unwrap()
                     .check(root.path()),
                 Err(Error::Configuration(_))

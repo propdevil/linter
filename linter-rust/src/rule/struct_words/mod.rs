@@ -68,36 +68,47 @@ fn inspect(
     assertion: &Assertion,
     findings: &mut Vec<Finding>,
 ) {
-    if node.kind() == "struct_item" {
-        let test = tests[node.start_byte()];
-        let selected = match assertion.scope {
-            Scope::Production => !test,
-            Scope::Tests => test,
-            Scope::All => true,
-        };
-        if let Some(name) = node.child_by_field_name("name").filter(|_| selected) {
-            let name = &source.text[name.byte_range()];
-            let count = name_words(name).len();
-            if count > assertion.max_words {
-                findings.push(Finding {
-                    span: Some(linter::Span::new(&source.text, node.byte_range())),
-                    related: Vec::new(),
-                    rule: StructWords::ID,
-                    path: source.path.clone(),
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "Rust struct `{name}` has {count} semantic words; maximum is {}",
-                        assertion.max_words
-                    ),
-                    instruction: "Remove repeated module context and choose a concise struct name."
-                        .into(),
-                });
-            }
-        }
-    }
+    inspect_node(node, source, tests, assertion, findings);
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         inspect(child, source, tests, assertion, findings);
+    }
+}
+
+fn inspect_node(
+    node: Node<'_>,
+    source: &Source,
+    tests: &[bool],
+    assertion: &Assertion,
+    findings: &mut Vec<Finding>,
+) {
+    if node.kind() != "struct_item" {
+        return;
+    }
+    let test = tests[node.start_byte()];
+    let selected = match assertion.scope {
+        Scope::Production => !test,
+        Scope::Tests => test,
+        Scope::All => true,
+    };
+    if let Some(name) = node.child_by_field_name("name").filter(|_| selected) {
+        let name = &source.text[name.byte_range()];
+        let count = name_words(name).len();
+        if count > assertion.max_words {
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
+                rule: StructWords::ID,
+                path: source.path.clone(),
+                configuration: assertion.setting.clone(),
+                message: format!(
+                    "Rust struct `{name}` has {count} semantic words; maximum is {}",
+                    assertion.max_words
+                ),
+                instruction: "Remove repeated module context and choose a concise struct name."
+                    .into(),
+            });
+        }
     }
 }
 

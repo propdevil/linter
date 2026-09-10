@@ -61,6 +61,28 @@ fn inspect(
     assertion: &Assertion,
     findings: &mut Vec<Finding>,
 ) {
+    inspect_node(node, source, tests, assertion, findings);
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        inspect(child, source, tests, assertion, findings);
+    }
+}
+
+fn inspect_node(
+    node: Node<'_>,
+    source: &Source,
+    tests: &[bool],
+    assertion: &Assertion,
+    findings: &mut Vec<Finding>,
+) {
+    let selected = match assertion.scope {
+        Scope::Production => !tests.get(node.start_byte()).copied().unwrap_or(false),
+        Scope::Tests => tests.get(node.start_byte()).copied().unwrap_or(false),
+        Scope::All => true,
+    };
+    if !selected {
+        return;
+    }
     if node.kind() == "function_item"
         && inherent(node)
         && let Some(name) = node.child_by_field_name("name")
@@ -74,39 +96,29 @@ fn inspect(
             .child_by_field_name("body")
             .is_some_and(|body| receiver_use(body).is_none())
     {
-        let selected = match assertion.scope {
-            Scope::Production => !tests[node.start_byte()],
-            Scope::Tests => tests[node.start_byte()],
-            Scope::All => true,
-        };
-        if selected {
-            findings.push(Finding {
-                rule: SelfConstructor::ID,
+        findings.push(Finding {
+            rule: SelfConstructor::ID,
+            path: source.path.clone(),
+            configuration: assertion.setting.clone(),
+            span: Some(Span::new(&source.text, node.byte_range())),
+            related: vec![Evidence {
                 path: source.path.clone(),
-                configuration: assertion.setting.clone(),
-                span: Some(Span::new(&source.text, node.byte_range())),
-                related: vec![Evidence {
-                    path: source.path.clone(),
-                    span: Some(Span::new(&source.text, receiver.byte_range())),
-                    message: "\
+                span: Some(Span::new(&source.text, receiver.byte_range())),
+                message: "\
                 Receiver is not referenced by the factory body."
-                        .into(),
-                }],
-                message: format!(
-                    "constructor '{}' returns Self but takes an unused receiver",
-                    &source.text[name.byte_range()]
-                ),
-                instruction: "Make this receiver-independent constructor an associated f\
-                unction and update its callers."
                     .into(),
-            });
-        }
-    }
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        inspect(child, source, tests, assertion, findings);
+            }],
+            message: format!(
+                "constructor '{}' returns Self but takes an unused receiver",
+                &source.text[name.byte_range()]
+            ),
+            instruction: "Make this receiver-independent constructor an associated f\
+                unction and update its callers."
+                .into(),
+        });
     }
 }
+
 fn inherent(node: Node<'_>) -> bool {
     node.parent()
         .filter(|parent| parent.kind() == "declaration_list")

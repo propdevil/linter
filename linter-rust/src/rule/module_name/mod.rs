@@ -68,47 +68,54 @@ fn inspect(
     assertion: &Assertion,
     findings: &mut Vec<Finding>,
 ) {
-    if node.kind() == "mod_item" {
-        let test = tests[node.start_byte()];
-        let selected = match assertion.scope {
-            Scope::Production => !test,
-            Scope::Tests => test,
-            Scope::All => true,
-        };
-        if let Some(name) = node.child_by_field_name("name").filter(|_| selected) {
-            let name = &source.text[name.byte_range()];
-            use heck::ToSnakeCase;
-            let normalized = name.trim_start_matches("r#").to_snake_case();
-            let hits: std::collections::BTreeSet<_> = normalized
-                .split('_')
-                .filter(|word| assertion.forbidden_words.contains(*word))
-                .collect();
-            if !hits.is_empty() {
-                findings.push(Finding {
-                    span: Some(linter::Span::new(&source.text, node.byte_range())),
-                    related: Vec::new(),
-                    rule: ModuleName::ID,
-                    path: source.path.clone(),
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "Rust module `{name}` contains forbidden word(s): {}",
-                        hits.into_iter().collect::<Vec<_>>().join(
-                            "\
-                , "
-                        )
-                    ),
-                    instruction: "Name the module for its owned entity, capability, algo\
-                rithm, or external mechanism."
-                        .into(),
-                });
-            }
-        }
-    }
+    inspect_node(node, source, tests, assertion, findings);
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         inspect(child, source, tests, assertion, findings);
     }
 }
+
+fn inspect_node(
+    node: Node<'_>,
+    source: &Source,
+    tests: &[bool],
+    assertion: &Assertion,
+    findings: &mut Vec<Finding>,
+) {
+    if node.kind() != "mod_item" {
+        return;
+    }
+    let test = tests[node.start_byte()];
+    let selected = match assertion.scope {
+        Scope::Production => !test,
+        Scope::Tests => test,
+        Scope::All => true,
+    };
+    if let Some(name) = node.child_by_field_name("name").filter(|_| selected) {
+        let name = &source.text[name.byte_range()];
+        use heck::ToSnakeCase;
+        let normalized = name.trim_start_matches("r#").to_snake_case();
+        let hits: std::collections::BTreeSet<_> = normalized
+            .split('_')
+            .filter(|word| assertion.forbidden_words.contains(*word))
+            .collect();
+        if !hits.is_empty() {
+            let words = hits.into_iter().collect::<Vec<_>>().join(", ");
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
+                rule: ModuleName::ID,
+                path: source.path.clone(),
+                configuration: assertion.setting.clone(),
+                message: format!("Rust module `{name}` contains forbidden word(s): {}", words),
+                instruction: "Name the module for its owned entity, capability, algo\
+                rithm, or external mechanism."
+                    .into(),
+            });
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

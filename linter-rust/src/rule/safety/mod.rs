@@ -71,39 +71,30 @@ struct Scan<'a, 'b> {
 }
 impl Scan<'_, '_> {
     fn allowed(&self, node: Node<'_>) -> bool {
-        self.assertion
+        if self
+            .assertion
             .allowed_targets
             .as_ref()
             .is_some_and(|selector| selector.matches(&self.source.path))
-            || {
-                let mut owner = node;
-                if node.kind() == "attribute_item" {
-                    while let Some(next) = owner.next_named_sibling() {
-                        owner = next;
-                        if !matches!(
-                            owner.kind(),
-                            "attribute_item" | "line_comment" | "block_comment"
-                        ) {
-                            break;
-                        }
-                    }
-                }
-                let mut identity = self.index.identity(self.source, owner);
-                if node.kind() == "attribute_item"
-                    && owner.kind() == "mod_item"
-                    && let Some(name) = owner.child_by_field_name("name")
-                {
-                    identity.module.push(
-                        self.source.text[name.byte_range()]
-                            .trim_start_matches("r#")
-                            .into(),
-                    );
-                }
-                self.assertion
-                    .allowed_modules
-                    .iter()
-                    .any(|module| identity.module.starts_with(module))
-            }
+        {
+            return true;
+        }
+        let owner = attribute_owner(node);
+        let mut identity = self.index.identity(self.source, owner);
+        if node.kind() == "attribute_item"
+            && owner.kind() == "mod_item"
+            && let Some(name) = owner.child_by_field_name("name")
+        {
+            identity.module.push(
+                self.source.text[name.byte_range()]
+                    .trim_start_matches("r#")
+                    .into(),
+            );
+        }
+        self.assertion
+            .allowed_modules
+            .iter()
+            .any(|module| identity.module.starts_with(module))
     }
     fn visit(&mut self, node: Node<'_>, macro_context: bool) {
         if matches!(
@@ -122,34 +113,40 @@ impl Scan<'_, '_> {
             Scope::All => true,
         };
         if selected {
-            if matches!(node.kind(), "attribute_item" | "inner_attribute_item") {
-                if weak_attribute(node, &self.source.text) && !self.allowed(node) {
-                    self.report(
-                        node,
-                        "attribute weakens unsafe_code outside an approved boundary",
-                    );
-                }
-                return;
-            }
-            if let Some((subject, block)) = construct(node, macro_context) {
-                if !self.allowed(node) {
-                    self.report(
-                        node,
-                        &format!("{subject} is outside an approved unsafe boundary"),
-                    );
-                } else if block && !rationale::present(node, self.source, self.comments) {
-                    self.report(
-                        node,
-                        "approved unsafe block has no attached nonempty SAFETY: rationale",
-                    );
-                }
-            }
+            self.inspect(node, macro_context);
+        }
+        if selected && matches!(node.kind(), "attribute_item" | "inner_attribute_item") {
+            return;
         }
         let macro_context =
             macro_context || matches!(node.kind(), "macro_invocation" | "macro_definition");
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             self.visit(child, macro_context);
+        }
+    }
+    fn inspect(&mut self, node: Node<'_>, macro_context: bool) {
+        if matches!(node.kind(), "attribute_item" | "inner_attribute_item") {
+            if weak_attribute(node, &self.source.text) && !self.allowed(node) {
+                self.report(
+                    node,
+                    "attribute weakens unsafe_code outside an approved boundary",
+                );
+            }
+            return;
+        }
+        if let Some((subject, block)) = construct(node, macro_context) {
+            if !self.allowed(node) {
+                self.report(
+                    node,
+                    &format!("{subject} is outside an approved unsafe boundary"),
+                );
+            } else if block && !rationale::present(node, self.source, self.comments) {
+                self.report(
+                    node,
+                    "approved unsafe block has no attached nonempty SAFETY: rationale",
+                );
+            }
         }
     }
     fn report(&mut self, node: Node<'_>, message: &str) {
@@ -166,6 +163,31 @@ impl Scan<'_, '_> {
                 .into(),
         });
     }
+}
+fn attribute_owner(mut node: Node<'_>) -> Node<'_> {
+    if node.kind() != "attribute_item" {
+        return node;
+    }
+    while let Some(next) = node.next_named_sibling() {
+        node = next;
+        if !matches!(
+            node.kind(),
+            "attribute_item" | "line_comment" | "block_comment"
+        ) {
+            break;
+        }
+    }
+    node
+}
+fn unsafe_modifier(node: Node<'_>) -> bool {
+    if node.kind() == "unsafe" {
+        return true;
+    }
+    let mut cursor = node.walk();
+    node.kind() == "function_modifiers"
+        && node
+            .children(&mut cursor)
+            .any(|modifier| modifier.kind() == "unsafe")
 }
 fn construct(node: Node<'_>, macro_context: bool) -> Option<(&'static str, bool)> {
     if node.kind() == "unsafe_block" {
@@ -193,15 +215,7 @@ fn construct(node: Node<'_>, macro_context: bool) -> Option<(&'static str, bool)
             | "foreign_mod_item"
     ) {
         let mut cursor = node.walk();
-        let unsafe_item = node.children(&mut cursor).any(|child| {
-            child.kind() == "unsafe"
-                || (child.kind() == "function_modifiers" && {
-                    let mut cursor = child.walk();
-                    child
-                        .children(&mut cursor)
-                        .any(|modifier| modifier.kind() == "unsafe")
-                })
-        });
+        let unsafe_item = node.children(&mut cursor).any(unsafe_modifier);
         if unsafe_item {
             return Some((
                 match node.kind() {

@@ -71,39 +71,51 @@ fn inspect(
     findings: &mut Vec<Finding>,
     language: &English,
 ) {
-    if node.kind() == "struct_item" {
-        let test = tests[node.start_byte()];
-        let selected = match assertion.scope {
-            Scope::Production => !test,
-            Scope::Tests => test,
-            Scope::All => true,
-        };
-        if let Some(name) = node.child_by_field_name("name").filter(|_| selected) {
-            let name = &source.text[name.byte_range()];
-            if !identifier_words(name)
-                .iter()
-                .any(|word| assertion.accepted_words.contains(word) || language.noun(word))
-            {
-                findings.push(Finding {
-                    span: Some(linter::Span::new(&source.text, node.byte_range())),
-                    related: Vec::new(),
-                    rule: StructNoun::ID,
-                    path: source.path.clone(),
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "Rust struct `{name}` at line {} contains no recognized noun",
-                        node.start_position().row + 1
-                    ),
-                    instruction: "Name the value with a precise domain noun, or configur\
-                e its technical vocabulary in accepted_words."
-                        .into(),
-                });
-            }
-        }
-    }
+    inspect_node(node, source, tests, assertion, findings, language);
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         inspect(child, source, tests, assertion, findings, language);
+    }
+}
+
+fn inspect_node(
+    node: Node<'_>,
+    source: &Source,
+    tests: &[bool],
+    assertion: &Assertion,
+    findings: &mut Vec<Finding>,
+    language: &English,
+) {
+    if node.kind() != "struct_item" {
+        return;
+    }
+    let test = tests[node.start_byte()];
+    let selected = match assertion.scope {
+        Scope::Production => !test,
+        Scope::Tests => test,
+        Scope::All => true,
+    };
+    if let Some(name) = node.child_by_field_name("name").filter(|_| selected) {
+        let name = &source.text[name.byte_range()];
+        if !identifier_words(name)
+            .iter()
+            .any(|word| assertion.accepted_words.contains(word) || language.noun(word))
+        {
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
+                rule: StructNoun::ID,
+                path: source.path.clone(),
+                configuration: assertion.setting.clone(),
+                message: format!(
+                    "Rust struct `{name}` at line {} contains no recognized noun",
+                    node.start_position().row + 1
+                ),
+                instruction: "Name the value with a precise domain noun, or configur\
+                e its technical vocabulary in accepted_words."
+                    .into(),
+            });
+        }
     }
 }
 

@@ -329,19 +329,22 @@ fn diverging(node: Node<'_>, text: &str, boundary: Node<'_>) -> bool {
                     .child_by_field_name("consequence")
                     .is_some_and(|body| diverging(body, text, boundary))
         }
-        "match_expression" => node.child_by_field_name("body").is_some_and(|body| {
-            let arms = children(body);
-            !arms.is_empty()
-                && arms.iter().all(|arm| {
-                    arm.child_by_field_name("value")
-                        .is_some_and(|value| diverging(value, text, boundary))
-                })
-        }),
+        "match_expression" => node
+            .child_by_field_name("body")
+            .is_some_and(|body| diverging_arms(body, text, boundary)),
         "macro_invocation" => standard_exit(node, text),
         _ => false,
     }
 }
 
+fn diverging_arms(body: Node<'_>, text: &str, boundary: Node<'_>) -> bool {
+    let arms = children(body);
+    !arms.is_empty()
+        && arms.iter().all(|arm| {
+            arm.child_by_field_name("value")
+                .is_some_and(|value| diverging(value, text, boundary))
+        })
+}
 fn escaping_jump(node: Node<'_>, boundary: Node<'_>, text: &str) -> bool {
     let label = node
         .named_child(0)

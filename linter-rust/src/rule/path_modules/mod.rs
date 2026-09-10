@@ -85,39 +85,11 @@ impl Scan<'_> {
         for child in node.named_children(&mut cursor) {
             match child.kind() {
                 "attribute_item" => {
-                    if let Some(meta) = attributes::meta(child, &self.source.text) {
-                        attributes.push(meta);
-                    }
+                    attributes.extend(attributes::meta(child, &self.source.text));
                 }
                 "line_comment" | "block_comment" => {}
                 "mod_item" => {
-                    if !attributes::platform(&attributes) {
-                        let explicit = attributes::path(&attributes);
-                        if let Some(body) = child.child_by_field_name("body") {
-                            let name = child
-                                .child_by_field_name("name")
-                                .map(|name| &self.source.text[name.byte_range()])
-                                .unwrap_or("");
-                            let directory = explicit.map_or_else(
-                                || inline.join(name.trim_start_matches("r#")),
-                                |path| base.join(path),
-                            );
-                            if let Some(directory) = normalize(&directory) {
-                                self.namespace(body, &directory, &directory);
-                            }
-                        } else if self.selected(child)
-                            && let Some(path) =
-                                explicit.and_then(|path| normalize(&base.join(path)))
-                            && let Ok(relative) = path.strip_prefix(base)
-                            && relative.components().count() > 1
-                            && let Some(domain) = relative.components().next()
-                        {
-                            domains
-                                .entry(domain.as_os_str().to_string_lossy().into_owned())
-                                .or_default()
-                                .push((child, path));
-                        }
-                    }
+                    self.module(child, &attributes, base, inline, &mut domains);
                     attributes.clear();
                 }
                 _ => {
@@ -127,6 +99,42 @@ impl Scan<'_> {
         }
         if domains.len() > self.assertion.max_child_domains {
             self.report(&domains);
+        }
+    }
+    fn module<'a>(
+        &mut self,
+        child: Node<'a>,
+        attributes: &[syn::Meta],
+        base: &Path,
+        inline: &Path,
+        domains: &mut BTreeMap<String, Vec<(Node<'a>, PathBuf)>>,
+    ) {
+        if attributes::platform(attributes) {
+            return;
+        }
+        let explicit = attributes::path(attributes);
+        if let Some(body) = child.child_by_field_name("body") {
+            let name = child
+                .child_by_field_name("name")
+                .map(|name| &self.source.text[name.byte_range()])
+                .unwrap_or("");
+            let directory = explicit.map_or_else(
+                || inline.join(name.trim_start_matches("r#")),
+                |path| base.join(path),
+            );
+            if let Some(directory) = normalize(&directory) {
+                self.namespace(body, &directory, &directory);
+            }
+        } else if self.selected(child)
+            && let Some(path) = explicit.and_then(|path| normalize(&base.join(path)))
+            && let Ok(relative) = path.strip_prefix(base)
+            && relative.components().count() > 1
+            && let Some(domain) = relative.components().next()
+        {
+            domains
+                .entry(domain.as_os_str().to_string_lossy().into_owned())
+                .or_default()
+                .push((child, path));
         }
     }
     fn selected(&self, node: Node<'_>) -> bool {

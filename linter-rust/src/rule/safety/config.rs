@@ -53,14 +53,7 @@ impl Definition {
         let mut modules = Vec::new();
         for module in definition.allowed_modules {
             let parts: Vec<String> = module.split("::").map(str::to_owned).collect();
-            if parts.iter().any(|part| {
-                part.is_empty()
-                    || !part.bytes().enumerate().all(|(index, byte)| {
-                        byte == b'_'
-                            || byte.is_ascii_alphabetic()
-                            || (index > 0 && byte.is_ascii_digit())
-                    })
-            }) {
+            if parts.iter().any(|part| !module_identifier(part)) {
                 return Err(Error::Configuration(format!(
                     "{setting}.allowed_modules: expected module paths like platform::ffi"
                 )));
@@ -84,4 +77,11 @@ impl Definition {
             setting,
         })
     }
+}
+
+fn module_identifier(part: &str) -> bool {
+    !part.is_empty()
+        && part.bytes().enumerate().all(|(index, byte)| {
+            byte == b'_' || byte.is_ascii_alphabetic() || (index > 0 && byte.is_ascii_digit())
+        })
 }

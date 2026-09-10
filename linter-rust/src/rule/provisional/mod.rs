@@ -23,15 +23,14 @@ impl Rule for ProvisionalComment {
     fn check(&self, _: &Project, analysis: &Analysis) -> Result<RuleResult, Error> {
         let mut findings = Vec::new();
         for source in &analysis.sources {
-            for assertion in &self.assertions {
-                if assertion.target.matches(&source.path)
+            for assertion in self.assertions.iter().filter(|assertion| {
+                assertion.target.matches(&source.path)
                     && !assertion
                         .exclude
                         .as_ref()
                         .is_some_and(|target| target.matches(&source.path))
-                {
-                    assertion.visit(source.syntax.root_node(), source, &mut findings);
-                }
+            }) {
+                assertion.visit(source.syntax.root_node(), source, &mut findings);
             }
         }
         Ok(RuleResult {
