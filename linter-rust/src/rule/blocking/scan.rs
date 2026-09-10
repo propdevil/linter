@@ -142,7 +142,7 @@ impl Scan<'_> {
             }
             self.visit(child, env, active);
         }
-        env.aliases = previous.aliases;
+        env.imports = previous.imports;
         env.hidden = previous.hidden;
         env.bindings
             .retain(|name, _| previous.bindings.contains_key(name));
