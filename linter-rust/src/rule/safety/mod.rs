@@ -76,7 +76,29 @@ impl Scan<'_, '_> {
             .as_ref()
             .is_some_and(|selector| selector.matches(&self.source.path))
             || {
-                let identity = self.index.identity(self.source, node);
+                let mut owner = node;
+                if node.kind() == "attribute_item" {
+                    while let Some(next) = owner.next_named_sibling() {
+                        owner = next;
+                        if !matches!(
+                            owner.kind(),
+                            "attribute_item" | "line_comment" | "block_comment"
+                        ) {
+                            break;
+                        }
+                    }
+                }
+                let mut identity = self.index.identity(self.source, owner);
+                if node.kind() == "attribute_item"
+                    && owner.kind() == "mod_item"
+                    && let Some(name) = owner.child_by_field_name("name")
+                {
+                    identity.module.push(
+                        self.source.text[name.byte_range()]
+                            .trim_start_matches("r#")
+                            .into(),
+                    );
+                }
                 self.assertion
                     .allowed_modules
                     .iter()
@@ -396,5 +418,25 @@ mod tests {
                 "{fields}"
             );
         }
+    }
+    #[test]
+    fn outer_module_attributes_use_the_boundary_they_apply_to() {
+        assert!(
+            report(
+                "#[allow(unsafe_code)] mod ffi { unsafe fn entry() {} }",
+                "allowed_modules = ['ffi']"
+            )
+            .findings
+            .is_empty()
+        );
+        assert_eq!(
+            report(
+                "#[allow(unsafe_code)] mod not_ffi { unsafe fn entry() {} }",
+                "allowed_modules = ['ffi']"
+            )
+            .findings
+            .len(),
+            2
+        );
     }
 }
