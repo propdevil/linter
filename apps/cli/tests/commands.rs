@@ -29,7 +29,11 @@ files.required = ["mod.rs", "config.rs", "readme.md"]
     }
     let clean = check(root.path(), false);
     assert_eq!(clean.status.code(), Some(0));
-    assert!(String::from_utf8(clean.stdout).unwrap().contains("layout: 0 finding(s)\n"));
+    assert!(
+        String::from_utf8(clean.stdout)
+            .unwrap()
+            .contains("layout: 0 finding(s)\n")
+    );
 
     fs::remove_file(rule.join("readme.md")).unwrap();
     let failed = check(root.path(), true);

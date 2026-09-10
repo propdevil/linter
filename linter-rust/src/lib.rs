@@ -20,7 +20,9 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<FunctionLength>()?
         .register::<MethodLength>()?
         .register::<NestingRule>()?
-        .register::<StructNoun>()
+        .register::<StructNoun>()?
+        .register::<DuplicateEntity>()?
+        .register::<ModelDuplication>()
 }
 
 mod declaration;

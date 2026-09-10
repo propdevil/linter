@@ -31,3 +31,11 @@ tab_width = 4
 [[rules."c/unchecked-allocation"]]
 target = "**/*.{c,h}"
 functions = ["malloc", "calloc", "realloc"]
+
+[[rules."c/ignored-result"]]
+target = "**/*.{c,h}"
+functions = ["fopen", "fdopen", "tmpfile", "realloc"]
+
+[[rules."c/safety-rationale"]]
+target = "**/*.{c,h}"
+operations = ["gets", "vsprintf"]

@@ -137,61 +137,91 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, block)| {
-                let setting = format!("rules.layout[{index}]");
-                let definition = match block {
-                    Block::Structure(definition) => *definition,
-                    Block::Permission(permission) => {
-                        if permission.allow && permission.description.as_ref().is_none_or(|text| text.trim().is_empty()) {
-                            return Err(Error::Configuration(format!("{setting}.description: describe the allowed files' purpose")));
-                        }
-                        let selector = permission.target.compile(&format!("{setting}.target"), permission.case_sensitive)?;
-                        return Ok(Check::Permission(Permission { setting, selector, allow: permission.allow, kind: permission.kind }));
-                    }
-                };
-                if !definition.files.content_ignored.is_empty() {
-                    return Err(Error::Configuration(format!("{setting}.files.content_ignored: only valid for directories")));
-                }
-                if definition.files.allow_single_file.is_some() {
-                    return Err(Error::Configuration(format!("{setting}.files.allow_single_file: only valid for directories")));
-                }
-                let selector = definition.target.compile(&format!("{setting}.target"), true)?;
-                for (label, selection) in [("files", &definition.files), ("directories", &definition.directories)] {
-                    if definition.mode == Mode::Permissive && !selection.allowed.is_empty() {
-                        return Err(Error::Configuration(format!("{setting}.{label}.allowed: requires restrictive mode; use an ordered allow block to override a ban")));
-                    }
-                }
-                let files = definition
-                    .files
-                    .compile(&format!("{setting}.files"))?;
-                let directories = definition
-                    .directories
-                    .compile(&format!("{setting}.directories"))?;
-                for file in &files.required {
-                    if directories
-                        .required
-                        .iter()
-                        .any(|path| path.starts_with(file))
-                        || files
-                            .required
-                            .iter()
-                            .any(|path| path != file && path.starts_with(file))
-                    {
-                        return Err(Error::Configuration(format!(
-                            "{setting}: required file {} also needs to be a directory",
-                            file.display()
-                        )));
-                    }
-                }
-                Ok(Check::Structure(Box::new(Assertion {
-                    setting,
-                    selector,
-                    mode: definition.mode,
-                    files,
-                    directories,
-                })))
-            })
+            .map(|(index, block)| block.compile(format!("rules.layout[{index}]")))
             .collect()
+    }
+}
+
+impl Block {
+    fn compile(self, setting: String) -> Result<Check, Error> {
+        match self {
+            Self::Structure(definition) => definition.compile(setting),
+            Self::Permission(permission) => permission.compile(setting),
+        }
+    }
+}
+
+impl PermissionConfig {
+    fn compile(self, setting: String) -> Result<Check, Error> {
+        if self.allow
+            && self
+                .description
+                .as_ref()
+                .is_none_or(|text| text.trim().is_empty())
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}.description: describe the allowed entries' purpose"
+            )));
+        }
+        let selector = self
+            .target
+            .compile(&format!("{setting}.target"), self.case_sensitive)?;
+        Ok(Check::Permission(Permission {
+            setting,
+            selector,
+            allow: self.allow,
+            kind: self.kind,
+        }))
+    }
+}
+
+impl Definition {
+    fn validate(&self, setting: &str) -> Result<(), Error> {
+        if !self.files.content_ignored.is_empty() || self.files.allow_single_file.is_some() {
+            return Err(Error::Configuration(format!(
+                "{setting}.files: content_ignored and allow_single_file are only valid for directories"
+            )));
+        }
+        for (label, selection) in [("files", &self.files), ("directories", &self.directories)] {
+            if self.mode == Mode::Permissive && !selection.allowed.is_empty() {
+                return Err(Error::Configuration(format!(
+                    "{setting}.{label}.allowed: requires restrictive mode; use an ordered allow block to override a ban"
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn compile(self, setting: String) -> Result<Check, Error> {
+        self.validate(&setting)?;
+        let selector = self.target.compile(&format!("{setting}.target"), true)?;
+        let files = self.files.compile(&format!("{setting}.files"))?;
+        let directories = self
+            .directories
+            .compile(&format!("{setting}.directories"))?;
+        for file in &files.required {
+            if directories
+                .required
+                .iter()
+                .any(|path| path.starts_with(file))
+                || files
+                    .required
+                    .iter()
+                    .any(|path| path != file && path.starts_with(file))
+            {
+                return Err(Error::Configuration(format!(
+                    "{setting}: required file {} also needs to be a directory",
+                    file.display()
+                )));
+            }
+        }
+        Ok(Check::Structure(Box::new(Assertion {
+            setting,
+            selector,
+            mode: self.mode,
+            files,
+            directories,
+        })))
     }
 }
 

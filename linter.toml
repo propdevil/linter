@@ -161,3 +161,12 @@ ignore_guard_clauses = true
 
 [[rules."rust/struct-noun-naming"]]
 target = "**/*.rs"
+
+[[rules."rust/duplicate-entity-base"]]
+target = "**/*.rs"
+min_shared_fields = 3
+
+[[rules."rust/wire-domain-model-duplication"]]
+target = "**/*.rs"
+min_shared_fields = 3
+min_overlap_percent = 75
