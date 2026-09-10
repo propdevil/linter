@@ -1,4 +1,4 @@
-use super::context::Context;
+use crate::namespace::Context;
 use crate::{Analysis, Source, declaration::Index};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -20,7 +20,7 @@ struct Import {
     public: bool,
 }
 
-pub(super) struct Exports {
+pub(crate) struct Exports {
     paths: BTreeMap<Origin, Vec<Vec<String>>>,
 }
 impl Exports {
@@ -107,6 +107,10 @@ impl Exports {
         }
         Self { paths }
     }
+    pub fn reachable(&self, source: &Source, node: Node<'_>) -> bool {
+        self.paths
+            .contains_key(&(source.path.clone(), node.start_byte()))
+    }
     pub fn omits(&self, source: &Source, node: Node<'_>, module: &str) -> bool {
         let mut owner = node;
         let mut parent = node.parent();
@@ -119,6 +123,9 @@ impl Exports {
                 break;
             }
             parent = item.parent();
+        }
+        if !self.reachable(source, owner) {
+            return false;
         }
         self.paths
             .get(&(source.path.clone(), owner.start_byte()))

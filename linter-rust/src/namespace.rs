@@ -5,7 +5,7 @@ use std::{
 };
 use tree_sitter::Node;
 
-pub(super) struct Context {
+pub(crate) struct Context {
     fallback: BTreeMap<PathBuf, Vec<String>>,
     parents: BTreeMap<PathBuf, Vec<(PathBuf, Vec<String>)>>,
 }

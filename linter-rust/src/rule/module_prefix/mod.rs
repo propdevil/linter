@@ -8,8 +8,8 @@ use heck::ToSnakeCase;
 use linter::{Error, Finding, Project, Rule, RuleResult, Span, Status};
 use tree_sitter::Node;
 mod config;
-mod context;
-mod exports;
+use crate::exports;
+use crate::namespace as context;
 pub use config::Config;
 pub struct ModulePrefix(Vec<Assertion>);
 impl Rule for ModulePrefix {
@@ -308,7 +308,7 @@ mod tests {
         for source in [
             include_str!("mod.rs"),
             include_str!("config.rs"),
-            include_str!("context.rs"),
+            include_str!("../../namespace.rs"),
         ] {
             assert!(check(&[("lib.rs", source)], "").unwrap().is_empty());
         }
