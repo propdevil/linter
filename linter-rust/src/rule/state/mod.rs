@@ -73,6 +73,7 @@ enum Kind {
 enum Use {
     Assignment,
     Decision,
+    Match,
 }
 struct Concept {
     name: String,
@@ -80,6 +81,7 @@ struct Concept {
     values: BTreeSet<String>,
     assignments: usize,
     decisions: usize,
+    matches: usize,
     open: bool,
     evidence: Vec<Evidence>,
 }
@@ -91,6 +93,7 @@ impl Concept {
             values: BTreeSet::new(),
             assignments: 0,
             decisions: 0,
+            matches: 0,
             open: false,
             evidence: Vec::new(),
         }
@@ -101,6 +104,11 @@ impl Concept {
             Use::Assignment => {
                 self.assignments += 1;
                 "Assigned"
+            }
+            Use::Match => {
+                self.matches += 1;
+                self.decisions += 1;
+                "Matched"
             }
             Use::Decision => {
                 self.decisions += 1;
@@ -116,7 +124,7 @@ impl Concept {
     fn finding(mut self, assertion: &Assertion) -> Option<Finding> {
         let persistent = match self.kind {
             Kind::Field => self.assignments >= assertion.min_variants || self.decisions > 0,
-            Kind::Binding => self.assignments > 0 && self.decisions > 0,
+            Kind::Binding => self.matches > 0 || (self.assignments > 0 && self.decisions > 0),
             Kind::Target => self.assignments >= assertion.min_variants,
         };
         if self.open || !persistent || self.values.len() < assertion.min_variants {
@@ -436,7 +444,7 @@ fn transition(&self) -> bool {
     }
 
     #[test]
-    fn rejects_bad_settings_and_requires_explicit_vocabulary() {
+    fn rejects_bad_settings_and_empty_explicit_vocabulary() {
         for config in [
             "min_variants=1",
             "min_variants=-1",
@@ -452,7 +460,6 @@ fn transition(&self) -> bool {
         }
         let root = tempfile::tempdir().unwrap();
         for config in [
-            "",
             "state_words=[]",
             "state_words=['status','STATUS']",
             "state_words=['two words']",
@@ -506,5 +513,71 @@ fn transition(&self) -> bool {
         }
         let suppressed=CLOSED.replace("fn ready", "// linter:disable rust/string-backed-finite-state -- wire contract preserves string states\nfn ready");
         assert!(findings(&suppressed).is_empty());
+    }
+    fn unfiltered(text: &str, config: &str) -> Vec<Finding> {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("lib.rs"), text).unwrap();
+        fs::write(
+            root.path().join("linter.toml"),
+            format!("[[rules.\"rust/string-backed-finite-state\"]]\ntarget='*.rs'\n{config}"),
+        )
+        .unwrap();
+        linter::Registry::default()
+            .register::<StringState>()
+            .unwrap()
+            .check(root.path())
+            .unwrap()
+            .findings
+    }
+    #[test]
+    fn literal_matches_establish_state_without_name_vocabulary() {
+        let source = r#"
+struct Upload { status: String }
+impl Upload {
+    fn finished(&self) -> bool {
+        match self.status.as_str() {
+            "preparing" => false,
+            "pushing" => false,
+            "pushed" => true,
+            _ => false,
+        }
+    }
+}
+"#;
+        assert_eq!(unfiltered(source, "").len(), 1);
+        assert_eq!(unfiltered(&source.replace("status", "result"), "").len(), 1);
+        assert!(
+            unfiltered(
+                &source.replace("status", "result"),
+                "state_words=['status']"
+            )
+            .is_empty()
+        );
+        assert!(unfiltered(source, "ignored_words=['status']").is_empty());
+        let local = "fn finished(value:&str)->bool{match value{\"preparing\"=>false,\"pushing\"=>false,\"pushed\"=>true,_=>false}}";
+        assert_eq!(unfiltered(local, "").len(), 1);
+        assert!(
+            unfiltered(
+                "fn inspect(value:&str)->bool{value==\"a\"||value==\"b\"||value==\"c\"}",
+                ""
+            )
+            .is_empty()
+        );
+    }
+    #[test]
+    fn unfiltered_checks_keep_type_identity_and_unknown_values() {
+        let source = "fn parse(value:&str)->Status{match value{\"a\"=>Status::A,\"b\"=>Status::B,\"c\"=>Status::C,unknown=>Status::Unknown(unknown.to_owned())}}";
+        assert!(unfiltered(source, "").is_empty());
+        let unknown_type = "struct Input(String);fn parse(value:Input)->bool{match value{\"a\"=>false,\"b\"=>false,\"c\"=>true,_=>false}}";
+        assert!(unfiltered(unknown_type, "").is_empty());
+        assert!(
+            unfiltered(
+                "fn parse()->bool{match fetch(){\"a\"=>false,\"b\"=>false,\"c\"=>true,_=>false}}",
+                ""
+            )
+            .is_empty()
+        );
+        let shadow = "fn parse(value:&str){match value{\"a\"=>false,\"b\"=>true,_=>false};{let value=\"c\";match value{\"c\"=>false,\"d\"=>true,_=>false};}}";
+        assert!(unfiltered(shadow, "").is_empty());
     }
 }

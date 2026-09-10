@@ -15,7 +15,8 @@ struct Definition {
     scope: Scope,
     #[serde(default)]
     ignored_words: Vec<String>,
-    state_words: Vec<String>,
+    #[serde(default)]
+    state_words: Option<Vec<String>>,
     #[serde(default = "variants")]
     min_variants: usize,
 }
@@ -34,7 +35,7 @@ pub(super) struct Assertion {
     pub exclude: Option<Selector>,
     pub scope: Scope,
     pub ignored_words: std::collections::BTreeSet<String>,
-    pub state_words: std::collections::BTreeSet<String>,
+    pub state_words: Option<std::collections::BTreeSet<String>>,
     pub min_variants: usize,
     pub setting: String,
 }
@@ -51,8 +52,14 @@ impl Config {
                         "{setting}.min_variants: expected at least two"
                     )));
                 }
-                let state_words = words(definition.state_words, &format!("{setting}.state_words"))?;
-                if state_words.is_empty() {
+                let state_words = definition
+                    .state_words
+                    .map(|values| words(values, &format!("{setting}.state_words")))
+                    .transpose()?;
+                if state_words
+                    .as_ref()
+                    .is_some_and(std::collections::BTreeSet::is_empty)
+                {
                     return Err(Error::Configuration(format!(
                         "{setting}.state_words: expected at least one state word"
                     )));
@@ -103,7 +110,10 @@ impl Assertion {
     pub fn candidate(&self, name: &str) -> bool {
         let normalized = name.to_ascii_lowercase();
         let word = normalized.rsplit('_').next().unwrap_or_default();
-        self.state_words.contains(word) && !self.ignored_words.contains(word)
+        self.state_words
+            .as_ref()
+            .is_none_or(|words| words.contains(word))
+            && !self.ignored_words.contains(word)
     }
     pub fn selected(&self, test: bool) -> bool {
         match self.scope {

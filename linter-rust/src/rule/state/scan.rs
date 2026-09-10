@@ -268,7 +268,7 @@ impl<'a, 'b> Scanner<'a, 'b> {
                 self.source,
             );
             for (literal, node) in syntax::literals(pattern, self.source) {
-                concept.record(literal, node, self.source, Use::Decision);
+                concept.record(literal, node, self.source, Use::Match);
             }
         }
     }
