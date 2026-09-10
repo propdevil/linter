@@ -79,8 +79,6 @@ Use one Cargo workspace:
 - `apps/cli/`: terminal adapter, JSON output, and exit status.
 - `apps/mcp/`: local stdio MCP adapter over the same library.
 - `configs/`: declarative presets embedded in the CLI executable.
-- `sources/`: remaining migration inputs, excluded from production dependencies
-  and lint inputs. Retire verified replacements and record their baseline provenance.
 
 `linter-rust` owns Rust syntax, Cargo analysis, and Rust rules.
 `linter-c` owns C analysis and rules. Both use Tree-sitter.

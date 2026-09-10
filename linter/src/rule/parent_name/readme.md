@@ -22,7 +22,7 @@ Rename `memory/memory_map.h` to `memory/map.h` when it preserves ownership and
 avoids collisions.
 
 Migration: preserves Husklet `ParentName` in
-`sources/husklet/src/packages/hl-design-lint/src/rule/repository/shape/mod.rs`
+[archived source](https://github.com/propdevil/linter/blob/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/husklet/src/packages/hl-design-lint/src/rule/repository/shape/mod.rs)
 and its `filename_does_not_repeat_parent_semantic_word` regression cases.
 Extends it to explicit language-neutral targets and all repeated words.
 Replaces implicit conventional-entry exemptions with `ignored_names` in config.

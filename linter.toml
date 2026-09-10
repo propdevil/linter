@@ -1,6 +1,6 @@
 # Generated from the default preset, then configured for this repository.
 [files]
-exclude = ["**/.git", "**/target", "sources/**", "dist/**"]
+exclude = ["**/.git", "**/target", "dist/**"]
 
 [[rules.layout]]
 target = "."
