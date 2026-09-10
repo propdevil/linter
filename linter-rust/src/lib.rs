@@ -95,3 +95,4 @@ pub use rule::wrapper::{Config as RedundantWrapperConfig, RedundantWrapper};
 mod imports;
 
 pub use rule::environment::{Config as EnvironmentConfig, EnvironmentAccess};
+pub use rule::budget::{Config as DependencyBudgetConfig, DependencyBudget};

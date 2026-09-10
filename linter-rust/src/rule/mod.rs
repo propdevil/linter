@@ -32,6 +32,7 @@ pub(crate) mod accessor;
 pub(crate) mod detached;
 pub(crate) mod safety;
 
+pub(crate) mod budget;
 pub(crate) mod cycles;
 pub(crate) mod namespace;
 pub(crate) mod single;
