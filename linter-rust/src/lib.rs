@@ -60,3 +60,5 @@ pub use rule::constructor::{Config as SelfConstructorConfig, SelfConstructor};
 pub use rule::module_prefix::{Config as ModulePrefixConfig, ModulePrefix};
 mod type_path;
 pub use rule::object::{Config as GodObjectConfig, GodObject};
+
+pub use rule::detached::{Config as DetachedConstructorConfig, DetachedConstructor};
