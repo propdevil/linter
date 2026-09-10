@@ -2,11 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use linter::{Error, Evidence, Finding, Project, Rule, RuleResult, Span, Status};
 
-use crate::{
-    Analysis, Source,
-    declaration::Index,
-    scope::{integration, mark_tests},
-};
+use crate::{Analysis, Source, declaration::Index};
 use config::Assertion;
 
 mod config;
@@ -42,12 +38,7 @@ impl Rule for StringState {
                 {
                     continue;
                 }
-                let mut tests = vec![false; source.text.len()];
-                if integration(source, &root, analysis) {
-                    tests.fill(true);
-                } else {
-                    mark_tests(source.syntax.root_node(), &source.text, &mut tests);
-                }
+                let tests = source.test_mask(&root, analysis);
                 scan::Scanner::new(source, &index, assertion, &tests, &mut concepts).run();
             }
             findings.extend(
@@ -617,6 +608,110 @@ fn transition(&self) -> bool {
             .unwrap()
             .findings
     }
+    #[test]
+    fn enum_conversion_boundaries_do_not_retain_string_state() {
+        let source = r#"
+enum Phase { Preparing, Pushing, Pushed }
+fn parse(value: &str) -> Option<Phase> {
+    match value {
+        "preparing" => Some(Phase::Preparing),
+        "pushing" => Some(Phase::Pushing),
+        "pushed" => Some(Phase::Pushed),
+        _ => None,
+    }
+}
+"#;
+        assert!(unfiltered(source, "").is_empty());
+        let direct = source
+            .replace("Option<Phase>", "Phase")
+            .replace("Some(Phase::Preparing)", "Phase::Preparing")
+            .replace("Some(Phase::Pushing)", "Phase::Pushing")
+            .replace("Some(Phase::Pushed)", "Phase::Pushed")
+            .replace("_ => None", "_ => Phase::Preparing");
+        assert!(unfiltered(&direct, "").is_empty());
+        let local = source
+            .replace("fn parse(value: &str)", "fn parse(raw: &str)")
+            .replace(
+                "    match value",
+                "    let value: String = raw.to_owned();\n    match value",
+            );
+        assert!(unfiltered(&local, "").is_empty());
+    }
+
+    #[test]
+    fn enum_results_do_not_exempt_stored_or_evolving_string_state() {
+        let source = r#"
+enum Phase { Preparing, Pushing, Pushed }
+struct Upload { status: String }
+impl Upload {
+    fn phase(&self) -> Phase {
+        match self.status.as_str() {
+            "preparing" => Phase::Preparing,
+            "pushing" => Phase::Pushing,
+            "pushed" => Phase::Pushed,
+            _ => Phase::Preparing,
+        }
+    }
+}
+"#;
+        assert_eq!(unfiltered(source, "").len(), 1);
+        let local = source
+            .replace("struct Upload { status: String }", "")
+            .replace("impl Upload {", "")
+            .replace("fn phase(&self)", "fn phase()")
+            .replace(
+                "        match self.status.as_str()",
+                concat!(
+                    "        let status: String = \"preparing\".into();\n",
+                    "        match status.as_str()"
+                ),
+            );
+        let local = local.trim().strip_suffix('}').unwrap();
+        assert_eq!(unfiltered(local, "").len(), 1);
+    }
+
+    #[test]
+    fn nested_async_returns_do_not_borrow_an_outer_conversion_boundary() {
+        let source = r#"
+enum Phase { Preparing, Pushing, Pushed }
+fn inspect(value: &str) -> Phase {
+    let pending = async {
+        return match value {
+            "preparing" => Phase::Preparing,
+            "pushing" => Phase::Pushing,
+            "pushed" => Phase::Pushed,
+            _ => Phase::Preparing,
+        };
+    };
+    Phase::Preparing
+}
+"#;
+        assert_eq!(unfiltered(source, "").len(), 1);
+    }
+
+    #[test]
+    fn an_enum_return_type_does_not_exempt_unrelated_decisions() {
+        let source = r#"
+enum Phase { Ready }
+fn parse(value: &str) -> Phase {
+    let ready = match value {
+        "preparing" | "pushing" => false,
+        "pushed" => true,
+        _ => false,
+    };
+    Phase::Ready
+}
+"#;
+        assert_eq!(unfiltered(source, "").len(), 1);
+        let nominal = source
+            .replace("enum Phase { Ready }", "struct Phase;")
+            .replace("let ready = match", "match")
+            .replace("false", "Phase")
+            .replace("true", "Phase")
+            .replace("};\n    Phase::Ready", "}");
+        assert_eq!(unfiltered(&nominal, "").len(), 1);
+    }
+
     #[test]
     fn literal_matches_establish_state_without_name_vocabulary() {
         let source = r#"

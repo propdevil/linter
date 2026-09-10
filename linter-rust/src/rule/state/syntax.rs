@@ -137,35 +137,35 @@ fn preserved(node: Node<'_>, name: &str, source: &Source) -> bool {
     if direct(node, name, source) {
         return true;
     }
-    match node.kind() {
-        "block" | "return_expression" | "expression_statement" => children(node)
+    if matches!(
+        node.kind(),
+        "block" | "return_expression" | "expression_statement"
+    ) {
+        return children(node)
             .into_iter()
             .rfind(|child| !matches!(child.kind(), "line_comment" | "block_comment"))
-            .is_some_and(|child| preserved(child, name, source)),
-        "call_expression" => {
-            node.child_by_field_name("function")
-                .is_some_and(|function| unknown(function, source))
-                && node
-                    .child_by_field_name("arguments")
-                    .is_some_and(|arguments| {
-                        children(arguments)
-                            .into_iter()
-                            .any(|argument| direct(argument, name, source))
-                    })
-        }
-        "struct_expression" => {
-            node.child_by_field_name("name")
-                .is_some_and(|owner| unknown(owner, source))
-                && node.child_by_field_name("body").is_some_and(|body| {
-                    children(body).into_iter().any(|field| {
-                        field
-                            .child_by_field_name("value")
-                            .is_some_and(|value| direct(value, name, source))
-                    })
-                })
-        }
-        _ => false,
+            .is_some_and(|child| preserved(child, name, source));
     }
+    let (constructor, values) = match node.kind() {
+        "call_expression" => (
+            node.child_by_field_name("function"),
+            node.child_by_field_name("arguments")
+                .map(children)
+                .unwrap_or_default(),
+        ),
+        "struct_expression" => (
+            node.child_by_field_name("name"),
+            node.child_by_field_name("body")
+                .map(children)
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|field| field.child_by_field_name("value"))
+                .collect(),
+        ),
+        _ => return false,
+    };
+    constructor.is_some_and(|constructor| unknown(constructor, source))
+        && values.into_iter().any(|value| direct(value, name, source))
 }
 
 fn unknown(node: Node<'_>, source: &Source) -> bool {
@@ -177,4 +177,40 @@ fn unknown(node: Node<'_>, source: &Source) -> bool {
         || children(node)
             .into_iter()
             .any(|child| unknown(child, source))
+}
+
+// Only direct return values establish a conversion boundary.
+pub(super) fn returned_by<'a>(mut node: Node<'a>, source: &Source) -> Option<Node<'a>> {
+    while let Some(parent) = node.parent() {
+        match parent.kind() {
+            "function_item" => return Some(parent),
+            "block"
+                if children(parent)
+                    .into_iter()
+                    .rfind(|child| !matches!(child.kind(), "line_comment" | "block_comment"))
+                    != Some(node) =>
+            {
+                return None;
+            }
+            "expression_statement" if text(parent, source).trim_end().ends_with(';') => {
+                return None;
+            }
+            "return_expression" => return enclosing_function(parent),
+            "block" | "expression_statement" | "parenthesized_expression" => {}
+            _ => return None,
+        }
+        node = parent;
+    }
+    None
+}
+
+fn enclosing_function(mut node: Node<'_>) -> Option<Node<'_>> {
+    while let Some(parent) = node.parent() {
+        match parent.kind() {
+            "function_item" => return Some(parent),
+            "closure_expression" | "async_block" => return None,
+            _ => node = parent,
+        }
+    }
+    None
 }

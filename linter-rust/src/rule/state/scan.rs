@@ -137,6 +137,13 @@ impl<'a, 'b> Scanner<'a, 'b> {
         }
         self.owner = previous_owner;
     }
+    fn inferred(&self, value: Node<'_>) -> Option<String> {
+        if syntax::literal(value, self.source).is_some() {
+            return Some("std:String".into());
+        }
+        self.binding(text(syntax::peel(value, self.source), self.source))
+            .and_then(|binding| binding.ty.clone())
+    }
     fn declare(&mut self, node: Node<'a>) {
         let Some(pattern) = node.child_by_field_name("pattern") else {
             return;
@@ -150,16 +157,7 @@ impl<'a, 'b> Scanner<'a, 'b> {
         let ty = node
             .child_by_field_name("type")
             .and_then(|ty| self.index.resolve(self.source, ty, &context))
-            .or_else(|| {
-                value.and_then(|value| {
-                    if syntax::literal(value, self.source).is_some() {
-                        Some("std:String".into())
-                    } else {
-                        self.binding(text(syntax::peel(value, self.source), self.source))
-                            .and_then(|binding| binding.ty.clone())
-                    }
-                })
-            });
+            .or_else(|| value.and_then(|value| self.inferred(value)));
         let key = format!(
             "{}:{}:{name}",
             self.source.path.display(),
@@ -247,6 +245,15 @@ impl<'a, 'b> Scanner<'a, 'b> {
         let Some((key, name, kind)) = self.concept(value) else {
             return;
         };
+        if matches!(kind, Kind::Binding)
+            && self
+                .concepts
+                .get(&key)
+                .is_none_or(|concept| concept.assignments == 0)
+            && self.conversion(node)
+        {
+            return;
+        }
         let Some(body) = node.child_by_field_name("body") else {
             return;
         };
@@ -271,6 +278,23 @@ impl<'a, 'b> Scanner<'a, 'b> {
                 concept.record(literal, node, self.source, Use::Match);
             }
         }
+    }
+    fn conversion(&self, node: Node<'_>) -> bool {
+        let Some(function) = syntax::returned_by(node, self.source) else {
+            return false;
+        };
+        let Some(ty) = function.child_by_field_name("return_type") else {
+            return false;
+        };
+        let context = self.index.identity(self.source, function);
+        let Some(resolved) = self.index.resolve(self.source, ty, &context) else {
+            return false;
+        };
+        let output = resolved
+            .strip_prefix("std:Option<")
+            .and_then(|ty| ty.strip_suffix('>'))
+            .unwrap_or(&resolved);
+        self.index.is_enum(output)
     }
     fn setter(&mut self, node: Node<'a>) {
         let Some((method, receiver, args)) = syntax::method(node, self.source) else {

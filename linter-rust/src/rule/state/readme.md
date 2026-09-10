@@ -35,6 +35,26 @@ Fields use shared nominal declaration identity; String aliases resolve but unrel
 
 Recognizes equality/inequality, match literals, string literal ownership conversions, and string constructors. Arbitrary calls containing a string argument do not establish string-state evidence. Strings in comments and opaque macros do not count. Comparisons alone on incoming string bindings pass without local evolution. A literal match with enough distinct variants is explicit closed-vocabulary evidence; `_ => false` does not preserve unknown values.
 
+A match returned directly from a function converting an incoming string into a
+resolved enum (including `Option<Enum>`) is a parsing boundary, not retained
+string state. This requires nominal enum identity; a same-named struct or an
+unresolved type does not qualify. String fields and bindings with literal
+assignment evidence remain checked, even when their match returns an enum.
+Decisions elsewhere in an enum-returning function remain checked too.
+
+```rust
+enum Phase { Preparing, Pushing, Pushed }
+fn parse(value: &str) -> Option<Phase> {
+    match value {
+        "preparing" => Some(Phase::Preparing),
+        "pushing" => Some(Phase::Pushing),
+        "pushed" => Some(Phase::Pushed),
+        _ => None,
+    }
+}
+// Accepted: the strings are converted into the existing enum at the boundary.
+```
+
 An unguarded fallback that directly returns the unknown value or carries it in Unknown/Unrecognized/Other/Raw/Custom representation preserves an open vocabulary and exempts the concept. Merely logging the unknown value before returning a fixed fallback does not preserve it. A protocol directory alone is not an exemption.
 
 `target` is required and optional `exclude` accepts the same root-relative glob or nonempty-list syntax. Scope defaults to production; tests and all are available. Shared test classification recognizes test-only items and integration files. Project exclusions apply. Each error identifies its first literal and includes assignment/decision evidence locations and distinct values. Common reasoned directives apply; no blocks means unconfigured.
