@@ -33,3 +33,5 @@ pub use rule::result::ResultUse;
 pub use rule::safety::Safety;
 
 pub use rule::interface::Interface;
+
+pub use rule::calls::ForbiddenCall;
