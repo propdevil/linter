@@ -28,6 +28,6 @@ pub(crate) mod path_modules;
 pub(crate) mod constructor;
 pub(crate) mod module_prefix;
 
-pub(crate) mod detached;
 pub(crate) mod accessor;
+pub(crate) mod detached;
 pub(crate) mod safety;
