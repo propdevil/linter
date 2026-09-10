@@ -1,6 +1,6 @@
 # Generated from the default preset, then configured for this repository.
 [files]
-exclude = ["**/.git", "**/target", "sources/**"]
+exclude = ["**/.git", "**/target", "sources/**", "dist/**"]
 
 [[rules.layout]]
 target = "."
@@ -65,6 +65,11 @@ description = "Describes each rule and its configuration."
 target = "skills/*/SKILL.md"
 allow = true
 description = "Installable software design guidance and linter workflows."
+
+[[rules.layout]]
+target = "README.md"
+allow = true
+description = "Installation and first-use instructions for Codex and Claude Code."
 
 [[rules."rust/layers"]]
 name = "linter"

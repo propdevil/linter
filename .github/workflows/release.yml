@@ -1,0 +1,106 @@
+name: Validate and release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: Validate
+        run: |
+          cargo +stable fmt --all -- --check
+          cargo +stable test --locked --workspace
+          cargo +stable clippy --locked --workspace --all-targets --all-features -- -D warnings
+          sh scripts/test_install.sh
+          cargo +stable run --locked -p linter-cli -- check .
+          git diff --check
+
+  build:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET: ${{ matrix.target }}
+      TAG: ${{ github.ref_name }}
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --target "$TARGET"
+      - name: Linux static toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          echo 'CC=musl-gcc' >> "$GITHUB_ENV"
+      - name: Build native binaries
+        shell: bash
+        run: |
+          cargo +stable build --release --locked --target "$TARGET" -p linter-cli -p linter-mcp
+          "target/$TARGET/release/linter" --version
+          "target/$TARGET/release/linter-mcp" skill > "$RUNNER_TEMP/embedded-skill.md"
+          cmp skills/software-design/SKILL.md "$RUNNER_TEMP/embedded-skill.md"
+      - name: Package
+        shell: bash
+        run: |
+          version=$(awk '$1 == "version" {gsub(/"/, "", $3); print $3; exit}' Cargo.toml)
+          if [[ "$GITHUB_REF" == refs/tags/* && "$TAG" != "v$version" ]]; then
+            echo "Tag $TAG does not match Cargo version $version" >&2
+            exit 1
+          fi
+          sh scripts/package.sh "$TARGET" "$version"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/linter-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and installer
+        run: |
+          cp install.sh dist/install.sh
+          cd dist
+          sha256sum linter-*.tar.gz install.sh > SHA256SUMS
+      - name: Publish complete release
+        run: |
+          gh release create "$TAG" dist/* --verify-tag --draft --title "$TAG" --generate-notes
+          gh release edit "$TAG" --draft=false

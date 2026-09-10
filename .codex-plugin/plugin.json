@@ -2,14 +2,14 @@
   "name": "linter",
   "version": "0.1.0",
   "description": "Software design guidance and repository validation for coding agents.",
-  "author": { "name": "Propdevil" },
+  "author": { "name": "Devil" },
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Linter",
     "shortDescription": "Design software and validate repository decisions.",
     "longDescription": "Combine software design guidance with configurable repository linting through MCP.",
-    "developerName": "Propdevil",
+    "developerName": "Devil",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": ["Review this project's design and run its configured lint checks."]
