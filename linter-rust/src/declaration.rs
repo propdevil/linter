@@ -120,7 +120,7 @@ impl<'a> Index<'a> {
         let platform = platform || platform_gated(node, source);
         if matches!(
             node.kind(),
-            "struct_item" | "enum_item" | "type_item" | "union_item"
+            "struct_item" | "enum_item" | "type_item" | "union_item" | "trait_item"
         ) {
             self.symbols.push(Symbol {
                 id: id.clone(),
@@ -357,6 +357,8 @@ impl<'a> Index<'a> {
 
 fn standard(path: &str) -> Option<&'static str> {
     match path {
+        "From" | "std::convert::From" | "core::convert::From" => Some("std:From"),
+        "TryFrom" | "std::convert::TryFrom" | "core::convert::TryFrom" => Some("std:TryFrom"),
         "String" | "std::string::String" | "alloc::string::String" => Some("std:String"),
         "Vec" | "std::vec::Vec" | "alloc::vec::Vec" => Some("std:Vec"),
         "Option" | "std::option::Option" | "core::option::Option" => Some("std:Option"),
