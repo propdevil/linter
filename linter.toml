@@ -170,3 +170,12 @@ min_shared_fields = 3
 target = "**/*.rs"
 min_shared_fields = 3
 min_overlap_percent = 75
+
+[[rules."rust/boolean-state-cluster"]]
+target = "**/*.rs"
+min_fields = 3
+
+[[rules."rust/string-backed-finite-state"]]
+target = "**/*.rs"
+min_variants = 3
+state_words = ["state", "status", "phase", "mode", "kind", "stage", "condition", "lifecycle", "action"]

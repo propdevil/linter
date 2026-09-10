@@ -57,7 +57,12 @@ impl Assertion {
                     ("prefix", first, self.prefix),
                     ("suffix", last, self.suffix),
                 ] {
-                    if limit.is_some() {
+                    let selected = label != "suffix"
+                        || self
+                            .suffix_words
+                            .as_ref()
+                            .is_none_or(|words| words.iter().any(|candidate| candidate == *word));
+                    if limit.is_some() && selected {
                         groups
                             .entry((parent.to_path_buf(), label, (*word).to_owned()))
                             .or_default()
@@ -139,6 +144,49 @@ mod tests {
                     && finding.instruction.contains("task/"))
         );
         assert_eq!(check(root.path()).unwrap(), report);
+    }
+    #[test]
+    fn configured_suffix_vocabulary_only_counts_selected_roles() {
+        let root = tempfile::tempdir().unwrap();
+        for name in [
+            "a_handler",
+            "b_handler",
+            "c_handler",
+            "a_wallet",
+            "b_wallet",
+            "c_wallet",
+        ] {
+            write(root.path(), &format!("src/{name}.rs"), "content");
+        }
+        write(
+            root.path(),
+            "linter.toml",
+            r#"
+[[rules."shared-affix"]]
+target = "src/*"
+max_suffix = 2
+suffix_words = ["handler"]
+"#,
+        );
+        let report = check(root.path()).unwrap();
+        assert_eq!(report.findings.len(), 1);
+        assert!(report.findings[0].message.contains("suffix word 'handler'"));
+        for fields in [
+            "max_prefix = 2\nsuffix_words = ['handler']",
+            "max_suffix = 2\nsuffix_words = []",
+            "max_suffix = 2\nsuffix_words = ['Handler']",
+            "max_suffix = 2\nsuffix_words = ['handler', 'handler']",
+        ] {
+            write(
+                root.path(),
+                "linter.toml",
+                &format!("[[rules.\"shared-affix\"]]\ntarget = 'src/*'\n{fields}"),
+            );
+            assert!(matches!(
+                check(root.path()),
+                Err(crate::Error::Configuration(_))
+            ));
+        }
     }
     #[test]
     fn counts_only_selected_siblings_and_rejects_invalid_limits() {

@@ -11,6 +11,7 @@ struct Definition {
     target: Target,
     max_prefix: Option<usize>,
     max_suffix: Option<usize>,
+    suffix_words: Option<Vec<String>>,
 }
 
 pub(super) struct Assertion {
@@ -18,6 +19,7 @@ pub(super) struct Assertion {
     pub setting: String,
     pub prefix: Option<usize>,
     pub suffix: Option<usize>,
+    pub suffix_words: Option<Vec<String>>,
 }
 
 impl Config {
@@ -35,11 +37,30 @@ impl Config {
                         "{setting}: configure at least one positive max_prefix or max_suffix"
                     )));
                 }
+                if let Some(words) = &value.suffix_words {
+                    if value.max_suffix.is_none() || words.is_empty() {
+                        return Err(Error::Configuration(format!(
+                            "{setting}.suffix_words: requires max_suffix and nonempty words"
+                        )));
+                    }
+                    let mut seen = std::collections::BTreeSet::new();
+                    for word in words {
+                        if word.is_empty()
+                            || !word.chars().all(|character| character.is_ascii_lowercase())
+                            || !seen.insert(word)
+                        {
+                            return Err(Error::Configuration(format!(
+                                "{setting}.suffix_words: expected unique lowercase words"
+                            )));
+                        }
+                    }
+                }
                 Ok(Assertion {
                     selector: value.target.compile(&format!("{setting}.target"), true)?,
                     setting,
                     prefix: value.max_prefix,
                     suffix: value.max_suffix,
+                    suffix_words: value.suffix_words,
                 })
             })
             .collect()
