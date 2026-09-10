@@ -12,7 +12,7 @@ scope = "production"
 
 `target` is required and accepts a glob or nonempty list. `exclude` accepts the same syntax. `min_shared_fields` defaults to three; smaller thresholds are rejected. `scope` accepts `production` (default), `tests`, or `all`. Targets select the model reported; other discovered models may supply evidence. Excluding a path prevents reporting that path, not consulting its declaration as evidence.
 
-Models must belong to the same Cargo package and share complete trailing name words, such as `Wallet` and `ImportedWallet`, or have a resolved standard `From`/`TryFrom` implementation relating them. Unrelated `Image` and `Invoice` shapes do not trigger a finding. Substring coincidences such as `Art` and `Cart` do not count. Platform-gated models are conservatively excluded as alternative compilations.
+Models must belong to the same Cargo package and share complete trailing name words, such as `Wallet` and `ImportedWallet`, or have a resolved standard `From`/`TryFrom` implementation relating them. Unrelated `Image` and `Invoice` shapes do not trigger a finding. Identically named models in separate modules also require a resolved conversion relationship; a reused local name does not establish shared ownership. Substring coincidences such as `Art` and `Cart` do not count. Platform-gated models are conservatively excluded as alternative compilations.
 
 ```rust
 struct Wallet { id: u64, address: String, network: String }

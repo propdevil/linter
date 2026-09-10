@@ -99,6 +99,9 @@ fn shared(first: &Structure<'_>, second: &Structure<'_>) -> Vec<String> {
 fn related(first: &Structure<'_>, second: &Structure<'_>) -> bool {
     let first_words = words(&first.id.name);
     let second_words = words(&second.id.name);
+    if first_words == second_words {
+        return first.id.module == second.id.module;
+    }
     first_words.ends_with(&second_words) || second_words.ends_with(&first_words)
 }
 fn words(name: &str) -> Vec<String> {
@@ -362,5 +365,12 @@ mod tests {
     fn own_models_do_not_duplicate_entities() {
         assert!(findings(include_str!("mod.rs")).is_empty());
         assert!(findings(include_str!("config.rs")).is_empty());
+    }
+    #[test]
+    fn identical_names_in_independent_modules_do_not_prove_shared_ownership() {
+        let source = "mod indentation { struct Assertion { max_columns:usize,setting:String,tab_width:usize } } mod line_width { struct Assertion { max_columns:usize,setting:String,tab_width:usize } }";
+        assert!(findings(source).is_empty());
+        let source = "mod first { pub struct Wallet { pub id:u64,pub address:String,pub network:String } } mod second { pub struct Wallet { pub id:u64,pub address:String,pub network:String } } impl From<first::Wallet> for second::Wallet { fn from(wallet:first::Wallet)->Self { Self { id:wallet.id,address:wallet.address,network:wallet.network } } }";
+        assert_eq!(findings(source).len(), 1);
     }
 }
