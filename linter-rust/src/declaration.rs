@@ -206,7 +206,11 @@ impl<'a> Index<'a> {
                     path: join(prefix, &source.text[path.byte_range()]),
                 });
             }
-            "use_wildcard" => {} // Glob imports do not establish unambiguous identity.
+            "use_wildcard" => self.imports.push(Import {
+                owner: owner.clone(),
+                name: "*".into(),
+                path: String::new(),
+            }),
             _ => {
                 let path = join(prefix, text);
                 let name = if text == "self" {
@@ -292,6 +296,33 @@ impl<'a> Index<'a> {
         let path: String = path.split_whitespace().collect();
         let mut parts: Vec<_> = path.trim_start_matches("::").split("::").collect();
         let first = *parts.first()?;
+        if self
+            .symbols
+            .iter()
+            .filter(|symbol| symbol.id == *owner)
+            .any(|symbol| {
+                symbol
+                    .node
+                    .child_by_field_name("type_parameters")
+                    .is_some_and(|parameters| {
+                        children(parameters)
+                            .iter()
+                            .any(|parameter| named(*parameter, symbol.source) == Some(first))
+                    })
+            })
+        {
+            return None;
+        }
+        if parts.len() == 1
+            && self.imports.iter().any(|import| {
+                import.owner.package == owner.package
+                    && import.owner.module == owner.module
+                    && import.name == "*"
+            })
+        {
+            return None;
+        }
+
         let mut base = owner.clone();
         match first {
             "crate" => {
@@ -503,5 +534,14 @@ mod tests {
         assert!(fields["id"].ty.is_none());
         assert!(fields["unknown"].ty.is_none());
         assert_eq!(fields["count"].ty.as_deref(), Some("primitive:u64"));
+    }
+    #[test]
+    fn generic_parameters_and_glob_imports_are_not_guessed() {
+        let data = analysis(
+            "struct Id; struct Value<Id> { id:Id } mod child { use crate::*; struct Example { name:String } }",
+        );
+        let index = Index::new(&data, Path::new("/project"));
+        assert!(index.structures[0].fields["id"].ty.is_none());
+        assert!(index.structures[1].fields["name"].ty.is_none());
     }
 }
