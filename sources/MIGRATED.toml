@@ -51,3 +51,23 @@ removed = ["husklet/src/packages/hl-design-lint/src/rule/c/policy.rs", "husklet/
 [[migrations]]
 rule = "c/test-only-state"
 removed = ["husklet/src/packages/hl-design-lint/src/rule/c/hook.rs", "husklet/src/packages/hl-design-lint/src/rule/c/hook_test.rs"]
+
+[[migrations]]
+rule = "rust/module-name"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/catchall.rs", "prop/packages/design-lint/src/rule/catchall/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/catchall/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/catchall/tests.rs"]
+
+[[migrations]]
+rule = "rust/receiver-name-repetition"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/receiver.rs", "prop/packages/design-lint/src/rule/receiver/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/receiver/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/receiver/tests.rs"]
+
+[[migrations]]
+rule = "rust/path-module-flattening"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/boundary/mod.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/boundary/test.rs"]
+
+[[migrations]]
+rule = "rust/broad-trait-responsibilities"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/contract/mod.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/contract/test.rs", "prop/packages/design-lint/src/rule/contract/mod.rs", "prop/packages/design-lint/src/rule/contract/tests.rs", "payment-sdk/packages/design-lint/src/rule/adopted/contract/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/contract/tests.rs"]
+
+[[migrations]]
+rule = "rust/god-object-growth"
+removed = ["husklet/src/packages/hl-design-lint/src/rule/rust/object/mod.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/object/origin.rs", "husklet/src/packages/hl-design-lint/src/rule/rust/object/test.rs", "prop/packages/design-lint/src/rule/object/mod.rs", "prop/packages/design-lint/src/rule/object/origin.rs", "prop/packages/design-lint/src/rule/object/tests.rs", "payment-sdk/packages/design-lint/src/rule/adopted/object/mod.rs", "payment-sdk/packages/design-lint/src/rule/adopted/object/origin.rs", "payment-sdk/packages/design-lint/src/rule/adopted/object/tests.rs"]

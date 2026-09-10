@@ -33,7 +33,8 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<ReceiverName>()?
         .register::<BroadTrait>()?
         .register::<SelfConstructor>()?
-        .register::<ModulePrefix>()
+        .register::<ModulePrefix>()?
+        .register::<GodObject>()
 }
 
 mod declaration;

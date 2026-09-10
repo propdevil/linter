@@ -179,7 +179,6 @@ min_fields = 3
 [[rules."rust/string-backed-finite-state"]]
 target = "**/*.rs"
 min_variants = 3
-state_words = ["state", "status", "phase", "mode", "kind", "stage", "condition", "lifecycle", "action"]
 
 [[rules."rust/trait-method-count"]]
 target = "**/*.rs"
@@ -242,3 +241,8 @@ target = "**/*.rs"
 
 [[rules."rust/redundant-module-prefix"]]
 target = "**/*.rs"
+
+[[rules."rust/god-object-growth"]]
+target = "**/*.rs"
+unwrap_types = ["std:Box", "std:Option", "std:Arc", "std:Rc", "std:Mutex", "std:RwLock", "std:RefCell", "std:SyncWeak", "std:RcWeak"]
+excluded_suffixes = ["Builder"]

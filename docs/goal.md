@@ -79,11 +79,12 @@ Use one Cargo workspace:
 - `apps/cli/`: terminal adapter, JSON output, and exit status.
 - `apps/mcp/`: local stdio MCP adapter over the same library.
 - `configs/`: declarative presets embedded in the CLI executable.
-- `sources/`: preserved original linters, excluded from production dependencies
-  and this repository's lint inputs.
+- `sources/`: remaining migration inputs, excluded from production dependencies
+  and lint inputs. Retire verified replacements and record their baseline provenance.
 
-`linter-rust` owns Rust syntax, Cargo analysis, and Rust rules. A later
-`linter-c` package will own C analysis and rules. Both use Tree-sitter. Share parsing mechanics where useful;
+`linter-rust` owns Rust syntax, Cargo analysis, and Rust rules.
+`linter-c` owns C analysis and rules. Both use Tree-sitter.
+`linter-markdown` owns CommonMark parsing and document-content rules. Share parsing mechanics where useful;
 keep language semantics in the owning package. The shared library must not
 depend on concrete language packages.
 
@@ -97,8 +98,8 @@ Runtime plugin loading remains outside the first milestone.
 
 ## First milestone: enforce directory layouts
 
-Start with configuration, the apps, and `layout`. Markdown restrictions belong
-to layout; there is no separate Markdown rule. Use the CLI to validate this repository throughout.
+Start with configuration, the apps, and `layout`. Markdown path restrictions belong
+to layout; Markdown content contracts belong to `linter-markdown`. Use the CLI to validate this repository throughout.
 
 The layout rule must let a repository:
 
