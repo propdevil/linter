@@ -4,3 +4,4 @@ pub(crate) mod length;
 pub(crate) mod method_length;
 
 pub(crate) mod struct_noun;
+pub(crate) mod nesting;

@@ -10,3 +10,4 @@ pub use rule::method_length::{Config as MethodLengthConfig, MethodLength};
 
 mod directive;
 pub use rule::struct_noun::{Config as StructNounConfig, StructNoun};
+pub use rule::nesting::{Config as NestingConfig, Nesting};
