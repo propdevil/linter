@@ -1,12 +1,21 @@
 use std::process::ExitCode;
 
+use clap::Parser;
 use rmcp::ServiceExt;
+
+mod command;
+mod resource;
+mod skill;
 
 mod server;
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    let arguments = command::Arguments::parse();
     let result = async {
+        if arguments.export()? {
+            return Ok(());
+        }
         server::Server::new(
             linter::register(linter::Registry::default())
                 .and_then(linter_rust::register)

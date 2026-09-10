@@ -9,6 +9,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+clap.workspace = true
 linter.workspace = true
 linter-rust.workspace = true
 linter-markdown.workspace = true

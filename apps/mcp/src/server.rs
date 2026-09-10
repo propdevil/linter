@@ -1,10 +1,12 @@
 use std::{path::PathBuf, sync::Arc};
 
 use rmcp::{
+    ErrorData, RoleServer, ServerHandler,
     handler::server::wrapper::Parameters,
-    model::CallToolResult,
+    model::*,
     schemars::{self, JsonSchema},
-    tool, tool_router,
+    service::RequestContext,
+    tool, tool_handler, tool_router,
 };
 use serde::Deserialize;
 use tokio::sync::Semaphore;
@@ -31,7 +33,7 @@ struct Check {
     root: PathBuf,
 }
 
-#[tool_router(server_handler)]
+#[tool_router]
 impl Server {
     #[tool(
         description = "Validate saved repository files against linter.toml. Returns regi\
@@ -73,6 +75,61 @@ impl Server {
                 serde_json::json!({"error": format!("validation worker failed: {error}")}),
             ),
         }
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for Server {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .enable_prompts()
+                .build(),
+        )
+        .with_instructions(concat!(
+            "Read linter://skills/software-design or request the software-design prompt ",
+            "for the embedded design workflow. Use check with the repository root ",
+            "to validate saved files against linter.toml. Read linter://configs/default.toml, ",
+            "linter://configs/rust.toml or linter://configs/c.toml for starter configurations."
+        ))
+    }
+
+    async fn list_resources(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, ErrorData> {
+        crate::skill::page(request)?;
+        Ok(ListResourcesResult::with_all_items(crate::resource::list()))
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, ErrorData> {
+        crate::resource::read(&request.uri).map(Into::into)
+    }
+
+    async fn list_prompts(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, ErrorData> {
+        crate::skill::page(request)?;
+        Ok(ListPromptsResult::with_all_items(vec![
+            crate::skill::prompt(),
+        ]))
+    }
+
+    async fn get_prompt(
+        &self,
+        request: GetPromptRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResponse, ErrorData> {
+        crate::skill::get(request).map(Into::into)
     }
 }
 
