@@ -24,3 +24,4 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
 }
 
 mod declaration;
+pub use rule::duplicate::{Config as DuplicateEntityConfig, DuplicateEntity};
