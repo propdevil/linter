@@ -35,6 +35,7 @@ impl Imports {
             } else if matches!(
                 child.kind(),
                 "function_item"
+                    | "macro_definition"
                     | "struct_item"
                     | "enum_item"
                     | "type_item"
@@ -71,7 +72,11 @@ impl Imports {
                 ) {
                     self.alias(
                         &text[alias.byte_range()],
-                        join(prefix, &text[path.byte_range()]),
+                        if &text[path.byte_range()] == "self" {
+                            prefix.into()
+                        } else {
+                            join(prefix, &text[path.byte_range()])
+                        },
                     );
                 }
             }

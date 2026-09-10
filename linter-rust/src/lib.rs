@@ -93,3 +93,5 @@ pub use rule::marker::{Config as RedundantMarkerConfig, RedundantMarker};
 pub use rule::wrapper::{Config as RedundantWrapperConfig, RedundantWrapper};
 
 mod imports;
+
+pub use rule::environment::{Config as EnvironmentConfig, EnvironmentAccess};
