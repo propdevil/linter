@@ -1,3 +1,4 @@
+use crate::type_path::standard;
 use crate::{
     Analysis, Source,
     scope::{integration, mark_tests},
@@ -395,18 +396,6 @@ impl<'a> Index<'a> {
     }
 }
 
-fn standard(path: &str) -> Option<&'static str> {
-    match path {
-        "From" | "std::convert::From" | "core::convert::From" => Some("std:From"),
-        "TryFrom" | "std::convert::TryFrom" | "core::convert::TryFrom" => Some("std:TryFrom"),
-        "String" | "std::string::String" | "alloc::string::String" => Some("std:String"),
-        "Vec" | "std::vec::Vec" | "alloc::vec::Vec" => Some("std:Vec"),
-        "Option" | "std::option::Option" | "core::option::Option" => Some("std:Option"),
-        "Result" | "std::result::Result" | "core::result::Result" => Some("std:Result"),
-        "Box" | "std::boxed::Box" | "alloc::boxed::Box" => Some("std:Box"),
-        _ => None,
-    }
-}
 fn join(prefix: &str, suffix: &str) -> String {
     match (prefix.is_empty(), suffix.is_empty()) {
         (true, _) => suffix.into(),
@@ -552,5 +541,33 @@ mod tests {
         let index = Index::new(&data, Path::new("/project"));
         assert!(index.structures[0].fields["id"].ty.is_none());
         assert!(index.structures[1].fields["name"].ty.is_none());
+    }
+    #[test]
+    fn standard_containers_require_known_paths_and_keep_nominal_shadowing() {
+        let data = analysis(
+            "use std::sync::Arc; struct Value { a:Arc<String>,b:std::sync::Weak<String>,c:std::rc::Weak<String> } mod child { struct Arc<T>(T); struct Local { value:Arc<String> } }",
+        );
+        let index = Index::new(&data, Path::new("/project"));
+        assert_eq!(
+            index.structures[0].fields["a"].ty.as_deref(),
+            Some("std:Arc<std:String>")
+        );
+        assert_ne!(
+            index.structures[0].fields["b"].ty,
+            index.structures[0].fields["c"].ty
+        );
+        assert!(
+            index.structures[1].fields["value"]
+                .ty
+                .as_ref()
+                .unwrap()
+                .starts_with("nominal:")
+        );
+        let data = analysis("struct Value { a:Arc<String> }");
+        assert!(
+            Index::new(&data, Path::new("/project")).structures[0].fields["a"]
+                .ty
+                .is_none()
+        );
     }
 }
