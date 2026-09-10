@@ -49,7 +49,7 @@ impl Rule for Layout {
             if let Some(decision) = decision
                 && !decision.allow
             {
-                findings.push(Finding {
+                findings.push(Finding { span: None, related: Vec::new(),
                     rule: Self::ID,
                     path: entry.path.clone(),
                     configuration: decision.setting.clone(),
@@ -221,6 +221,8 @@ impl Assertion {
 
     fn finding(&self, directory: &Path, message: String, instruction: String) -> Finding {
         Finding {
+            span: None,
+            related: Vec::new(),
             rule: "layout",
             path: directory.to_path_buf(),
             configuration: self.setting.clone(),

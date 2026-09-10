@@ -24,6 +24,10 @@ directories.allowed = [{ target = "tests", description = "Crate integration test
 target = "{linter,linter-*}/src/rule/*"
 mode = "restrictive"
 files.required = ["mod.rs", "config.rs", "readme.md"]
+files.allowed = [
+    { target = "*.rs", description = "Rule implementation modules." },
+    { target = "license.txt", description = "Attribution for migrated dependencies or data." },
+]
 files.allow_empty = false
 directories.allow_empty = false
 directories.allowed = [{ target = "fixtures", description = "Rule test inputs." }]

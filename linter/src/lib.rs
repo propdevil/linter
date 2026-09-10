@@ -11,7 +11,9 @@ mod config;
 mod target;
 pub use rule::filename::Filename;
 pub use target::{Selector, Target};
+mod diagnostic;
 mod registry;
+pub use diagnostic::{Evidence, Span};
 mod rule;
 
 pub use registry::Registry;
@@ -51,6 +53,10 @@ pub enum Status {
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Finding {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span: Option<Span>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related: Vec<Evidence>,
     pub rule: &'static str,
     pub path: PathBuf,
     pub configuration: String,
@@ -183,7 +189,7 @@ impl Entries {
 
 pub use rule::{affix::SharedAffix, forbidden_words::ForbiddenWords};
 
-pub use rule::parent_name::ParentName;
 pub use rule::line_width::LineWidth;
+pub use rule::parent_name::ParentName;
 
 pub use rule::indentation::MaxIndent;

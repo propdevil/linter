@@ -48,7 +48,7 @@ impl Rule for MaxIndent {
                     }
                     let count = indentation(line, assertion.tab_width)?;
                     if count > assertion.max_columns {
-                        findings.push(Finding {
+                        findings.push(Finding { span: None, related: Vec::new(),
                             rule: Self::ID,
                             path: entry.path.clone(),
                             configuration: assertion.setting.clone(),

@@ -98,7 +98,7 @@ impl Assertion {
                 messages.push(format!("{label} name is not valid Unicode"));
             }
             for message in messages {
-                findings.push(Finding { rule: Filename::ID, path: entry.path.clone(), configuration: self.setting.clone(), message,
+                findings.push(Finding { span: None, related: Vec::new(), rule: Filename::ID, path: entry.path.clone(), configuration: self.setting.clone(), message,
                     instruction: format!("Choose a concise name describing this {label}'s responsibility using the configured case and permitted words.") });
             }
         }

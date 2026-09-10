@@ -61,7 +61,7 @@ impl Rule for ParentName {
                     continue;
                 }
                 let repeated = repeated.join(", ");
-                findings.push(Finding {
+                findings.push(Finding { span: None, related: Vec::new(),
                     rule: Self::ID,
                     path: entry.path.clone(),
                     configuration: assertion.setting.clone(),

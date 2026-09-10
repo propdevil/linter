@@ -132,6 +132,8 @@ mod tests {
             Ok(RuleResult {
                 status: Status::Completed,
                 findings: vec![crate::Finding {
+                    span: None,
+                    related: Vec::new(),
                     rule: Self::ID,
                     path: project.entries().next().unwrap().path.clone(),
                     configuration: "rules.custom.config".into(),

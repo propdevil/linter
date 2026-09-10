@@ -39,7 +39,7 @@ impl Rule for FileLength {
             }
             let lines = production_lines(source);
             if lines > self.max_lines {
-                findings.push(Finding {
+                findings.push(Finding { span: None, related: Vec::new(),
                     rule: Self::ID,
                     path: source.path.clone(),
                     configuration: "rules.\"rust/file-length\".config.max_lines".into(),

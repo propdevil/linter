@@ -112,6 +112,8 @@ impl Rule for Layers {
 
 fn finding(path: &Path, message: String, instruction: String) -> Finding {
     Finding {
+        span: None,
+        related: Vec::new(),
         rule: Layers::ID,
         path: path.into(),
         configuration: "rules.\"rust/layers\"".into(),

@@ -46,6 +46,8 @@ impl Rule for LineWidth {
                     let count = width(line, assertion.tab_width)?;
                     if count > assertion.max_columns {
                         findings.push(Finding {
+                            span: None,
+                            related: Vec::new(),
                             rule: Self::ID,
                             path: entry.path.clone(),
                             configuration: assertion.setting.clone(),

@@ -71,7 +71,7 @@ fn visit(
             .iter()
             .filter(|assertion| lines > assertion.max_lines)
         {
-            findings.push(Finding {
+            findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
                 rule: FunctionLength::ID,
                 path: source.path.clone(),
                 configuration: assertion.setting.clone(),
