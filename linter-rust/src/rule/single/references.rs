@@ -76,28 +76,34 @@ impl Walker<'_, '_> {
             && let Some(name) = text.split("::").last()
             && self.names.contains(name)
         {
-            if let Some(position) = self.resolve(text, node) {
-                let candidate = &self.functions[position];
-                let recursive = candidate.source.path == self.source.path
-                    && candidate.node.start_byte() <= node.start_byte()
-                    && candidate.node.end_byte() >= node.end_byte();
-                if !recursive {
-                    self.result.uses[position].push((
-                        test,
-                        Evidence {
-                            path: self.source.path.clone(),
-                            span: Some(Span::new(&self.source.text, node.byte_range())),
-                            message: "resolved function reference".into(),
-                        },
-                    ));
-                }
-            } else if !shadowed(name, node, self.source) {
-                self.result.uncertain.entry(name.into()).or_default()[usize::from(test)] = true;
-            }
+            self.reference(node, text, name, test);
         }
         for child in children(node) {
             self.visit(child);
         }
+    }
+    fn reference(&mut self, node: Node<'_>, text: &str, name: &str, test: bool) {
+        let Some(position) = self.resolve(text, node) else {
+            if !shadowed(name, node, self.source) {
+                self.result.uncertain.entry(name.into()).or_default()[usize::from(test)] = true;
+            }
+            return;
+        };
+        let candidate = &self.functions[position];
+        let recursive = candidate.source.path == self.source.path
+            && candidate.node.start_byte() <= node.start_byte()
+            && candidate.node.end_byte() >= node.end_byte();
+        if recursive {
+            return;
+        }
+        self.result.uses[position].push((
+            test,
+            Evidence {
+                path: self.source.path.clone(),
+                span: Some(Span::new(&self.source.text, node.byte_range())),
+                message: "resolved function reference".into(),
+            },
+        ));
     }
     fn ambiguity(&mut self, node: Node<'_>, text: &str, test: bool) {
         let opaque = matches!(
@@ -144,22 +150,7 @@ impl Walker<'_, '_> {
         let name = parts.pop()?;
         owner.name = name.into();
         if parts.is_empty() {
-            if shadowed(name, node, self.source) {
-                return None;
-            }
-            loop {
-                if let Some(matching) = self.identities.get(&owner.key()) {
-                    return (matching.len() == 1).then_some(matching[0]);
-                }
-                if !owner
-                    .module
-                    .last()
-                    .is_some_and(|part| part.starts_with('@'))
-                {
-                    return None;
-                }
-                owner.module.pop();
-            }
+            return self.local(owner, name, node);
         }
         while owner
             .module
@@ -189,6 +180,24 @@ impl Walker<'_, '_> {
             .get(&owner.key())
             .filter(|matching| matching.len() == 1)
             .map(|matching| matching[0])
+    }
+    fn local(&self, mut owner: Identity, name: &str, node: Node<'_>) -> Option<usize> {
+        if shadowed(name, node, self.source) {
+            return None;
+        }
+        loop {
+            if let Some(matching) = self.identities.get(&owner.key()) {
+                return (matching.len() == 1).then_some(matching[0]);
+            }
+            if !owner
+                .module
+                .last()
+                .is_some_and(|part| part.starts_with('@'))
+            {
+                return None;
+            }
+            owner.module.pop();
+        }
     }
 }
 fn reference(node: Node<'_>) -> bool {
@@ -231,32 +240,34 @@ fn reference(node: Node<'_>) -> bool {
 fn shadowed(name: &str, mut node: Node<'_>, source: &Source) -> bool {
     while let Some(parent) = node.parent() {
         if matches!(parent.kind(), "function_item" | "closure_expression")
-            && parent
-                .child_by_field_name("parameters")
-                .is_some_and(|parameters| {
-                    children(parameters).iter().any(|parameter| {
-                        parameter
-                            .child_by_field_name("pattern")
-                            .is_some_and(|pattern| binds(pattern, name, source))
-                    })
-                })
+            && parameter_binding(parent, name, source)
         {
             return true;
         }
-        if parent.kind() == "block"
-            && children(parent).iter().any(|statement| {
-                statement.start_byte() < node.start_byte()
-                    && statement.kind() == "let_declaration"
-                    && statement
-                        .child_by_field_name("pattern")
-                        .is_some_and(|pattern| binds(pattern, name, source))
-            })
-        {
+        if parent.kind() == "block" && local_binding(parent, node.start_byte(), name, source) {
             return true;
         }
         node = parent;
     }
     false
+}
+fn local_binding(node: Node<'_>, before: usize, name: &str, source: &Source) -> bool {
+    children(node)
+        .iter()
+        .filter(|statement| {
+            statement.start_byte() < before && statement.kind() == "let_declaration"
+        })
+        .filter_map(|statement| statement.child_by_field_name("pattern"))
+        .any(|pattern| binds(pattern, name, source))
+}
+fn parameter_binding(node: Node<'_>, name: &str, source: &Source) -> bool {
+    let Some(parameters) = node.child_by_field_name("parameters") else {
+        return false;
+    };
+    children(parameters)
+        .iter()
+        .filter_map(|parameter| parameter.child_by_field_name("pattern"))
+        .any(|pattern| binds(pattern, name, source))
 }
 fn binds(node: Node<'_>, name: &str, source: &Source) -> bool {
     (node.kind() == "identifier" && &source.text[node.byte_range()] == name)

@@ -1,7 +1,6 @@
 use crate::{
     Analysis, Source,
     declaration::{Identity, Index},
-    scope::{integration, mark_tests},
 };
 use config::{Assertion, Scope};
 use linter::{Error, Evidence, Finding, Project, Rule, RuleResult, Span, Status};
@@ -39,65 +38,19 @@ impl Rule for SingleUse {
         let masks: Vec<_> = analysis
             .sources
             .iter()
-            .map(|source| {
-                let mut mask = vec![false; source.text.len()];
-                if integration(source, &root, analysis) {
-                    mask.fill(true);
-                } else {
-                    mark_tests(source.syntax.root_node(), &source.text, &mut mask);
-                }
-                mask
-            })
+            .map(|source| source.test_mask(&root, analysis))
             .collect();
         let references = references::References::new(&functions, analysis, &index, &masks);
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            for (position, declaration) in functions.iter().enumerate() {
-                let source = declaration.source;
-                let node = declaration.node;
-                let mask = &masks[analysis
-                    .sources
-                    .iter()
-                    .position(|s| s.path == source.path)
-                    .unwrap_or(0)];
-                if !assertion.target.matches(&source.path)
-                    || assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|s| s.matches(&source.path))
-                    || !included(node, mask, assertion.scope)
-                    || declaration.id.name == "main"
-                    || external(node, source)
-                    || children(node)
-                        .iter()
-                        .any(|n| n.kind() == "visibility_modifier")
-                    || attributes(node, source)
-                        .iter()
-                        .any(|a| a.0 != "cfg" && a.0 != "allow" && a.0 != "doc")
-                    || factory(node, source, &index, &declaration.id, &owners)
-                {
-                    continue;
-                }
-                let (related, uncertain) =
-                    references.get(position, &declaration.id.name, assertion.scope);
-                if uncertain || related.len() != 1 {
-                    continue;
-                }
-                findings.push(Finding {
-                    rule: Self::ID,
-                    path: source.path.clone(),
-                    span: Some(Span::new(&source.text, node.byte_range())),
-                    related,
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "private free function `{}` has exactly one resolved use",
-                        declaration.id.name
-                    ),
-                    instruction: "Inline the function at its sole use, or document its d\
-                eliberate semantic boundary with a reasoned directive."
-                        .into(),
-                });
-            }
+            findings.extend(assertion.check(
+                &functions,
+                analysis,
+                &masks,
+                &index,
+                &owners,
+                &references,
+            ));
         }
         Ok(RuleResult {
             status: Status::Completed,
@@ -105,10 +58,80 @@ impl Rule for SingleUse {
         })
     }
 }
+impl Assertion {
+    fn check(
+        &self,
+        functions: &[Declaration<'_>],
+        analysis: &Analysis,
+        masks: &[Vec<bool>],
+        index: &Index<'_>,
+        owners: &BTreeMap<String, Declaration<'_>>,
+        references: &references::References,
+    ) -> Vec<Finding> {
+        let mut findings = Vec::new();
+        for (position, declaration) in functions.iter().enumerate() {
+            let mask = &masks[analysis
+                .sources
+                .iter()
+                .position(|source| source.path == declaration.source.path)
+                .unwrap_or(0)];
+            if !declaration.eligible(self, mask, index, owners) {
+                continue;
+            }
+            let (related, uncertain) = references.get(position, &declaration.id.name, self.scope);
+            if uncertain || related.len() != 1 {
+                continue;
+            }
+            findings.push(declaration.finding(self, related));
+        }
+        findings
+    }
+}
 struct Declaration<'a> {
     source: &'a Source,
     node: Node<'a>,
     id: Identity,
+}
+impl Declaration<'_> {
+    fn eligible(
+        &self,
+        assertion: &Assertion,
+        mask: &[bool],
+        index: &Index<'_>,
+        owners: &BTreeMap<String, Declaration<'_>>,
+    ) -> bool {
+        assertion.target.matches(&self.source.path)
+            && !assertion
+                .exclude
+                .as_ref()
+                .is_some_and(|s| s.matches(&self.source.path))
+            && included(self.node, mask, assertion.scope)
+            && self.id.name != "main"
+            && !external(self.node, self.source)
+            && !children(self.node)
+                .iter()
+                .any(|n| n.kind() == "visibility_modifier")
+            && !attributes(self.node, self.source)
+                .iter()
+                .any(|a| a.0 != "cfg" && a.0 != "allow" && a.0 != "doc")
+            && !factory(self.node, self.source, index, &self.id, owners)
+    }
+    fn finding(&self, assertion: &Assertion, related: Vec<Evidence>) -> Finding {
+        Finding {
+            rule: SingleUse::ID,
+            path: self.source.path.clone(),
+            span: Some(Span::new(&self.source.text, self.node.byte_range())),
+            related,
+            configuration: assertion.setting.clone(),
+            message: format!(
+                "private free function `{}` has exactly one resolved use",
+                self.id.name
+            ),
+            instruction: "Inline the function at its sole use, or document its deliberate \
+                semantic boundary with a reasoned directive."
+                .into(),
+        }
+    }
 }
 fn collect<'a>(
     node: Node<'a>,
@@ -204,33 +227,30 @@ fn children(node: Node<'_>) -> Vec<Node<'_>> {
     node.named_children(&mut cursor).collect()
 }
 fn attributes(node: Node<'_>, source: &Source) -> Vec<(String, String)> {
-    let mut values = Vec::new();
-    let mut previous = node.prev_named_sibling();
-    while let Some(attribute) = previous {
-        if !matches!(
-            attribute.kind(),
-            "attribute_item" | "line_comment" | "block_comment"
-        ) {
-            break;
-        }
-        if attribute.kind() == "attribute_item"
-            && let Some(meta) = attribute.named_child(0)
-            && let Some(path) = meta.named_child(0)
-        {
-            let arguments = meta
-                .child_by_field_name("arguments")
-                .map(|arguments| {
-                    source.text[arguments.byte_range()]
-                        .trim_start_matches('(')
-                        .trim_end_matches(')')
-                        .to_owned()
-                })
-                .unwrap_or_default();
-            values.push((source.text[path.byte_range()].into(), arguments));
-        }
-        previous = attribute.prev_named_sibling();
-    }
-    values
+    std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+        .take_while(|node| {
+            matches!(
+                node.kind(),
+                "attribute_item" | "line_comment" | "block_comment"
+            )
+        })
+        .filter(|node| node.kind() == "attribute_item")
+        .filter_map(|node| attribute(node, source))
+        .collect()
+}
+fn attribute(node: Node<'_>, source: &Source) -> Option<(String, String)> {
+    let meta = node.named_child(0)?;
+    let path = meta.named_child(0)?;
+    let arguments = meta
+        .child_by_field_name("arguments")
+        .map(|arguments| {
+            source.text[arguments.byte_range()]
+                .trim_start_matches('(')
+                .trim_end_matches(')')
+                .to_owned()
+        })
+        .unwrap_or_default();
+    Some((source.text[path.byte_range()].into(), arguments))
 }
 
 #[cfg(test)]
