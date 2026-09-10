@@ -30,3 +30,5 @@ pub use rule::boolean::{BooleanState, Config as BooleanStateConfig};
 pub use rule::duplicate::{Config as DuplicateEntityConfig, DuplicateEntity};
 
 pub use rule::model::{Config as ModelDuplicationConfig, ModelDuplication};
+
+pub use rule::state::{Config as StringStateConfig, StringState};
