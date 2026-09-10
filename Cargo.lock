@@ -522,6 +522,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "linter",
+ "linter-c",
  "linter-rust",
  "serde_json",
  "tempfile",
@@ -532,6 +533,7 @@ name = "linter-mcp"
 version = "0.1.0"
 dependencies = [
  "linter",
+ "linter-c",
  "linter-rust",
  "rmcp",
  "serde",

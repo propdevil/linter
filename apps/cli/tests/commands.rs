@@ -31,7 +31,7 @@ files.required = ["mod.rs", "config.rs", "readme.md"]
     assert_eq!(clean.status.code(), Some(0));
     assert_eq!(
         String::from_utf8(clean.stdout).unwrap(),
-        "filename: unconfigured\nforbidden-words: unconfigured\nlayout: 0 finding(s)\nrust/file-length: 0 finding(s)\nrust/layers: unconfigured\nshared-affix: unconfigured\n"
+        "c/file-length: unconfigured\nc/function-length: unconfigured\nc/nesting: unconfigured\nfilename: unconfigured\nforbidden-words: unconfigured\nlayout: 0 finding(s)\nline-width: unconfigured\nmax-indent: unconfigured\nredundant-parent-name: unconfigured\nrust/file-length: 0 finding(s)\nrust/function-length: unconfigured\nrust/layers: unconfigured\nrust/method-length: unconfigured\nrust/nesting: unconfigured\nrust/struct-noun-naming: unconfigured\nshared-affix: unconfigured\n"
     );
 
     fs::remove_file(rule.join("readme.md")).unwrap();
@@ -42,18 +42,9 @@ files.required = ["mod.rs", "config.rs", "readme.md"]
     assert_eq!(
         actual,
         serde_json::to_value(
-            linter::Registry::default()
-                .register::<linter::Layout>()
-                .unwrap()
-                .register::<linter::Filename>()
-                .unwrap()
-                .register::<linter::SharedAffix>()
-                .unwrap()
-                .register::<linter::ForbiddenWords>()
-                .unwrap()
-                .register::<linter_rust::Layers>()
-                .unwrap()
-                .register::<linter_rust::FileLength>()
+            linter::register(linter::Registry::default())
+                .and_then(linter_rust::register)
+                .and_then(linter_c::register)
                 .unwrap()
                 .check(root.path())
                 .unwrap()

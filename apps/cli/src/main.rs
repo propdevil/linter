@@ -41,6 +41,7 @@ enum Command {
 enum Preset {
     Default,
     Rust,
+    C,
 }
 
 impl Preset {
@@ -48,6 +49,7 @@ impl Preset {
         match self {
             Self::Default => include_str!("../../../configs/default.toml"),
             Self::Rust => include_str!("../../../configs/rust.toml"),
+            Self::C => include_str!("../../../configs/c.toml"),
         }
     }
 }
@@ -83,14 +85,17 @@ fn main() -> ExitCode {
             };
         }
     };
-    let result = linter::Registry::default()
-        .register::<linter::Layout>()
-        .and_then(|registry| registry.register::<linter::Filename>())
-        .and_then(|registry| registry.register::<linter::SharedAffix>())
-        .and_then(|registry| registry.register::<linter::ForbiddenWords>())
-        .and_then(|registry| registry.register::<linter_rust::Layers>())
-        .and_then(|registry| registry.register::<linter_rust::FileLength>())
-        .and_then(|registry| registry.check(&root));
+    check(root, json)
+}
+
+fn registry() -> Result<linter::Registry, linter::Error> {
+    linter::register(linter::Registry::default())
+        .and_then(linter_rust::register)
+        .and_then(linter_c::register)
+}
+
+fn check(root: PathBuf, json: bool) -> ExitCode {
+    let result = registry().and_then(|registry| registry.check(&root));
     let (code, text) = match result {
         Ok(report) => {
             let code = u8::from(!report.findings.is_empty());

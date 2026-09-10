@@ -55,7 +55,7 @@ impl Directive {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
-pub struct Suppressed {
+pub struct Suppression {
     pub finding: Finding,
     pub reason: String,
 }
@@ -80,7 +80,7 @@ pub(crate) fn apply(report: &mut Report, directives: Vec<Directive>, known: BTre
         });
         if let Some((index, directive)) = matched {
             used[index] = true;
-            report.suppressed.push(Suppressed {
+            report.suppressed.push(Suppression {
                 finding,
                 reason: directive.reason.clone(),
             });

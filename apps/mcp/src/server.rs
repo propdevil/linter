@@ -104,18 +104,9 @@ allow = false
         let (server_transport, client_transport) = tokio::io::duplex(4096);
         let server = tokio::spawn(async move {
             Server::new(
-                linter::Registry::default()
-                    .register::<linter::Layout>()
-                    .unwrap()
-                    .register::<linter::Filename>()
-                    .unwrap()
-                    .register::<linter::SharedAffix>()
-                    .unwrap()
-                    .register::<linter::ForbiddenWords>()
-                    .unwrap()
-                    .register::<linter_rust::Layers>()
-                    .unwrap()
-                    .register::<linter_rust::FileLength>()
+                linter::register(linter::Registry::default())
+                    .and_then(linter_rust::register)
+                    .and_then(linter_c::register)
                     .unwrap(),
             )
             .serve(server_transport)
@@ -137,18 +128,9 @@ allow = false
             result.structured_content,
             Some(
                 serde_json::to_value(
-                    linter::Registry::default()
-                        .register::<linter::Layout>()
-                        .unwrap()
-                        .register::<linter::Filename>()
-                        .unwrap()
-                        .register::<linter::SharedAffix>()
-                        .unwrap()
-                        .register::<linter::ForbiddenWords>()
-                        .unwrap()
-                        .register::<linter_rust::Layers>()
-                        .unwrap()
-                        .register::<linter_rust::FileLength>()
+                    linter::register(linter::Registry::default())
+                        .and_then(linter_rust::register)
+                        .and_then(linter_c::register)
                         .unwrap()
                         .check(root.path())
                         .unwrap()

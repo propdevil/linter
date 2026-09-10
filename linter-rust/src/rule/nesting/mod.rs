@@ -9,8 +9,8 @@ use tree_sitter::Node;
 mod config;
 pub use config::Config;
 
-pub struct Nesting(Vec<Assertion>);
-impl Rule for Nesting {
+pub struct NestingRule(Vec<Assertion>);
+impl Rule for NestingRule {
     const ID: &'static str = "rust/nesting";
     type Analysis = Analysis;
     type Config = Config;
@@ -84,8 +84,10 @@ fn functions(
                 .child_by_field_name("name")
                 .map(|name| &source.text[name.byte_range()])
                 .unwrap_or("<anonymous>");
-            findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
-                rule: Nesting::ID,
+            findings.push(Finding {
+                span: Some(linter::Span::new(&source.text, node.byte_range())),
+                related: Vec::new(),
+                rule: NestingRule::ID,
                 path: source.path.clone(),
                 configuration: format!("{}.max_depth", assertion.setting),
                 message: format!(
@@ -310,7 +312,7 @@ mod tests {
         )
         .unwrap();
         linter::Registry::default()
-            .register::<Nesting>()
+            .register::<NestingRule>()
             .unwrap()
             .check(root.path())
             .unwrap()
@@ -805,7 +807,9 @@ fn summarize(row: &ResultRow) {
                 format!("[[rules.\"rust/nesting\"]]\ntarget='**/*.rs'\n{options}"),
             )
             .unwrap();
-            let registry = linter::Registry::default().register::<Nesting>().unwrap();
+            let registry = linter::Registry::default()
+                .register::<NestingRule>()
+                .unwrap();
             assert!(
                 matches!(registry.check(root.path()), Err(Error::Configuration(_))),
                 "{options}"

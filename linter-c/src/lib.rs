@@ -13,4 +13,12 @@ mod lines;
 pub use rule::file_length::FileLength;
 
 mod directive;
-pub use rule::nesting::Nesting;
+pub use rule::nesting::NestingRule;
+
+/// Registers this package's built-in rules; callers can append their own.
+pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::Error> {
+    registry
+        .register::<FileLength>()?
+        .register::<FunctionLength>()?
+        .register::<NestingRule>()
+}

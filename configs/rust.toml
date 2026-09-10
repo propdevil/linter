@@ -47,3 +47,33 @@ max_words = 2
 [[rules."forbidden-words"]]
 target = "*"
 words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]
+
+[[rules."redundant-parent-name"]]
+target = "**/src/**/*.{rs,c,h}"
+ignored_names = ["mod", "lib", "main", "index"]
+
+[[rules."line-width"]]
+target = "**/*.{rs,c,h}"
+max_columns = 100
+tab_width = 4
+
+[[rules."max-indent"]]
+target = "**/*.{rs,c,h}"
+max_columns = 16
+tab_width = 4
+
+[[rules."rust/function-length"]]
+target = "**/*.rs"
+max_lines = 50
+
+[[rules."rust/method-length"]]
+target = "**/*.rs"
+max_lines = 50
+
+[[rules."rust/nesting"]]
+target = "**/*.rs"
+max_depth = 2
+ignore_guard_clauses = true
+
+[[rules."rust/struct-noun-naming"]]
+target = "**/*.rs"

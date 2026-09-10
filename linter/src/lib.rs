@@ -13,7 +13,7 @@ pub use rule::filename::Filename;
 pub use target::{Selector, Target};
 mod diagnostic;
 mod directive;
-pub use directive::{Directive, Suppressed};
+pub use directive::{Directive, Suppression};
 mod registry;
 pub use diagnostic::{Evidence, Span};
 mod rule;
@@ -69,7 +69,7 @@ pub struct Finding {
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Report {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub suppressed: Vec<Suppressed>,
+    pub suppressed: Vec<Suppression>,
     pub rules: BTreeMap<&'static str, Status>,
     pub findings: Vec<Finding>,
 }
@@ -197,3 +197,15 @@ pub use rule::line_width::LineWidth;
 pub use rule::parent_name::ParentName;
 
 pub use rule::indentation::MaxIndent;
+
+/// Registers this package's built-in rules; callers can append their own.
+pub fn register(registry: Registry) -> Result<Registry, Error> {
+    registry
+        .register::<Layout>()?
+        .register::<Filename>()?
+        .register::<SharedAffix>()?
+        .register::<ForbiddenWords>()?
+        .register::<ParentName>()?
+        .register::<LineWidth>()?
+        .register::<MaxIndent>()
+}

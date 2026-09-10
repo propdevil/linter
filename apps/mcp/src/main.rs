@@ -8,13 +8,9 @@ mod server;
 async fn main() -> ExitCode {
     let result = async {
         server::Server::new(
-            linter::Registry::default()
-                .register::<linter::Layout>()?
-                .register::<linter::Filename>()?
-                .register::<linter::SharedAffix>()?
-                .register::<linter::ForbiddenWords>()?
-                .register::<linter_rust::Layers>()?
-                .register::<linter_rust::FileLength>()?,
+            linter::register(linter::Registry::default())
+                .and_then(linter_rust::register)
+                .and_then(linter_c::register)?,
         )
         .serve(rmcp::transport::stdio())
         .await?

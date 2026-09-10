@@ -6,11 +6,11 @@ mod config;
 use config::Assertion;
 pub use config::Config;
 
-pub struct Nesting {
+pub struct NestingRule {
     assertions: Vec<Assertion>,
 }
 
-impl Rule for Nesting {
+impl Rule for NestingRule {
     const ID: &'static str = "c/nesting";
     type Analysis = Analysis;
     type Config = Config;
@@ -63,7 +63,7 @@ fn visit(node: Node<'_>, source: &Source, assertions: &[&Assertion], findings: &
             .filter(|assertion| depth > assertion.max_depth)
         {
             findings.push(Finding { span: Some(linter::Span::new(&source.text, node.byte_range())), related: Vec::new(),
-                rule: Nesting::ID,
+                rule: NestingRule::ID,
                 path: source.path.clone(),
                 configuration: assertion.setting.clone(),
                 message: format!("C function at line {} has control-flow depth {depth}; maximum is {}", node.start_position().row + 1, assertion.max_depth),
@@ -115,7 +115,7 @@ mod tests {
 
     fn check(root: &Path) -> Result<linter::Report, linter::Error> {
         linter::Registry::default()
-            .register::<super::Nesting>()?
+            .register::<super::NestingRule>()?
             .check(root)
     }
 

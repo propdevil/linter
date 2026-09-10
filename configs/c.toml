@@ -1,0 +1,29 @@
+[files]
+exclude = ["**/.git", "**/target"]
+
+[[rules."c/file-length"]]
+target = "**/*.{c,h}"
+max_lines = 1500
+
+[[rules."c/function-length"]]
+target = "**/*.{c,h}"
+max_lines = 200
+
+[[rules."c/nesting"]]
+target = "**/*.{c,h}"
+max_depth = 6
+
+[[rules."redundant-parent-name"]]
+target = "**/src/**/*.{rs,c,h}"
+ignored_names = ["mod", "lib", "main", "index"]
+
+[[rules."line-width"]]
+target = "**/*.{rs,c,h}"
+max_columns = 100
+tab_width = 4
+
+[[rules."max-indent"]]
+target = "**/*.{rs,c,h}"
+max_columns = 16
+tab_width = 4
+

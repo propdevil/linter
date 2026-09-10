@@ -9,5 +9,16 @@ mod scope;
 pub use rule::method_length::{Config as MethodLengthConfig, MethodLength};
 
 mod directive;
+pub use rule::nesting::{Config as NestingConfig, NestingRule};
 pub use rule::struct_noun::{Config as StructNounConfig, StructNoun};
-pub use rule::nesting::{Config as NestingConfig, Nesting};
+
+/// Registers this package's built-in rules; callers can append their own.
+pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::Error> {
+    registry
+        .register::<Layers>()?
+        .register::<FileLength>()?
+        .register::<FunctionLength>()?
+        .register::<MethodLength>()?
+        .register::<NestingRule>()?
+        .register::<StructNoun>()
+}
