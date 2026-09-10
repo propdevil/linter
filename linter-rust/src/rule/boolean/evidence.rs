@@ -29,43 +29,58 @@ pub(super) fn inspect(
             let Some((key, fields)) = receiver(node, source, index) else {
                 return;
             };
-            let Some(body) = node.child_by_field_name("body") else {
-                return;
-            };
-            let name = node
-                .child_by_field_name("name")
-                .map(|name| &source.text[name.byte_range()])
-                .unwrap_or_default();
-            let observation = observations.entry(key).or_default();
-            transitions(
-                body,
-                source,
-                &fields,
-                minimum,
-                name,
-                &mut observation.evidence,
-                &mask,
-            );
-            let mut excluded = BTreeSet::new();
-            exclusions(body, source, &fields, &mut excluded, &mask);
-            let implicated: BTreeSet<_> = excluded
-                .iter()
-                .flat_map(|(a, b)| [a.clone(), b.clone()])
-                .collect();
-            if implicated.len() >= minimum && excluded.len() >= minimum - 1 {
-                observation.evidence.push((
-                    implicated,
-                    evidence(
-                        source,
-                        node,
-                        format!("method `{name}` rejects mutually active boolean fields"),
-                    ),
-                ));
-            }
+            observations
+                .entry(key)
+                .or_default()
+                .method(node, source, &fields, minimum, &mask);
         }
         _ => {}
     }
 }
+impl Observation {
+    fn method(
+        &mut self,
+        node: Node<'_>,
+        source: &Source,
+        fields: &BTreeSet<String>,
+        minimum: usize,
+        mask: &Mask<'_>,
+    ) {
+        let Some(body) = node.child_by_field_name("body") else {
+            return;
+        };
+        let name = node
+            .child_by_field_name("name")
+            .map(|name| &source.text[name.byte_range()])
+            .unwrap_or_default();
+        transitions(
+            body,
+            source,
+            fields,
+            minimum,
+            name,
+            &mut self.evidence,
+            mask,
+        );
+        let mut excluded = BTreeSet::new();
+        exclusions(body, source, fields, &mut excluded, mask);
+        let implicated: BTreeSet<_> = excluded
+            .iter()
+            .flat_map(|(a, b)| [a.clone(), b.clone()])
+            .collect();
+        if implicated.len() >= minimum && excluded.len() >= minimum - 1 {
+            self.evidence.push((
+                implicated,
+                evidence(
+                    source,
+                    node,
+                    format!("method `{name}` rejects mutually active boolean fields"),
+                ),
+            ));
+        }
+    }
+}
+
 fn construction(
     node: Node<'_>,
     source: &Source,

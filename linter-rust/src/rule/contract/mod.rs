@@ -13,7 +13,7 @@ use tree_sitter::Node;
 mod config;
 mod profile;
 pub use config::Config;
-use profile::{Method, cohesive, methods, separated};
+use profile::{cohesive, methods};
 pub struct BroadTrait(Vec<Assertion>);
 impl Rule for BroadTrait {
     const ID: &'static str = "rust/broad-trait-responsibilities";
@@ -112,60 +112,29 @@ fn finding(
         return None;
     }
     let name = &source.text[node.child_by_field_name("name")?.byte_range()];
-    let mut clusters = BTreeMap::<String, Vec<&Method>>::new();
-    for method in &methods {
-        if let Some(cluster) = &method.cluster {
-            clusters.entry(cluster.clone()).or_default().push(method);
-        }
-    }
-    clusters.retain(|_, methods| methods.len() >= assertion.min_methods_per_cluster);
-    if clusters.len() < assertion.min_clusters
-        || clusters.values().map(Vec::len).sum::<usize>() < methods.len().div_ceil(2)
+    let clusters = profile::Clusters::new(&methods, assertion.min_methods_per_cluster);
+    if clusters.count() < assertion.min_clusters
+        || clusters.method_count() < methods.len().div_ceil(2)
         || cohesive(name, &methods, assertion)
-        || separated(&clusters) < assertion.min_clusters - 1
+        || clusters.separated() < assertion.min_clusters - 1
     {
         return None;
     }
-    let summary = clusters
-        .iter()
-        .map(|(cluster, methods)| {
-            format!(
-                "{cluster}: {}",
-                methods
-                    .iter()
-                    .map(|method| method.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("; ");
+    let summary = clusters.summary();
     Some(Finding {
         rule: BroadTrait::ID,
         path: source.path.clone(),
         span: Some(Span::new(&source.text, node.byte_range())),
         related: methods
             .iter()
-            .map(|method| Evidence {
-                path: source.path.clone(),
-                span: Some(Span::new(&source.text, method.range.clone())),
-                message: format!(
-                    "\
-            method `{}`; signature types: {}",
-                    method.name,
-                    method.types.iter().cloned().collect::<Vec<_>>().join(
-                        "\
-            , "
-                    )
-                ),
-            })
+            .map(|method| method.evidence(source))
             .collect(),
         configuration: format!("{}.min_clusters", assertion.setting),
         message: format!(
             "`{name}` has {} methods spanning {} distinct capability cluster\
             s; {summary}",
             methods.len(),
-            clusters.len()
+            clusters.count()
         ),
         instruction: "Split the contract into cohesive capabilities that consumers can re\
             quest independently; retain composition only where the complete set is requi\
@@ -208,30 +177,24 @@ fn excluded(node: Node<'_>, source: &Source, assertion: &Assertion) -> bool {
     }) {
         return true;
     }
-    let mut previous = node.prev_named_sibling();
-    while let Some(attribute) = previous {
-        if !matches!(
-            attribute.kind(),
-            "attribute_item" | "line_comment" | "block_comment"
-        ) {
-            break;
-        }
-        if attribute.kind() == "attribute_item"
-            && attribute
-                .named_child(0)
+    std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+        .take_while(|node| {
+            matches!(
+                node.kind(),
+                "attribute_item" | "line_comment" | "block_comment"
+            )
+        })
+        .filter(|node| node.kind() == "attribute_item")
+        .filter_map(|node| {
+            node.named_child(0)
                 .and_then(|attribute| attribute.named_child(0))
-                .is_some_and(|name| {
-                    assertion
-                        .generated_attributes
-                        .iter()
-                        .any(|expected| expected == &source.text[name.byte_range()])
-                })
-        {
-            return true;
-        }
-        previous = attribute.prev_named_sibling();
-    }
-    false
+        })
+        .any(|name| {
+            assertion
+                .generated_attributes
+                .iter()
+                .any(|expected| expected == &source.text[name.byte_range()])
+        })
 }
 fn implementors(
     analysis: &Analysis,

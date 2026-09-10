@@ -37,102 +37,115 @@ impl Access<'_> {
     }
 }
 
-pub(super) fn candidate<'a>(
-    method: Node<'a>,
-    source: &'a Source,
-    index: &Index<'a>,
-    structure: &Structure<'a>,
-) -> Option<Access<'a>> {
-    if boundary(method, source) {
-        return None;
-    }
-    let prefix =
-        &source.text[method.start_byte()..method.child_by_field_name("name")?.start_byte()];
-    if prefix
-        .split(|c: char| !c.is_ascii_alphabetic())
-        .any(|word| matches!(word, "async" | "unsafe" | "extern"))
-    {
-        return None;
-    }
-    if method.child_by_field_name("type_parameters").is_some()
-        || children(method)
-            .iter()
-            .any(|child| child.kind() == "where_clause")
-    {
-        return None;
-    }
-    let params = children(method.child_by_field_name("parameters")?);
-    let receiver = params.first()?;
-    if receiver.kind() != "self_parameter" {
-        return None;
-    }
-    let body = method.child_by_field_name("body")?;
-    let expressions: Vec<_> = children(body)
-        .into_iter()
-        .filter(|child| !matches!(child.kind(), "line_comment" | "block_comment"))
-        .collect();
-    if expressions.len() != 1 {
-        return None;
-    }
-    let expression = peel(expressions[0]);
-    let (field_name, shape) = if let Some((field, shape)) = getter(expression, source) {
-        if params.len() != 1 {
+impl<'a> Access<'a> {
+    pub fn new(
+        method: Node<'a>,
+        source: &'a Source,
+        index: &Index<'a>,
+        structure: &Structure<'a>,
+    ) -> Option<Self> {
+        let (field_name, shape) = Shape::parse(method, source)?;
+        let indexed = structure.fields.get(&field_name)?;
+        let field = structure
+            .node
+            .child_by_field_name("body")?
+            .named_descendant_for_byte_range(indexed.span.start, indexed.span.end)?;
+        if boundary(field, structure.source) {
             return None;
         }
-        (field, shape)
-    } else {
-        let field = setter(expression, &params, method, source)?;
-        (field, Shape::Set)
-    };
-    let indexed = structure.fields.get(&field_name)?;
-    let field = structure
-        .node
-        .child_by_field_name("body")?
-        .named_descendant_for_byte_range(indexed.span.start, indexed.span.end)?;
-    if boundary(field, structure.source) {
-        return None;
+        let context = index.identity(source, method.parent()?.parent()?);
+        let contract = shape.contract(method, source, index, indexed.ty.as_ref()?)?;
+        let method_visibility = visibility(method, source, &context)?;
+        let field_visibility =
+            visibility_node(field).and_then(|_| visibility(field, structure.source, &structure.id));
+        let exposed = field_visibility
+            .as_ref()
+            .is_some_and(|field| broader(field, &method_visibility));
+        Some(Self {
+            source,
+            method,
+            field,
+            name: source.text[method.child_by_field_name("name")?.byte_range()].to_owned(),
+            field_name,
+            exposed,
+            visibility: method_visibility,
+            shape,
+            contract,
+        })
     }
-    let field_type = indexed.ty.as_ref()?;
-    let context = index.identity(source, method.parent()?.parent()?);
-    let ty = if shape == Shape::Set {
-        index.resolve(source, params[1].child_by_field_name("type")?, &context)?
-    } else {
-        index.resolve(source, method.child_by_field_name("return_type")?, &context)?
-    };
-    let expected = match shape {
-        Shape::Shared => format!("&{field_type}"),
-        Shape::Mutable => format!("&mut{field_type}"),
-        _ => field_type.clone(),
-    };
-    if ty != expected {
-        return None;
-    }
-    let method_visibility = visibility(method, source, &context)?;
-    let field_visibility =
-        visibility_node(field).and_then(|_| visibility(field, structure.source, &structure.id));
-    let exposed = field_visibility
-        .as_ref()
-        .is_some_and(|field| broader(field, &method_visibility));
-    let name = source.text[method.child_by_field_name("name")?.byte_range()].to_owned();
-    let receiver: String = source.text[receiver.byte_range()]
-        .split_whitespace()
-        .collect();
-    let modifiers: String = prefix
-        .split_whitespace()
-        .filter(|word| matches!(*word, "const"))
-        .collect();
-    Some(Access {
-        source,
-        method,
-        field,
-        name,
-        field_name,
-        exposed,
-        visibility: method_visibility,
-        shape,
-        contract: format!("{receiver}:{ty}:{modifiers}"),
-    })
 }
+impl Shape {
+    fn parse(method: Node<'_>, source: &Source) -> Option<(String, Self)> {
+        if boundary(method, source) {
+            return None;
+        }
+        let prefix =
+            &source.text[method.start_byte()..method.child_by_field_name("name")?.start_byte()];
+        if prefix
+            .split(|c: char| !c.is_ascii_alphabetic())
+            .any(|word| matches!(word, "async" | "unsafe" | "extern"))
+        {
+            return None;
+        }
+        if method.child_by_field_name("type_parameters").is_some()
+            || children(method)
+                .iter()
+                .any(|child| child.kind() == "where_clause")
+        {
+            return None;
+        }
+        let params = children(method.child_by_field_name("parameters")?);
+        if params.first()?.kind() != "self_parameter" {
+            return None;
+        }
+        let expressions: Vec<_> = children(method.child_by_field_name("body")?)
+            .into_iter()
+            .filter(|child| !matches!(child.kind(), "line_comment" | "block_comment"))
+            .collect();
+        if expressions.len() != 1 {
+            return None;
+        }
+        let expression = peel(expressions[0]);
+        if let Some((field, shape)) = getter(expression, source) {
+            return (params.len() == 1).then_some((field, shape));
+        }
+        Some((setter(expression, &params, method, source)?, Self::Set))
+    }
+    fn contract(
+        &self,
+        method: Node<'_>,
+        source: &Source,
+        index: &Index<'_>,
+        field_type: &str,
+    ) -> Option<String> {
+        let params = children(method.child_by_field_name("parameters")?);
+        let context = index.identity(source, method.parent()?.parent()?);
+        let ty = if *self == Self::Set {
+            index.resolve(source, params[1].child_by_field_name("type")?, &context)?
+        } else {
+            index.resolve(source, method.child_by_field_name("return_type")?, &context)?
+        };
+        let expected = match self {
+            Self::Shared => format!("&{field_type}"),
+            Self::Mutable => format!("&mut{field_type}"),
+            _ => field_type.to_owned(),
+        };
+        if ty != expected {
+            return None;
+        }
+        let receiver: String = source.text[params.first()?.byte_range()]
+            .split_whitespace()
+            .collect();
+        let prefix =
+            &source.text[method.start_byte()..method.child_by_field_name("name")?.start_byte()];
+        let modifiers: String = prefix
+            .split_whitespace()
+            .filter(|word| matches!(*word, "const"))
+            .collect();
+        Some(format!("{receiver}:{ty}:{modifiers}"))
+    }
+}
+
 fn setter(
     expression: Node<'_>,
     params: &[Node<'_>],
@@ -263,49 +276,47 @@ fn broader(field: &Visibility, method: &Visibility) -> bool {
     }
 }
 pub(super) fn boundary(node: Node<'_>, source: &Source) -> bool {
-    let mut previous = node.prev_named_sibling();
-    while let Some(attribute) = previous {
-        if !matches!(
-            attribute.kind(),
-            "attribute_item" | "line_comment" | "block_comment"
-        ) {
-            break;
-        }
-        if let Some(meta) = children(attribute)
-            .into_iter()
-            .find(|child| child.kind() == "attribute")
-        {
-            let text = &source.text[meta.byte_range()];
-            if let Ok(meta) = syn::parse_str::<syn::Meta>(text) {
-                let name = meta
-                    .path()
-                    .segments
-                    .last()
-                    .map(|segment| segment.ident.to_string())
-                    .unwrap_or_default();
-                if matches!(
-                    name.as_str(),
-                    "deprecated"
-                        | "serde"
-                        | "repr"
-                        | "no_mangle"
-                        | "export_name"
-                        | "link_name"
-                        | "cfg_attr"
-                ) || (name == "cfg" && text.replace(' ', "") != "cfg(test)")
-                {
-                    return true;
-                }
-                if name == "derive"
-                    && text
-                        .split(|c: char| !c.is_ascii_alphanumeric())
-                        .any(|word| matches!(word, "Serialize" | "Deserialize"))
-                {
-                    return true;
-                }
-            }
-        }
-        previous = attribute.prev_named_sibling();
-    }
-    false
+    let attributes =
+        std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+            .take_while(|node| {
+                matches!(
+                    node.kind(),
+                    "attribute_item" | "line_comment" | "block_comment"
+                )
+            })
+            .filter_map(|node| {
+                children(node)
+                    .into_iter()
+                    .find(|child| child.kind() == "attribute")
+            });
+    attributes
+        .filter_map(|node| {
+            let text = &source.text[node.byte_range()];
+            syn::parse_str::<syn::Meta>(text)
+                .ok()
+                .map(|meta| (text, meta))
+        })
+        .any(|(text, meta)| {
+            let name = meta
+                .path()
+                .segments
+                .last()
+                .map(|segment| segment.ident.to_string())
+                .unwrap_or_default();
+            let serialized = name == "derive"
+                && text
+                    .split(|c: char| !c.is_ascii_alphanumeric())
+                    .any(|word| matches!(word, "Serialize" | "Deserialize"));
+            matches!(
+                name.as_str(),
+                "deprecated"
+                    | "serde"
+                    | "repr"
+                    | "no_mangle"
+                    | "export_name"
+                    | "link_name"
+                    | "cfg_attr"
+            ) || (name == "cfg" && text.replace(' ', "") != "cfg(test)")
+                || serialized
+        })
 }

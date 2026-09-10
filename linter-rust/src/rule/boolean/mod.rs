@@ -32,35 +32,17 @@ impl Rule for BooleanState {
         let index = Index::new(analysis, &root);
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            let mut observations = BTreeMap::new();
-            for source in &analysis.sources {
-                let mut tests = vec![false; source.text.len()];
-                if integration(source, &root, analysis) {
-                    tests.fill(true);
-                } else {
-                    mark_tests(source.syntax.root_node(), &source.text, &mut tests);
-                }
-                collect(
-                    source.syntax.root_node(),
-                    source,
-                    &index,
-                    &tests,
-                    assertion,
-                    &mut observations,
-                );
-            }
-            for structure in index
-                .structures
-                .iter()
-                .filter(|item| selected(item, assertion))
-            {
-                let key = format!("nominal:{}", structure.id.key());
-                if let Some(observation) = observations.remove(&key)
-                    && let Some(finding) = finding(structure, observation, assertion)
-                {
-                    findings.push(finding);
-                }
-            }
+            let mut observations = assertion.observations(analysis, &index, &root);
+            findings.extend(
+                index
+                    .structures
+                    .iter()
+                    .filter(|item| selected(item, assertion))
+                    .filter_map(|structure| {
+                        let key = format!("nominal:{}", structure.id.key());
+                        observations.remove(&key)?.finding(structure, assertion)
+                    }),
+            );
         }
         Ok(RuleResult {
             status: Status::Completed,
@@ -121,67 +103,68 @@ fn bool_fields(item: &Structure<'_>) -> BTreeSet<String> {
         .map(|(name, _)| name.clone())
         .collect()
 }
-fn finding(
-    item: &Structure<'_>,
-    mut observation: Observation,
-    assertion: &Assertion,
-) -> Option<Finding> {
-    let fields = bool_fields(item);
-    if fields.len() < assertion.min_fields {
-        return None;
-    }
-    let states = observation
-        .literals
-        .iter()
-        .map(|literal| one_hot(&literal.values, &fields))
-        .collect::<Option<BTreeSet<_>>>();
-    if states.is_some_and(|states| states.len() >= 2) {
-        observation.evidence.extend(
-            observation
-                .literals
-                .into_iter()
-                .map(|literal| (fields.clone(), literal.evidence)),
-        );
-    }
-    if observation.evidence.is_empty() {
-        return None;
-    }
-    let implicated: BTreeSet<_> = observation
-        .evidence
-        .iter()
-        .flat_map(|(fields, _)| fields.iter().cloned())
-        .collect();
-    let mut related: Vec<_> = observation
-        .evidence
-        .into_iter()
-        .map(|(_, evidence)| evidence)
-        .collect();
-    related.sort_by_key(|evidence| {
-        (
-            evidence.path.clone(),
-            evidence.span.as_ref().map(|span| span.start),
-        )
-    });
-    related.dedup();
-    Some(Finding {
-        rule: BooleanState::ID,
-        path: item.source.path.clone(),
-        span: Some(Span::new(&item.source.text, item.node.byte_range())),
-        related,
-        configuration: format!("{}.min_fields", assertion.setting),
-        message: format!(
-            "`{}` coordinates boolean fields as mutually exclusive state: {}",
-            item.id.name,
-            implicated.into_iter().collect::<Vec<_>>().join(
-                "\
-            , "
+impl Observation {
+    fn finding(mut self, item: &Structure<'_>, assertion: &Assertion) -> Option<Finding> {
+        let fields = bool_fields(item);
+        if fields.len() < assertion.min_fields {
+            return None;
+        }
+        self.exclusive(&fields);
+        if self.evidence.is_empty() {
+            return None;
+        }
+        let implicated: BTreeSet<_> = self
+            .evidence
+            .iter()
+            .flat_map(|(fields, _)| fields.iter().cloned())
+            .collect();
+        let mut related: Vec<_> = self
+            .evidence
+            .into_iter()
+            .map(|(_, evidence)| evidence)
+            .collect();
+        related.sort_by_key(|evidence| {
+            (
+                evidence.path.clone(),
+                evidence.span.as_ref().map(|span| span.start),
             )
-        ),
-        instruction: "Replace the coordinated boolean state with a named enum or compose\
+        });
+        related.dedup();
+        Some(Finding {
+            rule: BooleanState::ID,
+            path: item.source.path.clone(),
+            span: Some(Span::new(&item.source.text, item.node.byte_range())),
+            related,
+            configuration: format!("{}.min_fields", assertion.setting),
+            message: format!(
+                "`{}` coordinates boolean fields as mutually exclusive state: {}",
+                item.id.name,
+                implicated.into_iter().collect::<Vec<_>>().join(
+                    "\
+            , "
+                )
+            ),
+            instruction: "Replace the coordinated boolean state with a named enum or compose\
             d state entity; keep independent capabilities as booleans."
-            .into(),
-    })
+                .into(),
+        })
+    }
+    fn exclusive(&mut self, fields: &BTreeSet<String>) {
+        let states = self
+            .literals
+            .iter()
+            .map(|literal| one_hot(&literal.values, fields))
+            .collect::<Option<BTreeSet<_>>>();
+        if states.is_some_and(|states| states.len() >= 2) {
+            self.evidence.extend(
+                std::mem::take(&mut self.literals)
+                    .into_iter()
+                    .map(|literal| (fields.clone(), literal.evidence)),
+            );
+        }
+    }
 }
+
 fn one_hot(values: &BTreeMap<String, bool>, fields: &BTreeSet<String>) -> Option<String> {
     if fields.iter().any(|field| !values.contains_key(field)) {
         return None;
@@ -208,6 +191,34 @@ fn evidence(source: &Source, node: Node<'_>, message: String) -> Evidence {
         path: source.path.clone(),
         span: Some(Span::new(&source.text, node.byte_range())),
         message,
+    }
+}
+
+impl Assertion {
+    fn observations(
+        &self,
+        analysis: &Analysis,
+        index: &Index<'_>,
+        root: &std::path::Path,
+    ) -> BTreeMap<String, Observation> {
+        let mut observations = BTreeMap::new();
+        for source in &analysis.sources {
+            let mut tests = vec![false; source.text.len()];
+            if integration(source, root, analysis) {
+                tests.fill(true);
+            } else {
+                mark_tests(source.syntax.root_node(), &source.text, &mut tests);
+            }
+            collect(
+                source.syntax.root_node(),
+                source,
+                index,
+                &tests,
+                self,
+                &mut observations,
+            );
+        }
+        observations
     }
 }
 

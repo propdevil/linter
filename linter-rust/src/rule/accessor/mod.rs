@@ -113,7 +113,7 @@ impl Assertion {
             if !self.scope.includes(tests[method.start_byte()]) {
                 continue;
             }
-            if let Some(candidate) = contract::candidate(method, source, index, structure) {
+            if let Some(candidate) = Access::new(method, source, index, structure) {
                 output.entry(owner.clone()).or_default().push(candidate);
             }
         }

@@ -27,12 +27,12 @@ pub(super) fn methods(
 fn method(node: Node<'_>, source: &Source, assertion: &Assertion) -> Option<Method> {
     let name = source.text[node.child_by_field_name("name")?.byte_range()].to_owned();
     let mut types = BTreeSet::new();
-    if let Some(parameters) = node.child_by_field_name("parameters") {
-        for parameter in children(parameters) {
-            if let Some(ty) = parameter.child_by_field_name("type") {
-                types.extend(words(&source.text[ty.byte_range()]));
-            }
-        }
+    let parameters = node
+        .child_by_field_name("parameters")
+        .into_iter()
+        .flat_map(children);
+    for ty in parameters.filter_map(|parameter| parameter.child_by_field_name("type")) {
+        types.extend(words(&source.text[ty.byte_range()]));
     }
     if let Some(ty) = node.child_by_field_name("return_type") {
         types.extend(words(&source.text[ty.byte_range()]));
@@ -84,11 +84,12 @@ pub(super) fn separated(clusters: &BTreeMap<String, Vec<&Method>>) -> usize {
         .collect();
     let mut separated = BTreeSet::new();
     for (left, a) in profiles.iter().enumerate() {
-        for (right, b) in profiles.iter().enumerate().skip(left + 1) {
-            if a.0 != b.0 || (!a.1.is_empty() && !b.1.is_empty() && a.1.is_disjoint(&b.1)) {
-                separated.insert(left);
-                separated.insert(right);
-            }
+        let distinct = profiles.iter().enumerate().skip(left + 1).filter(|(_, b)| {
+            a.0 != b.0 || (!a.1.is_empty() && !b.1.is_empty() && a.1.is_disjoint(&b.1))
+        });
+        for (right, _) in distinct {
+            separated.insert(left);
+            separated.insert(right);
         }
     }
     separated.len()
@@ -131,4 +132,56 @@ fn words(text: &str) -> Vec<String> {
         output.push(current);
     }
     output
+}
+
+impl Method {
+    pub fn evidence(&self, source: &Source) -> Evidence {
+        Evidence {
+            path: source.path.clone(),
+            span: Some(Span::new(&source.text, self.range.clone())),
+            message: format!(
+                "method `{}`; signature types: {}",
+                self.name,
+                self.types.iter().cloned().collect::<Vec<_>>().join(", ")
+            ),
+        }
+    }
+}
+
+pub(super) struct Clusters<'a>(BTreeMap<String, Vec<&'a Method>>);
+impl<'a> Clusters<'a> {
+    pub fn new(methods: &'a [Method], minimum: usize) -> Self {
+        let mut groups = BTreeMap::<String, Vec<&Method>>::new();
+        for (name, method) in methods
+            .iter()
+            .filter_map(|method| method.cluster.as_ref().map(|name| (name, method)))
+        {
+            groups.entry(name.clone()).or_default().push(method);
+        }
+        groups.retain(|_, methods| methods.len() >= minimum);
+        Self(groups)
+    }
+    pub fn count(&self) -> usize {
+        self.0.len()
+    }
+    pub fn method_count(&self) -> usize {
+        self.0.values().map(Vec::len).sum()
+    }
+    pub fn separated(&self) -> usize {
+        separated(&self.0)
+    }
+    pub fn summary(&self) -> String {
+        self.0
+            .iter()
+            .map(|(cluster, methods)| {
+                let names = methods
+                    .iter()
+                    .map(|method| method.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{cluster}: {names}")
+            })
+            .collect::<Vec<_>>()
+            .join("; ")
+    }
 }
