@@ -241,7 +241,7 @@ of a good design.
 | Behavior ownership | `rust/free-function`, `rust/single-use-free-function`, `rust/detached-constructor`, and `rust/self-constructor-static`. Prefer existing receivers, meaningful collections, standard conversions, and validating constructors. |
 | Unnecessary indirection | `rust/redundant-accessor`, `rust/redundant-wrapper`, `rust/redundant-namespace`, and `rust/redundant-marker`. Preserve real visibility, validation, synchronization, and external contracts. |
 | Runtime boundaries | `rust/async-blocking-operation`, `rust/environment-variable-access`, and `rust/unsafe-boundary`. Configure concrete APIs and legitimate composition boundaries. |
-| C code | The C preset supplies length, nesting, allocation, result, forbidden-call, and safety checks. Compiler-backed tools need their configured executables and project compile information. |
+| C code | The C preset supplies length, nesting, allocation, result, and safety checks. Configure `c/forbidden-call` separately when a concrete API restriction is needed. Compiler-backed tools need their configured executables and project compile information. |
 | Markdown | `markdown/examples` validates title, case headings, and fences. `layout` decides which documents may exist and why. |
 
 Check rule IDs and settings against the bundled preset and each rule's `readme.md`
