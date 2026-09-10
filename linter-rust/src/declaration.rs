@@ -109,6 +109,10 @@ impl<'a> Index<'a> {
         self.resolve_type(source, node, owner, 0)
     }
 
+    pub(crate) fn resolve_name(&self, path: &str, owner: &Identity) -> Option<String> {
+        self.resolve_path(path, owner, 0)
+    }
+
     fn collect(
         &mut self,
         node: Node<'a>,
