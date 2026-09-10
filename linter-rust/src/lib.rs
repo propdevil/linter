@@ -41,3 +41,5 @@ pub use rule::trait_count::{Config as TraitMethodCountConfig, TraitMethodCount};
 
 pub use rule::struct_words::{Config as StructWordsConfig, StructWords};
 pub use rule::empty::{Config as EmptyStructConfig, EmptyStruct};
+
+pub use rule::module_name::{Config as ModuleNameConfig, ModuleName};
