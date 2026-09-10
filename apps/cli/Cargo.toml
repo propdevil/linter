@@ -17,6 +17,7 @@ workspace = true
 clap.workspace = true
 linter.workspace = true
 linter-rust.workspace = true
+linter-markdown.workspace = true
 linter-c = { path = "../../linter-c" }
 serde_json.workspace = true
 

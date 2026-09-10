@@ -46,6 +46,7 @@ files.required = ["mod.rs", "config.rs", "readme.md"]
             linter::register(linter::Registry::default())
                 .and_then(linter_rust::register)
                 .and_then(linter_c::register)
+                .and_then(linter_markdown::register)
                 .unwrap()
                 .check(root.path())
                 .unwrap()

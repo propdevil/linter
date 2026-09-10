@@ -1,5 +1,5 @@
 [package]
-name = "linter-mcp"
+name = "linter-markdown"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,14 +10,8 @@ workspace = true
 
 [dependencies]
 linter.workspace = true
-linter-rust.workspace = true
-linter-markdown.workspace = true
-linter-c = { path = "../../linter-c" }
-rmcp.workspace = true
+pulldown-cmark.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-tokio.workspace = true
 
 [dev-dependencies]
-rmcp = { workspace = true, features = ["client"] }
 tempfile.workspace = true

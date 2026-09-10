@@ -79,7 +79,7 @@ dependencies = ["linter"]
 [[rules."rust/layers"]]
 name = "apps"
 target = ["apps/*"]
-dependencies = ["linter", "rust", "c"]
+dependencies = ["linter", "rust", "c", "markdown"]
 
 [[rules.layout]]
 target = [
@@ -190,3 +190,16 @@ max_words = 2
 
 [[rules."rust/empty-struct"]]
 target = "**/*.rs"
+
+[[rules."rust/layers"]]
+name = "markdown"
+target = "linter-markdown"
+dependencies = ["linter"]
+
+[[rules."rust/module-name"]]
+target = "**/*.rs"
+forbidden_words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]
+
+[[rules."markdown/examples"]]
+target = "**/*.md"
+min_cases = 0

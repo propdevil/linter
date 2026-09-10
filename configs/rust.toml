@@ -106,3 +106,11 @@ max_words = 2
 
 [[rules."rust/empty-struct"]]
 target = "**/*.rs"
+
+[[rules."rust/module-name"]]
+target = "**/*.rs"
+forbidden_words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]
+
+[[rules."markdown/examples"]]
+target = "**/*.md"
+min_cases = 0

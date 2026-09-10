@@ -107,6 +107,7 @@ allow = false
                 linter::register(linter::Registry::default())
                     .and_then(linter_rust::register)
                     .and_then(linter_c::register)
+                    .and_then(linter_markdown::register)
                     .unwrap(),
             )
             .serve(server_transport)
@@ -131,6 +132,7 @@ allow = false
                     linter::register(linter::Registry::default())
                         .and_then(linter_rust::register)
                         .and_then(linter_c::register)
+                        .and_then(linter_markdown::register)
                         .unwrap()
                         .check(root.path())
                         .unwrap()

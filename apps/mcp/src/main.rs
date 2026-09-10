@@ -10,7 +10,8 @@ async fn main() -> ExitCode {
         server::Server::new(
             linter::register(linter::Registry::default())
                 .and_then(linter_rust::register)
-                .and_then(linter_c::register)?,
+                .and_then(linter_c::register)
+                .and_then(linter_markdown::register)?,
         )
         .serve(rmcp::transport::stdio())
         .await?

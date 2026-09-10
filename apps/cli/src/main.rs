@@ -92,6 +92,7 @@ fn registry() -> Result<linter::Registry, linter::Error> {
     linter::register(linter::Registry::default())
         .and_then(linter_rust::register)
         .and_then(linter_c::register)
+        .and_then(linter_markdown::register)
 }
 
 fn check(root: PathBuf, json: bool) -> ExitCode {

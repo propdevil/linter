@@ -27,7 +27,8 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<StringState>()?
         .register::<TraitMethodCount>()?
         .register::<StructWords>()?
-        .register::<EmptyStruct>()
+        .register::<EmptyStruct>()?
+        .register::<ModuleName>()
 }
 
 mod declaration;
@@ -39,7 +40,7 @@ pub use rule::model::{Config as ModelDuplicationConfig, ModelDuplication};
 pub use rule::state::{Config as StringStateConfig, StringState};
 pub use rule::trait_count::{Config as TraitMethodCountConfig, TraitMethodCount};
 
-pub use rule::struct_words::{Config as StructWordsConfig, StructWords};
 pub use rule::empty::{Config as EmptyStructConfig, EmptyStruct};
+pub use rule::struct_words::{Config as StructWordsConfig, StructWords};
 
 pub use rule::module_name::{Config as ModuleNameConfig, ModuleName};
