@@ -37,15 +37,14 @@ impl Rule for ModelDuplication {
         let dependencies = dependencies(analysis);
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            for (position, first) in models.iter().enumerate() {
-                for second in &models[position + 1..] {
-                    if let Some(finding) =
-                        compare(first, second, assertion, &evidence, &dependencies)
-                    {
-                        findings.push(finding);
-                    }
-                }
-            }
+            let pairs = models.iter().enumerate().flat_map(|(position, first)| {
+                models[position + 1..]
+                    .iter()
+                    .map(move |second| (first, second))
+            });
+            findings.extend(pairs.filter_map(|(first, second)| {
+                first.compare(second, assertion, &evidence, &dependencies)
+            }));
         }
         Ok(RuleResult {
             status: Status::Completed,
@@ -75,9 +74,6 @@ impl<'a> Model<'a> {
             return None;
         }
         let body = structure.node.child_by_field_name("body")?;
-        if body.kind() != "field_declaration_list" {
-            return None;
-        }
         let mut fields = BTreeMap::new();
         let mut public = 0;
         let mut serialized = attributes::serialized(&attrs);
@@ -86,8 +82,7 @@ impl<'a> Model<'a> {
             .named_children(&mut cursor)
             .filter(|child| child.kind() == "field_declaration")
         {
-            let name = field.child_by_field_name("name")?;
-            let name = &structure.source.text[name.byte_range()];
+            let name = &structure.source.text[field.child_by_field_name("name")?.byte_range()];
             let attrs = attributes::attributes(field, structure.source);
             serialized |= attrs.iter().any(|meta| meta.path().is_ident("serde"));
             let mut cursor = field.walk();
@@ -100,10 +95,9 @@ impl<'a> Model<'a> {
                 .get(name)
                 .filter(|field| field.ty.is_some())
             {
-                let ty = indexed.ty.as_ref()?;
                 let name = attributes::renamed(name, &attrs);
                 if fields
-                    .insert(name, (ty.clone(), indexed.span.clone()))
+                    .insert(name, (indexed.ty.clone()?, indexed.span.clone()))
                     .is_some()
                 {
                     return None;
@@ -133,139 +127,138 @@ impl<'a> Model<'a> {
     }
 }
 
-fn compare(
-    first: &Model<'_>,
-    second: &Model<'_>,
-    assertion: &Assertion,
-    evidence: &conversion::Evidence<'_>,
-    dependencies: &BTreeSet<(String, String)>,
-) -> Option<Finding> {
-    let first_id = format!("nominal:{}", first.structure.id.key());
-    let second_id = format!("nominal:{}", second.structure.id.key());
-    let conversions: Vec<_> = evidence
-        .conversions
-        .iter()
-        .filter(|conversion| {
-            if !scope_selected(assertion.scope, conversion.test) {
-                return false;
-            }
-            (conversion.from == first_id && conversion.to == second_id)
-                || (conversion.from == second_id && conversion.to == first_id)
-        })
-        .collect();
-    if conversions.iter().any(|conversion| !conversion.copied) {
-        return None;
-    }
-    let converted = !conversions.is_empty();
-    let first_package = &first.structure.id.package;
-    let second_package = &second.structure.id.package;
-    let forward = dependencies.contains(&(first_package.clone(), second_package.clone()));
-    let reverse = dependencies.contains(&(second_package.clone(), first_package.clone()));
-    if first_package != second_package && !forward && !reverse && !converted {
-        return None;
-    }
-    let (candidate, owner) = if first.wire
-        && second.domain
-        && evidence
-            .behaviors
-            .contains(&(second_id.clone(), second.structure.test))
-    {
-        (first, second)
-    } else if second.wire
-        && first.domain
-        && evidence
-            .behaviors
-            .contains(&(first_id.clone(), first.structure.test))
-    {
-        (second, first)
-    } else if first.wire && second.wire && first_package != second_package {
-        if reverse && !forward {
-            (second, first)
-        } else {
-            (first, second)
+impl Model<'_> {
+    fn compare(
+        &self,
+        other: &Self,
+        assertion: &Assertion,
+        evidence: &conversion::Evidence<'_>,
+        dependencies: &BTreeSet<(String, String)>,
+    ) -> Option<Finding> {
+        let first_id = format!("nominal:{}", self.structure.id.key());
+        let second_id = format!("nominal:{}", other.structure.id.key());
+        let conversions = evidence.matching(&first_id, &second_id, assertion.scope)?;
+        let converted = !conversions.is_empty();
+        let first_package = &self.structure.id.package;
+        let second_package = &other.structure.id.package;
+        let forward = dependencies.contains(&(first_package.clone(), second_package.clone()));
+        let reverse = dependencies.contains(&(second_package.clone(), first_package.clone()));
+        if first_package != second_package && !forward && !reverse && !converted {
+            return None;
         }
-    } else {
-        return None;
-    };
-    if !candidate.selected(assertion) || !scope_selected(assertion.scope, owner.structure.test) {
-        return None;
-    }
-    let concept = attributes::concept(&candidate.structure.id.name);
-    if !converted
-        && (concept.is_empty() || concept != attributes::concept(&owner.structure.id.name))
-    {
-        return None;
-    }
-    let common: Vec<_> = candidate
-        .fields
-        .iter()
-        .filter(|(name, (ty, _))| {
-            owner
-                .fields
-                .get(*name)
-                .is_some_and(|(other, _)| ty == other)
-        })
-        .collect();
-    if common.len() < assertion.min_shared_fields
-        || (common.len() as u128) * 100
-            < (candidate.field_count.min(owner.field_count) as u128)
-                * assertion.min_overlap_percent as u128
-    {
-        return None;
-    }
-    let mut related = vec![Evidence {
-        path: owner.structure.source.path.clone(),
-        span: Some(Span::new(
-            &owner.structure.source.text,
-            owner.structure.node.byte_range(),
-        )),
-        message: format!("Owning model `{}`", owner.structure.id.name),
-    }];
-    for (name, (ty, node)) in &common {
-        related.push(Evidence {
-            path: candidate.structure.source.path.clone(),
-            span: Some(Span::new(&candidate.structure.source.text, (*node).clone())),
-            message: format!("Copied field `{name}: {ty}`"),
-        });
-        if let Some((_, node)) = owner.fields.get(*name) {
-            related.push(Evidence {
-                path: owner.structure.source.path.clone(),
-                span: Some(Span::new(&owner.structure.source.text, node.clone())),
-                message: format!("Matching owner field `{name}`"),
-            });
-        }
-    }
-    for conversion in conversions {
-        related.push(Evidence {
+        let (candidate, owner) = self.roles(other, evidence, forward, reverse)?;
+        let common = candidate.shared(owner, assertion, converted)?;
+        let mut related = candidate.evidence(owner, &common);
+        related.extend(conversions.into_iter().map(|conversion| Evidence {
             path: conversion.source.path.clone(),
             span: Some(Span::new(
                 &conversion.source.text,
                 conversion.node.byte_range(),
             )),
             message: "Resolved field-copy conversion connects the models".into(),
-        });
+        }));
+        Some(candidate.diagnostic(owner, common.len(), related, assertion))
     }
-    Some(Finding {
-        rule: ModelDuplication::ID,
-        path: candidate.structure.source.path.clone(),
-        span: Some(Span::new(
-            &candidate.structure.source.text,
-            candidate.structure.node.byte_range(),
-        )),
-        related,
-        configuration: assertion.setting.clone(),
-        message: format!(
-            "\
-        Wire model `{}` duplicates `{}` across {} matching named fields",
-            candidate.structure.id.name,
-            owner.structure.id.name,
-            common.len()
-        ),
-        instruction: "\
-        Reuse or compose the owned model; keep a separate representation only for a conc\
-        rete boundary contract."
-            .into(),
-    })
+    fn roles<'a>(
+        &'a self,
+        other: &'a Self,
+        evidence: &conversion::Evidence<'_>,
+        forward: bool,
+        reverse: bool,
+    ) -> Option<(&'a Self, &'a Self)> {
+        let behavioral = |model: &Self| {
+            evidence.behaviors.contains(&(
+                format!("nominal:{}", model.structure.id.key()),
+                model.structure.test,
+            ))
+        };
+        if self.wire && other.domain && behavioral(other) {
+            return Some((self, other));
+        }
+        if other.wire && self.domain && behavioral(self) {
+            return Some((other, self));
+        }
+        if !self.wire || !other.wire || self.structure.id.package == other.structure.id.package {
+            return None;
+        }
+        Some(if reverse && !forward {
+            (other, self)
+        } else {
+            (self, other)
+        })
+    }
+    fn shared(&self, owner: &Self, assertion: &Assertion, converted: bool) -> Option<Vec<String>> {
+        if !self.selected(assertion) || !scope_selected(assertion.scope, owner.structure.test) {
+            return None;
+        }
+        let concept = attributes::concept(&self.structure.id.name);
+        if !converted
+            && (concept.is_empty() || concept != attributes::concept(&owner.structure.id.name))
+        {
+            return None;
+        }
+        let common: Vec<_> = self
+            .fields
+            .iter()
+            .filter(|(name, (ty, _))| {
+                owner
+                    .fields
+                    .get(*name)
+                    .is_some_and(|(other, _)| ty == other)
+            })
+            .map(|(name, _)| name.clone())
+            .collect();
+        if common.len() < assertion.min_shared_fields
+            || (common.len() as u128) * 100
+                < (self.field_count.min(owner.field_count) as u128)
+                    * assertion.min_overlap_percent as u128
+        {
+            return None;
+        }
+        Some(common)
+    }
+    fn evidence(&self, owner: &Self, common: &[String]) -> Vec<Evidence> {
+        let mut related = vec![Evidence {
+            path: owner.structure.source.path.clone(),
+            span: Some(Span::new(
+                &owner.structure.source.text,
+                owner.structure.node.byte_range(),
+            )),
+            message: format!("Owning model `{}`", owner.structure.id.name),
+        }];
+        for name in common {
+            let Some((ty, node)) = self.fields.get(name) else {
+                continue;
+            };
+            related.push(Evidence {
+                path: self.structure.source.path.clone(),
+                span: Some(Span::new(&self.structure.source.text, node.clone())),
+                message: format!("Copied field `{name}: {ty}`"),
+            });
+            if let Some((_, node)) = owner.fields.get(name) {
+                related.push(Evidence {
+                    path: owner.structure.source.path.clone(),
+                    span: Some(Span::new(&owner.structure.source.text, node.clone())),
+                    message: format!("Matching owner field `{name}`"),
+                });
+            }
+        }
+        related
+    }
+    fn diagnostic(
+        &self,
+        owner: &Self,
+        count: usize,
+        related: Vec<Evidence>,
+        assertion: &Assertion,
+    ) -> Finding {
+        Finding {
+            rule:ModelDuplication::ID,path:self.structure.source.path.clone(),span:Some(Span::new(&self.structure.source.text,self.structure.node.byte_range())),related,
+            configuration:assertion.setting.clone(),
+            message:format!("Wire model `{}` duplicates `{}` across {count} matching named fields",self.structure.id.name,owner.structure.id.name),
+            instruction:"Reuse or compose the owned model; keep a separate representation only for a concrete boundary contract.".into(),
+        }
+    }
 }
 
 fn scope_selected(scope: Scope, test: bool) -> bool {
@@ -277,23 +270,27 @@ fn scope_selected(scope: Scope, test: bool) -> bool {
 }
 
 fn dependencies(analysis: &Analysis) -> BTreeSet<(String, String)> {
-    let mut edges = BTreeSet::new();
-    for (manifest, package) in &analysis.packages {
-        for dependency in &package.dependencies {
-            let Some(path) = &dependency.path else {
-                continue;
-            };
-            let target = path.join("Cargo.toml").into_std_path_buf();
-            let target = std::fs::canonicalize(&target).unwrap_or(target);
-            if analysis.packages.contains_key(&target) {
-                edges.insert((
+    analysis
+        .packages
+        .iter()
+        .flat_map(|(manifest, package)| {
+            package.dependencies.iter().filter_map(move |dependency| {
+                let target = dependency
+                    .path
+                    .as_ref()?
+                    .join("Cargo.toml")
+                    .into_std_path_buf();
+                let target = std::fs::canonicalize(&target).unwrap_or(target);
+                if !analysis.packages.contains_key(&target) {
+                    return None;
+                }
+                Some((
                     manifest.to_string_lossy().into_owned(),
                     target.to_string_lossy().into_owned(),
-                ));
-            }
-        }
-    }
-    edges
+                ))
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]

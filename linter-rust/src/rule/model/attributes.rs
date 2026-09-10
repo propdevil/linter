@@ -3,70 +3,63 @@ use syn::{Meta, Token, punctuated::Punctuated};
 use tree_sitter::Node;
 
 pub(super) fn attributes(node: Node<'_>, source: &Source) -> Vec<Meta> {
-    let mut items = Vec::new();
-    let mut previous = node.prev_named_sibling();
-    while let Some(item) = previous {
-        match item.kind() {
-            "attribute_item" => {
-                let mut cursor = item.walk();
-                if let Some(attribute) = item
+    let mut items: Vec<_> =
+        std::iter::successors(node.prev_named_sibling(), |node| node.prev_named_sibling())
+            .take_while(|node| {
+                matches!(
+                    node.kind(),
+                    "attribute_item" | "line_comment" | "block_comment"
+                )
+            })
+            .filter(|node| node.kind() == "attribute_item")
+            .filter_map(|node| {
+                let mut cursor = node.walk();
+                let attribute = node
                     .named_children(&mut cursor)
-                    .find(|child| child.kind() == "attribute")
-                    && let Ok(meta) = syn::parse_str(&source.text[attribute.byte_range()])
-                {
-                    items.push(meta);
-                }
-            }
-            "line_comment" | "block_comment" => {}
-            _ => break,
-        }
-        previous = item.prev_named_sibling();
-    }
+                    .find(|child| child.kind() == "attribute")?;
+                syn::parse_str(&source.text[attribute.byte_range()]).ok()
+            })
+            .collect();
     items.reverse();
     items
 }
-
 pub(super) fn serialized(attributes: &[Meta]) -> bool {
-    attributes.iter().any(|meta| {
-        if meta.path().is_ident("serde") {
-            return true;
-        }
-        let Meta::List(list) = meta else {
-            return false;
-        };
-        list.path.is_ident("derive")
-            && list
+    if attributes.iter().any(|meta| meta.path().is_ident("serde")) {
+        return true;
+    }
+    attributes
+        .iter()
+        .filter_map(|meta| match meta {
+            Meta::List(list) if list.path.is_ident("derive") => list
                 .parse_args_with(Punctuated::<syn::Path, Token![,]>::parse_terminated)
-                .is_ok_and(|paths| {
-                    paths.iter().any(|path| {
-                        path.segments.last().is_some_and(|segment| {
-                            matches!(
-                                segment.ident.to_string().as_str(),
-                                "Serialize" | "Deserialize"
-                            )
-                        })
-                    })
-                })
-    })
+                .ok(),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|path| {
+            path.segments
+                .last()
+                .map(|segment| segment.ident.to_string())
+        })
+        .any(|name| matches!(name.as_str(), "Serialize" | "Deserialize"))
 }
 
 pub(super) fn renamed(default: &str, attributes: &[Meta]) -> String {
     let mut name = default.to_owned();
-    for meta in attributes {
-        let Meta::List(list) = meta else {
-            continue;
-        };
-        if !list.path.is_ident("serde") {
-            continue;
+    let lists = attributes.iter().filter_map(|meta| match meta {
+        Meta::List(list) if list.path.is_ident("serde") => Some(list),
+        _ => None,
+    });
+    let mut rename = |meta: syn::meta::ParseNestedMeta<'_>| {
+        if meta.path.is_ident("rename") {
+            name = meta.value()?.parse::<syn::LitStr>()?.value();
+        } else if meta.input.peek(Token![=]) {
+            let _: syn::Expr = meta.value()?.parse()?;
         }
-        let _ = list.parse_nested_meta(|meta| {
-            if meta.path.is_ident("rename") {
-                name = meta.value()?.parse::<syn::LitStr>()?.value();
-            } else if meta.input.peek(Token![=]) {
-                let _: syn::Expr = meta.value()?.parse()?;
-            }
-            Ok(())
-        });
+        Ok(())
+    };
+    for list in lists {
+        let _ = list.parse_nested_meta(&mut rename);
     }
     name
 }
