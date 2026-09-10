@@ -171,3 +171,9 @@ target = "**/*.rs"
 target = "**/*.rs"
 mode = "receiver"
 boundary_derives = ["clap::Parser", "clap::Args", "Parser", "Args"]
+
+[[rules."rust/redundant-namespace"]]
+target = "**/*.rs"
+
+[[rules."rust/single-use-free-function"]]
+target = "**/*.rs"

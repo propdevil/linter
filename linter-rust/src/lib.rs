@@ -38,7 +38,9 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<DetachedConstructor>()?
         .register::<RedundantAccessor>()?
         .register::<UnsafeBoundary>()?
-        .register::<FreeFunction>()
+        .register::<FreeFunction>()?
+        .register::<RedundantNamespace>()?
+        .register::<SingleUse>()
 }
 
 mod declaration;
