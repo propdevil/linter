@@ -22,3 +22,5 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<NestingRule>()?
         .register::<StructNoun>()
 }
+
+mod declaration;
