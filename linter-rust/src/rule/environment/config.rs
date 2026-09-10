@@ -52,85 +52,85 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/environment-variable-access\"[{index}]");
-                if definition.functions.is_empty() {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.functions cannot be empty"
-                    )));
-                }
-                if definition.global_types.is_empty() != definition.global_words.is_empty() {
-                    return Err(Error::Configuration(format!(
-                        "{setting}: global_types and global_words must be configured together"
-                    )));
-                }
-                for value in definition
-                    .functions
-                    .iter()
-                    .chain(&definition.macros)
-                    .chain(&definition.global_types)
-                    .chain(&definition.global_words)
-                {
-                    if value.split("::").any(|part| {
-                        part.is_empty()
-                            || !part.bytes().enumerate().all(|(index, byte)| {
-                                byte == b'_'
-                                    || byte.is_ascii_alphabetic()
-                                    || (index > 0 && byte.is_ascii_digit())
-                            })
-                    }) {
-                        return Err(Error::Configuration(format!(
-                            "{setting}: invalid API or word '{value}'"
-                        )));
-                    }
-                }
-                if definition
-                    .global_words
-                    .iter()
-                    .any(|word| !word.bytes().all(|byte| byte.is_ascii_lowercase()))
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}.global_words must be lowercase words"
-                    )));
-                }
-                let mut modules = Vec::new();
-                for module in definition.allowed_modules {
-                    let parts: Vec<String> = module.split("::").map(str::to_owned).collect();
-                    if parts.iter().any(|part| {
-                        part.is_empty()
-                            || !part.bytes().enumerate().all(|(index, byte)| {
-                                byte == b'_'
-                                    || byte.is_ascii_alphabetic()
-                                    || (index > 0 && byte.is_ascii_digit())
-                            })
-                    }) {
-                        return Err(Error::Configuration(format!(
-                            "{setting}.allowed_modules: expected module paths like platform::ffi"
-                        )));
-                    }
-                    modules.push(parts);
-                }
-                Ok(Assertion {
-                    functions: definition.functions,
-                    macros: definition.macros,
-                    global_types: definition.global_types,
-                    global_words: definition.global_words,
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    allowed_targets: definition
-                        .allowed_targets
-                        .map(|target| target.compile(&format!("{setting}.allowed_targets"), true))
-                        .transpose()?,
-                    allowed_modules: modules,
-                    setting,
-                })
-            })
+            .map(|(index, definition)| definition.compile(index))
             .collect()
     }
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let setting = format!("rules.\"rust/environment-variable-access\"[{index}]");
+        self.validate(&setting)?;
+        let mut modules = Vec::new();
+        for module in self.allowed_modules {
+            let parts: Vec<String> = module.split("::").map(str::to_owned).collect();
+            if parts.iter().any(|part| !identifier(part)) {
+                return Err(Error::Configuration(format!(
+                    "{setting}.allowed_modules: expected module paths like platform::ffi"
+                )));
+            }
+            modules.push(parts);
+        }
+        Ok(Assertion {
+            functions: self.functions,
+            macros: self.macros,
+            global_types: self.global_types,
+            global_words: self.global_words,
+            target: self.target.compile(&format!("{setting}.target"), true)?,
+            exclude: self
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            scope: self.scope,
+            allowed_targets: self
+                .allowed_targets
+                .map(|target| target.compile(&format!("{setting}.allowed_targets"), true))
+                .transpose()?,
+            allowed_modules: modules,
+            setting,
+        })
+    }
+
+    fn validate(&self, setting: &str) -> Result<(), Error> {
+        if self.functions.is_empty() {
+            return Err(Error::Configuration(format!(
+                "{setting}.functions cannot be empty"
+            )));
+        }
+        if self.global_types.is_empty() != self.global_words.is_empty() {
+            return Err(Error::Configuration(format!(
+                "{setting}: global_types and global_words must be configured together"
+            )));
+        }
+        for value in self
+            .functions
+            .iter()
+            .chain(&self.macros)
+            .chain(&self.global_types)
+            .chain(&self.global_words)
+        {
+            if value.split("::").any(|part| !identifier(part)) {
+                return Err(Error::Configuration(format!(
+                    "{setting}: invalid API or word '{value}'"
+                )));
+            }
+        }
+        if self
+            .global_words
+            .iter()
+            .any(|word| !word.bytes().all(|byte| byte.is_ascii_lowercase()))
+        {
+            return Err(Error::Configuration(format!(
+                "{setting}.global_words must be lowercase words"
+            )));
+        }
+        Ok(())
+    }
+}
+
+fn identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().enumerate().all(|(index, byte)| {
+            byte == b'_' || byte.is_ascii_alphabetic() || (index > 0 && byte.is_ascii_digit())
+        })
 }

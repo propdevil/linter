@@ -1,7 +1,7 @@
 use super::{
     AsyncBlocking,
     config::{Assertion, Scope},
-    environment::{Binding, Environment, name},
+    environment::{Binding, Environment, name, references},
 };
 use crate::Source;
 use linter::{Evidence, Finding, Rule, Span};
@@ -67,25 +67,7 @@ impl Scan<'_> {
                 }
             }
             "block" => self.block(node, env, active),
-            "async_block" | "closure_expression" => {
-                let mut inner = env.clone();
-                self.parameters(node, &mut inner);
-                let future = node.kind() == "async_block" || is_async(node);
-                if future {
-                    inner.hidden.clear();
-                    for (name, binding) in &mut inner.bindings {
-                        if !references(node, name, &self.source.text) {
-                            binding.guard = None;
-                        }
-                    }
-                }
-                if let Some(body) = node
-                    .child_by_field_name("body")
-                    .or_else(|| node.named_child(node.named_child_count().saturating_sub(1)))
-                {
-                    self.visit(body, &mut inner, active || future);
-                }
-            }
+            "async_block" | "closure_expression" => self.closure(node, env, active),
             "let_declaration" => self.local(node, env, active),
             "call_expression" => self.call(node, env, active),
             "await_expression" => {
@@ -96,14 +78,7 @@ impl Scan<'_> {
             }
             "if_expression" => self.branch(node, env, active),
             "while_expression" | "for_expression" | "loop_expression" | "match_expression" => {
-                let previous = env.clone();
-                self.children(node, env, active);
-                for (name, binding) in previous.bindings {
-                    if binding.guard.is_some() {
-                        env.bindings.entry(name).or_default().guard = binding.guard;
-                    }
-                }
-                env.hidden.extend(previous.hidden);
+                self.repetition(node, env, active);
             }
             "assignment_expression" => {
                 self.children(node, env, active);
@@ -120,6 +95,37 @@ impl Scan<'_> {
             }
             _ => self.children(node, env, active),
         }
+    }
+    fn closure(&mut self, node: Node<'_>, env: &mut Environment, active: bool) {
+        let mut inner = env.clone();
+        self.parameters(node, &mut inner);
+        let future = node.kind() == "async_block" || is_async(node);
+        if future {
+            inner.hidden.clear();
+            for (_, binding) in inner
+                .bindings
+                .iter_mut()
+                .filter(|(name, _)| !references(node, name, &self.source.text))
+            {
+                binding.guard = None;
+            }
+        }
+        if let Some(body) = node
+            .child_by_field_name("body")
+            .or_else(|| node.named_child(node.named_child_count().saturating_sub(1)))
+        {
+            self.visit(body, &mut inner, active || future);
+        }
+    }
+    fn repetition(&mut self, node: Node<'_>, env: &mut Environment, active: bool) {
+        let previous = env.clone();
+        self.children(node, env, active);
+        for (name, binding) in previous.bindings {
+            if binding.guard.is_some() {
+                env.bindings.entry(name).or_default().guard = binding.guard;
+            }
+        }
+        env.hidden.extend(previous.hidden);
     }
     fn children(&mut self, node: Node<'_>, env: &mut Environment, active: bool) {
         let mut cursor = node.walk();
@@ -281,33 +287,7 @@ impl Scan<'_> {
         let function = node.child_by_field_name("function");
         let path = function.and_then(|function| env.resolve(function, &self.source.text));
         if self.selected(node, active) {
-            if let Some(path) = path
-                .as_ref()
-                .filter(|path| self.assertion.functions.contains(*path))
-            {
-                self.report(
-                    node,
-                    &format!(
-                        "configured blocking operation '{path}' can block the async executor thread"
-                    ),
-                    None,
-                );
-            } else if let Some((receiver, method)) =
-                function.and_then(|function| method(function, &self.source.text))
-                && let Some(ty) = self.receiver_type(receiver, env)
-                && self.assertion.methods.iter().any(|policy| {
-                    policy.receiver == ty && policy.methods.iter().any(|name| name == method)
-                })
-            {
-                self.report(
-                    node,
-                    &format!(
-                        "configured blocking method '{ty}::{method}' \
-                can block the async executor thread"
-                    ),
-                    None,
-                );
-            }
+            self.operation(node, function, path.as_ref(), env);
         }
         if let Some(function) = function {
             self.visit(function, env, active);
@@ -329,15 +309,50 @@ impl Scan<'_> {
         if function
             .is_some_and(|function| matches!(function.kind(), "identifier" | "scoped_identifier"))
         {
-            let mut cursor = arguments.walk();
-            for argument in arguments
-                .named_children(&mut cursor)
-                .filter(|node| node.kind() == "identifier")
-            {
-                if let Some(binding) = env.bindings.get_mut(self.text(argument)) {
-                    binding.guard = None;
-                }
+            self.transfer(arguments, env);
+        }
+    }
+    fn transfer(&self, arguments: Node<'_>, env: &mut Environment) {
+        let mut cursor = arguments.walk();
+        for argument in arguments
+            .named_children(&mut cursor)
+            .filter(|node| node.kind() == "identifier")
+        {
+            if let Some(binding) = env.bindings.get_mut(self.text(argument)) {
+                binding.guard = None;
             }
+        }
+    }
+    fn operation(
+        &mut self,
+        node: Node<'_>,
+        function: Option<Node<'_>>,
+        path: Option<&String>,
+        env: &Environment,
+    ) {
+        if let Some(path) = path.filter(|path| self.assertion.functions.contains(*path)) {
+            self.report(
+                node,
+                &format!(
+                    "configured blocking operation '{path}' can block the async executor thread"
+                ),
+                None,
+            );
+        } else if let Some((receiver, method)) =
+            function.and_then(|function| method(function, &self.source.text))
+            && let Some(ty) = self.receiver_type(receiver, env)
+            && self.assertion.methods.iter().any(|policy| {
+                policy.receiver == ty && policy.methods.iter().any(|name| name == method)
+            })
+        {
+            self.report(
+                node,
+                &format!(
+                    "configured blocking method '{ty}::{method}' \
+            can block the async executor thread"
+                ),
+                None,
+            );
         }
     }
     fn callback(&mut self, node: Node<'_>, env: &mut Environment, active: bool) {
@@ -348,20 +363,21 @@ impl Scan<'_> {
                     self.callback(child, env, active);
                 }
             }
-            "block" => {
-                let mut inner = env.clone();
-                let mut cursor = node.walk();
-                let children: Vec<_> = node.named_children(&mut cursor).collect();
-                for (index, child) in children.iter().enumerate() {
-                    if index + 1 == children.len() {
-                        self.callback(*child, &mut inner, active);
-                    } else {
-                        self.visit(*child, &mut inner, active);
-                    }
-                }
-            }
+            "block" => self.callback_block(node, env, active),
             _ => self.visit(node, env, active),
         }
+    }
+    fn callback_block(&mut self, node: Node<'_>, env: &Environment, active: bool) {
+        let mut inner = env.clone();
+        let mut cursor = node.walk();
+        let children: Vec<_> = node.named_children(&mut cursor).collect();
+        let Some((last, preceding)) = children.split_last() else {
+            return;
+        };
+        for child in preceding {
+            self.visit(*child, &mut inner, active);
+        }
+        self.callback(*last, &mut inner, active);
     }
     fn branch(&mut self, node: Node<'_>, env: &mut Environment, active: bool) {
         if let Some(condition) = node.child_by_field_name("condition") {
@@ -412,31 +428,29 @@ impl Scan<'_> {
         }
     }
     fn report(&mut self, node: Node<'_>, message: &str, guard: Option<Range<usize>>) {
+        let mut related: Vec<_> = guard
+            .map(|range| Evidence {
+                path: self.source.path.clone(),
+                span: Some(Span::new(&self.source.text, range)),
+                message:
+                    "Synchronous guard acquired here and not proven dropped before suspension."
+                        .into(),
+            })
+            .into_iter()
+            .collect();
+        if let Some(scope) = async_owner(node) {
+            related.push(Evidence {
+                path: self.source.path.clone(),
+                span: Some(Span::new(&self.source.text, scope.byte_range())),
+                message: "Operation executes in this async lexical scope.".into(),
+            });
+        }
         self.findings.push(Finding {
             rule: AsyncBlocking::ID,
             path: self.source.path.clone(),
             configuration: self.assertion.setting.clone(),
             span: Some(Span::new(&self.source.text, node.byte_range())),
-            related: guard
-                .map(|range| Evidence {
-                    path: self.source.path.clone(),
-                    span: Some(Span::new(&self.source.text, range)),
-                    message: "\
-                Synchronous guard acquired here and not proven dropped before suspension\
-                ."
-                    .into(),
-                })
-                .into_iter()
-                .chain(async_owner(node).map(|scope| {
-                    Evidence {
-                        path: self.source.path.clone(),
-                        span: Some(Span::new(&self.source.text, scope.byte_range())),
-                        message: "\
-                Operation executes in this async lexical scope."
-                            .into(),
-                    }
-                }))
-                .collect(),
+            related,
             message: message.into(),
             instruction: "Use an asynchronous operation or isol\
                 ate blocking work in a configured worker callback; release synchronous g\
@@ -465,14 +479,6 @@ fn is_async(node: Node<'_>) -> bool {
                     .any(|node| node.kind() == "async")
             })
     })
-}
-fn references(node: Node<'_>, name: &str, text: &str) -> bool {
-    if node.kind() == "identifier" && &text[node.byte_range()] == name {
-        return true;
-    }
-    let mut cursor = node.walk();
-    node.named_children(&mut cursor)
-        .any(|child| references(child, name, text))
 }
 
 fn async_owner(mut node: Node<'_>) -> Option<Node<'_>> {

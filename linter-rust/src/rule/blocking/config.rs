@@ -58,76 +58,81 @@ impl Config {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(index, definition)| {
-                let setting = format!("rules.\"rust/async-blocking-operation\"[{index}]");
-                if definition.blocking_functions.is_empty()
-                    && definition.blocking_methods.is_empty()
-                {
-                    return Err(Error::Configuration(format!(
-                        "{setting}: configure blocking_functions or blocking_methods"
-                    )));
-                }
-                for path in definition
-                    .blocking_functions
-                    .iter()
-                    .chain(&definition.blocking_contexts)
-                {
-                    validate(path, true, &setting)?;
-                }
-                for method in &definition.guard_adapters {
-                    validate(method, false, &setting)?;
-                }
-                for policy in &definition.blocking_methods {
-                    validate(&policy.receiver, true, &setting)?;
-                    if policy.methods.is_empty() {
-                        return Err(Error::Configuration(format!(
-                            "{setting}.blocking_methods: methods cannot be empty"
-                        )));
-                    }
-                    for method in policy.methods.iter().chain(&policy.fluent_methods) {
-                        validate(method, false, &setting)?;
-                    }
-                    for path in &policy.constructors {
-                        validate(path, true, &setting)?;
-                    }
-                }
-                Ok(Assertion {
-                    target: definition
-                        .target
-                        .compile(&format!("{setting}.target"), true)?,
-                    exclude: definition
-                        .exclude
-                        .map(|value| value.compile(&format!("{setting}.exclude"), true))
-                        .transpose()?,
-                    allowed: definition
-                        .allowed_targets
-                        .map(|value| value.compile(&format!("{setting}.allowed_targets"), true))
-                        .transpose()?,
-                    scope: definition.scope,
-                    functions: definition.blocking_functions.into_iter().collect(),
-                    methods: definition.blocking_methods,
-                    contexts: definition.blocking_contexts.into_iter().collect(),
-                    adapters: definition.guard_adapters.into_iter().collect(),
-                    setting,
-                })
-            })
+            .map(|(index, definition)| definition.compile(index))
             .collect()
     }
 }
 fn validate(value: &str, path: bool, setting: &str) -> Result<(), Error> {
-    if (!path && value.contains("::"))
-        || value.split("::").any(|word| {
-            word.is_empty()
-                || !word.bytes().enumerate().all(|(index, byte)| {
-                    byte == b'_'
-                        || byte.is_ascii_alphabetic()
-                        || (index > 0 && byte.is_ascii_digit())
-                })
-        })
-    {
+    if (!path && value.contains("::")) || value.split("::").any(|word| !identifier(word)) {
         return Err(Error::Configuration(format!(
             "{setting}: invalid API identifier '{value}'"
         )));
     }
     Ok(())
+}
+
+impl Definition {
+    fn compile(self, index: usize) -> Result<Assertion, Error> {
+        let setting = format!("rules.\"rust/async-blocking-operation\"[{index}]");
+        if self.blocking_functions.is_empty() && self.blocking_methods.is_empty() {
+            return Err(Error::Configuration(format!(
+                "{setting}: configure blocking_functions or blocking_methods"
+            )));
+        }
+        for path in self
+            .blocking_functions
+            .iter()
+            .chain(&self.blocking_contexts)
+        {
+            validate(path, true, &setting)?;
+        }
+        for method in &self.guard_adapters {
+            validate(method, false, &setting)?;
+        }
+        for policy in &self.blocking_methods {
+            policy.validate(&setting)?;
+        }
+        Ok(Assertion {
+            target: self.target.compile(&format!("{setting}.target"), true)?,
+            exclude: self
+                .exclude
+                .map(|value| value.compile(&format!("{setting}.exclude"), true))
+                .transpose()?,
+            allowed: self
+                .allowed_targets
+                .map(|value| value.compile(&format!("{setting}.allowed_targets"), true))
+                .transpose()?,
+            scope: self.scope,
+            functions: self.blocking_functions.into_iter().collect(),
+            methods: self.blocking_methods,
+            contexts: self.blocking_contexts.into_iter().collect(),
+            adapters: self.guard_adapters.into_iter().collect(),
+            setting,
+        })
+    }
+}
+
+fn identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().enumerate().all(|(index, byte)| {
+            byte == b'_' || byte.is_ascii_alphabetic() || (index > 0 && byte.is_ascii_digit())
+        })
+}
+
+impl Methods {
+    fn validate(&self, setting: &str) -> Result<(), Error> {
+        validate(&self.receiver, true, setting)?;
+        if self.methods.is_empty() {
+            return Err(Error::Configuration(format!(
+                "{setting}.blocking_methods: methods cannot be empty"
+            )));
+        }
+        for method in self.methods.iter().chain(&self.fluent_methods) {
+            validate(method, false, setting)?;
+        }
+        for path in &self.constructors {
+            validate(path, true, setting)?;
+        }
+        Ok(())
+    }
 }

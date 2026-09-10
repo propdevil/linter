@@ -34,3 +34,12 @@ pub(super) fn name(node: Node<'_>, text: &str) -> Option<String> {
     }
     None
 }
+
+pub(super) fn references(node: Node<'_>, name: &str, text: &str) -> bool {
+    if node.kind() == "identifier" && &text[node.byte_range()] == name {
+        return true;
+    }
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .any(|child| references(child, name, text))
+}

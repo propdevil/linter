@@ -82,43 +82,45 @@ impl Scan<'_, '_> {
                 }
                 return;
             }
-            "call_expression" if self.selected(node) => {
-                if let Some(path) = node
-                    .child_by_field_name("function")
-                    .and_then(|function| imports.resolve(function, &self.source.text))
-                    && self.assertion.functions.contains(&path)
-                {
-                    self.report(
-                        node,
-                        &format!(
-                            "ambient process operation '{path}' is outside an approved boundary"
-                        ),
-                        None,
-                    );
-                }
-            }
+            "call_expression" => self.operation(node, imports, false),
             "macro_invocation" => {
-                if self.selected(node)
-                    && let Some(path) = node
-                        .child_by_field_name("macro")
-                        .and_then(|name| imports.resolve(name, &self.source.text))
-                    && self.assertion.macros.contains(&path)
-                {
-                    self.report(
-                        node,
-                        &format!(
-                            "configured compile-time environment macr\
-                o '{path}' is outside an approved boundary"
-                        ),
-                        None,
-                    );
-                }
+                self.operation(node, imports, true);
                 return;
             }
             "static_item" if self.selected(node) => self.global(node, imports),
             _ => {}
         }
         self.children(node, imports);
+    }
+    fn operation(&mut self, node: Node<'_>, imports: &Imports, is_macro: bool) {
+        if !self.selected(node) {
+            return;
+        }
+        let (field, configured, description) = if is_macro {
+            (
+                "macro",
+                &self.assertion.macros,
+                "configured compile-time environment macro",
+            )
+        } else {
+            (
+                "function",
+                &self.assertion.functions,
+                "ambient process operation",
+            )
+        };
+        let Some(path) = node
+            .child_by_field_name(field)
+            .and_then(|name| imports.resolve(name, &self.source.text))
+            .filter(|path| configured.contains(path))
+        else {
+            return;
+        };
+        self.report(
+            node,
+            &format!("{description} '{path}' is outside an approved boundary"),
+            None,
+        );
     }
     fn children(&mut self, node: Node<'_>, imports: &mut Imports) {
         let mut cursor = node.walk();
