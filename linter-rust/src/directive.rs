@@ -23,7 +23,7 @@ fn visit(node: Node<'_>, source: &Source, output: &mut Vec<Directive>) {
             &source.path,
             &source.text[node.byte_range()],
             Span::new(&source.text, node.byte_range()),
-            next.map(|next| Span::new(&source.text, next.byte_range())),
+            next.map(|next| Span::new(&source.text, node.end_byte()..next.end_byte())),
         ) {
             output.push(directive);
         }

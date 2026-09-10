@@ -40,7 +40,8 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<UnsafeBoundary>()?
         .register::<FreeFunction>()?
         .register::<RedundantNamespace>()?
-        .register::<SingleUse>()
+        .register::<SingleUse>()?
+        .register::<ProvisionalComment>()
 }
 
 mod declaration;
@@ -75,3 +76,5 @@ pub use rule::safety::{Config as UnsafeBoundaryConfig, UnsafeBoundary};
 
 pub use rule::namespace::{Config as RedundantNamespaceConfig, RedundantNamespace};
 pub use rule::single::{Config as SingleUseConfig, SingleUse};
+
+pub use rule::provisional::ProvisionalComment;

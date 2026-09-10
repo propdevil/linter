@@ -21,3 +21,5 @@ pub(crate) mod format;
 pub(crate) mod tidy;
 
 pub(crate) mod cppcheck;
+
+pub(crate) mod provisional;

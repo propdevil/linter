@@ -266,3 +266,7 @@ target = "**/*.rs"
 
 [[rules."rust/single-use-free-function"]]
 target = "**/*.rs"
+
+[[rules."rust/provisional-diagnostic"]]
+target = "**/*.rs"
+terms = ["temporary", "diagnostic"]

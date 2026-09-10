@@ -29,7 +29,8 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<TestOnlyState>()?
         .register::<Format>()?
         .register::<Tidy>()?
-        .register::<Cppcheck>()
+        .register::<Cppcheck>()?
+        .register::<ProvisionalComment>()
 }
 
 pub use rule::allocation::Allocation;
@@ -51,3 +52,5 @@ mod compilation;
 pub use rule::tidy::Tidy;
 
 pub use rule::cppcheck::Cppcheck;
+
+pub use rule::provisional::ProvisionalComment;

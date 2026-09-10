@@ -43,3 +43,7 @@ operations = ["gets", "vsprintf"]
 [[rules."c/interface-breadth"]]
 target = "**/*.h"
 max_functions = 24
+
+[[rules."c/provisional-diagnostic"]]
+target = "**/*.{c,h}"
+terms = ["temporary", "diagnostic"]
