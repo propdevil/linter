@@ -37,3 +37,4 @@ pub use rule::state::{Config as StringStateConfig, StringState};
 pub use rule::trait_count::{Config as TraitMethodCountConfig, TraitMethodCount};
 
 pub use rule::struct_words::{Config as StructWordsConfig, StructWords};
+pub use rule::empty::{Config as EmptyStructConfig, EmptyStruct};
