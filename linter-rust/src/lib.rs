@@ -35,7 +35,10 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<SelfConstructor>()?
         .register::<ModulePrefix>()?
         .register::<GodObject>()?
-        .register::<DetachedConstructor>()
+        .register::<DetachedConstructor>()?
+        .register::<RedundantAccessor>()?
+        .register::<UnsafeBoundary>()?
+        .register::<FreeFunction>()
 }
 
 mod declaration;

@@ -249,3 +249,14 @@ excluded_suffixes = ["Builder"]
 
 [[rules."rust/detached-constructor"]]
 target = "**/*.rs"
+
+[[rules."rust/redundant-accessor"]]
+target = "**/*.rs"
+
+[[rules."rust/unsafe-boundary"]]
+target = "**/*.rs"
+
+[[rules."rust/free-function"]]
+target = "**/*.rs"
+mode = "receiver"
+boundary_derives = ["clap::Parser", "clap::Args", "Parser", "Args"]

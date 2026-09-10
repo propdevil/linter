@@ -28,7 +28,8 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<ForbiddenCall>()?
         .register::<TestOnlyState>()?
         .register::<Format>()?
-        .register::<Tidy>()
+        .register::<Tidy>()?
+        .register::<Cppcheck>()
 }
 
 pub use rule::allocation::Allocation;
@@ -48,3 +49,5 @@ pub use rule::format::Format;
 
 mod compilation;
 pub use rule::tidy::Tidy;
+
+pub use rule::cppcheck::Cppcheck;
