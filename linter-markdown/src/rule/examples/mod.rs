@@ -115,9 +115,18 @@ fn leading_title(source: &Source, titles: &[std::ops::Range<usize>]) -> bool {
     let [title] = titles else {
         return false;
     };
+    let metadata_end = match source.events.first() {
+        Some((Event::Start(Tag::MetadataBlock(_)), _)) => source
+            .events
+            .iter()
+            .position(|(event, _)| matches!(event, Event::End(TagEnd::MetadataBlock(_))))
+            .map_or(source.events.len(), |position| position + 1),
+        _ => 0,
+    };
     source
         .events
         .iter()
+        .skip(metadata_end)
         .find(|(event, _)| !matches!(event, Event::End(TagEnd::HtmlBlock)))
         .is_some_and(|(event, range)| {
             matches!(
@@ -212,6 +221,39 @@ mod tests {
             "# Title\n## Case\n~~~\na\n```",
         ] {
             assert_eq!(check(text, "").unwrap().findings.len(), 1, "{text}");
+        }
+    }
+    #[test]
+    fn skill_frontmatter_precedes_the_title_and_preserves_fence_offsets() {
+        let metadata = "---\nname: code-review\ndescription: |\n  Review café changes.\n  # Not a \
+            title\n---\n";
+        let valid =
+            format!("{metadata}# Code review\n\n## Example\n```rust\nfn main() {{}}\n```\n");
+        assert!(check(&valid, "").unwrap().findings.is_empty());
+        let open = format!("{metadata}# Code review\n\n## Example\n```rust\nfn main() {{}}\n");
+        let findings = check(&open, "").unwrap().findings;
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].message.contains("fence"));
+        let span = findings[0].span.as_ref().unwrap();
+        assert_eq!(span.line, 10);
+        assert_eq!(span.start, open.find("```rust").unwrap());
+    }
+    #[test]
+    fn metadata_does_not_hide_extra_titles_or_content() {
+        for text in [
+            "---\nname: example\n---\nIntroduction\n\n# Title\n## Case",
+            "---\nname: example\n---\n# Title\n# Another\n## Case",
+            "---\nname: example\n# Title\n## Case",
+            "--\nname: example\n--\n# Title\n## Case",
+            "Introduction\n\n---\nname: example\n---\n# Title\n## Case",
+        ] {
+            let findings = check(text, "").unwrap().findings;
+            assert!(
+                findings
+                    .iter()
+                    .any(|finding| finding.message.contains("level-one title")),
+                "{text}"
+            );
         }
     }
     #[test]

@@ -1,5 +1,5 @@
 use linter::{Error, Project};
-use pulldown_cmark::{Event, Parser};
+use pulldown_cmark::{Event, Options, Parser};
 use std::{fs, ops::Range, path::PathBuf};
 
 pub struct Source {
@@ -27,7 +27,7 @@ impl linter::Analysis for Analysis {
             }
             let path = project.root().join(&entry.path);
             let text = fs::read_to_string(&path).map_err(|source| Error::Io { path, source })?;
-            let events = Parser::new(&text)
+            let events = Parser::new_ext(&text, Options::ENABLE_YAML_STYLE_METADATA_BLOCKS)
                 .into_offset_iter()
                 .map(|(event, range)| (event.into_static(), range))
                 .collect();

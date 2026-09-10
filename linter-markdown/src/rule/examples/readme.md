@@ -18,6 +18,11 @@ H2 cases, and closed code fences. These values are the defaults. Set `min_cases`
 to zero for documents without case sections. At least one check must remain
 enabled. Optional `exclude` accepts the same selectors as `target`.
 
+A leading YAML frontmatter block delimited by `---` may precede the title, as in
+`SKILL.md`. Its metadata is not document content; prose after it still cannot
+precede the title. Unclosed frontmatter does not satisfy the title requirement.
+The parser recognizes metadata delimiters; this rule does not validate YAML values.
+
 Setext headings count. Heading-like lines inside code or quotes do not count.
 Backticks and tildes use matching fence characters and sufficient closing length.
 The parser runs once per document per registry invocation. File exclusion and
