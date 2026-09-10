@@ -132,7 +132,10 @@ impl linter::Analysis for CargoGraph {
                     alias: alias.into(),
                     package: package_name,
                     requirement: specification.version().map(str::to_owned),
-                    source: specification.source(),
+                    source: resolved
+                        .as_ref()
+                        .map(|path| format!("path:{}", path.display()))
+                        .or_else(|| specification.source()),
                     manifest: resolved
                         .filter(|p| documents.get(p).is_some_and(|(_, d)| d.package.is_some()))
                         .map(|p| p.strip_prefix(&root).unwrap_or(&p).to_owned()),
