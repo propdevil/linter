@@ -20,5 +20,8 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
     registry
         .register::<FileLength>()?
         .register::<FunctionLength>()?
-        .register::<NestingRule>()
+        .register::<NestingRule>()?
+        .register::<Allocation>()
 }
+
+pub use rule::allocation::Allocation;
