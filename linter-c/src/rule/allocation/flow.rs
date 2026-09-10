@@ -53,29 +53,7 @@ impl Flow<'_> {
                 false
             }
             "if_statement" => self.branch(node, state),
-            "compound_statement" => {
-                let saved = state.clone();
-                let mut declared = Vec::new();
-                let mut live = true;
-                let mut cursor = node.walk();
-                for child in node.named_children(&mut cursor) {
-                    if !live {
-                        break;
-                    }
-                    if child.kind() == "declaration" {
-                        collect_declarations(child, self.source, &mut declared);
-                    }
-                    live = self.statement(child, state);
-                }
-                for name in declared {
-                    if let Some(value) = saved.get(&name) {
-                        state.insert(name, value.clone());
-                    } else {
-                        state.remove(&name);
-                    }
-                }
-                live
-            }
+            "compound_statement" => self.block(node, state),
             "while_statement" | "for_statement" | "do_statement" | "switch_statement" => {
                 if let Some(initializer) = node.child_by_field_name("initializer") {
                     self.expression(initializer, state);
@@ -100,6 +78,29 @@ impl Flow<'_> {
                 true
             }
         }
+    }
+    fn block(&mut self, node: Node<'_>, state: &mut State) -> bool {
+        let saved = state.clone();
+        let mut declared = Vec::new();
+        let mut live = true;
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            if !live {
+                break;
+            }
+            if child.kind() == "declaration" {
+                collect_declarations(child, self.source, &mut declared);
+            }
+            live = self.statement(child, state);
+        }
+        for name in declared {
+            if let Some(value) = saved.get(&name) {
+                state.insert(name, value.clone());
+            } else {
+                state.remove(&name);
+            }
+        }
+        live
     }
     fn branch(&mut self, node: Node<'_>, state: &mut State) -> bool {
         let Some(condition) = node.child_by_field_name("condition") else {
@@ -134,55 +135,10 @@ impl Flow<'_> {
             return;
         }
         if node.kind() == "declaration" {
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                if child.kind() != "init_declarator"
-                    && let Some(name) = identifier(child, self.source)
-                {
-                    state.remove(&name);
-                }
-            }
+            self.declaration(node, state);
         }
-        if matches!(node.kind(), "init_declarator" | "assignment_expression") {
-            let left = node
-                .child_by_field_name("declarator")
-                .or_else(|| node.child_by_field_name("left"));
-            let right = node
-                .child_by_field_name("value")
-                .or_else(|| node.child_by_field_name("right"));
-            if let (Some(left), Some(right)) = (left, right) {
-                self.expression(right, state);
-                if node.kind() == "assignment_expression" && left.kind() != "identifier" {
-                    self.expression(left, state);
-                    return;
-                }
-                if let Some(name) = identifier(left, self.source) {
-                    let value = self.value(right, state, node.byte_range());
-                    if let Some(value) = value {
-                        state.insert(name, value);
-                    } else {
-                        state.remove(&name);
-                    }
-                }
-                return;
-            }
-        }
-        if node.kind() == "binary_expression" {
-            let op = node.child_by_field_name("operator").map(|op| self.text(op));
-            if matches!(op, Some("&&" | "||")) {
-                let truth = op == Some("&&");
-                if let (Some(left), Some(right)) = (
-                    node.child_by_field_name("left"),
-                    node.child_by_field_name("right"),
-                ) {
-                    self.expression(left, state);
-                    let mut branch = state.clone();
-                    self.refine(left, truth, &mut branch);
-                    self.expression(right, &mut branch);
-                    *state = merge(state, &branch);
-                    return;
-                }
-            }
+        if self.assignment(node, state) || self.short_circuit(node, state) {
+            return;
         }
         let dereference = match node.kind() {
             "subscript_expression" => node.child_by_field_name("argument"),
@@ -215,6 +171,67 @@ impl Flow<'_> {
         for child in node.named_children(&mut cursor) {
             self.expression(child, state);
         }
+    }
+    fn declaration(&self, node: Node<'_>, state: &mut State) {
+        let mut cursor = node.walk();
+        for child in node
+            .named_children(&mut cursor)
+            .filter(|child| child.kind() != "init_declarator")
+        {
+            if let Some(name) = identifier(child, self.source) {
+                state.remove(&name);
+            }
+        }
+    }
+    fn assignment(&mut self, node: Node<'_>, state: &mut State) -> bool {
+        if !matches!(node.kind(), "init_declarator" | "assignment_expression") {
+            return false;
+        }
+        let left = node
+            .child_by_field_name("declarator")
+            .or_else(|| node.child_by_field_name("left"));
+        let right = node
+            .child_by_field_name("value")
+            .or_else(|| node.child_by_field_name("right"));
+        let (Some(left), Some(right)) = (left, right) else {
+            return false;
+        };
+        self.expression(right, state);
+        if node.kind() == "assignment_expression" && left.kind() != "identifier" {
+            self.expression(left, state);
+            return true;
+        }
+        let Some(name) = identifier(left, self.source) else {
+            return true;
+        };
+        if let Some(value) = self.value(right, state, node.byte_range()) {
+            state.insert(name, value);
+        } else {
+            state.remove(&name);
+        }
+        true
+    }
+    fn short_circuit(&mut self, node: Node<'_>, state: &mut State) -> bool {
+        if node.kind() != "binary_expression" {
+            return false;
+        }
+        let op = node.child_by_field_name("operator").map(|op| self.text(op));
+        if !matches!(op, Some("&&" | "||")) {
+            return false;
+        }
+        let truth = op == Some("&&");
+        let (Some(left), Some(right)) = (
+            node.child_by_field_name("left"),
+            node.child_by_field_name("right"),
+        ) else {
+            return false;
+        };
+        self.expression(left, state);
+        let mut branch = state.clone();
+        self.refine(left, truth, &mut branch);
+        self.expression(right, &mut branch);
+        *state = merge(state, &branch);
+        true
     }
     fn value(&self, node: Node<'_>, state: &State, origin: Range<usize>) -> Option<Value> {
         let node = unwrap(node);
@@ -249,26 +266,31 @@ impl Flow<'_> {
             self.refine(argument, !truth, state);
             return;
         }
-        if let (Some(left), Some(right)) = (
+        let (Some(left), Some(right)) = (
             node.child_by_field_name("left"),
             node.child_by_field_name("right"),
-        ) {
-            if (operator == Some("&&") && truth) || (operator == Some("||") && !truth) {
-                self.refine(left, truth, state);
-                self.refine(right, truth, state);
-            }
-            if (operator == Some("!=") && truth) || (operator == Some("==") && !truth) {
-                for (value, zero) in [(left, right), (right, left)] {
-                    let value = unwrap(value);
-                    if value.kind() == "identifier"
-                        && matches!(self.text(unwrap(zero)), "NULL" | "0" | "nullptr")
-                    {
-                        self.prove(self.text(value), state);
-                    }
-                }
+        ) else {
+            return;
+        };
+        if (operator == Some("&&") && truth) || (operator == Some("||") && !truth) {
+            self.refine(left, truth, state);
+            self.refine(right, truth, state);
+        }
+        if (operator == Some("!=") && truth) || (operator == Some("==") && !truth) {
+            self.comparison(left, right, state);
+        }
+    }
+    fn comparison(&self, left: Node<'_>, right: Node<'_>, state: &mut State) {
+        for (value, zero) in [(left, right), (right, left)] {
+            let value = unwrap(value);
+            if value.kind() == "identifier"
+                && matches!(self.text(unwrap(zero)), "NULL" | "0" | "nullptr")
+            {
+                self.prove(self.text(value), state);
             }
         }
     }
+
     fn prove(&self, name: &str, state: &mut State) {
         if let Some(origin) = state.get(name).map(|value| value.origin.clone()) {
             for value in state.values_mut().filter(|value| value.origin == origin) {
@@ -336,14 +358,18 @@ fn merge(left: &State, right: &State) -> State {
     for (name, value) in right {
         result
             .entry(name.clone())
-            .and_modify(|other| {
-                if other.safe && !value.safe {
-                    *other = value.clone();
-                } else {
-                    other.safe = other.origin == value.origin && other.safe && value.safe;
-                }
-            })
+            .and_modify(|other| other.merge(value))
             .or_insert_with(|| value.clone());
     }
     result
+}
+
+impl Value {
+    fn merge(&mut self, other: &Self) {
+        if self.safe && !other.safe {
+            *self = other.clone();
+        } else {
+            self.safe = self.origin == other.origin && self.safe && other.safe;
+        }
+    }
 }

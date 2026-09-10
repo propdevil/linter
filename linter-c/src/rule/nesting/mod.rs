@@ -31,13 +31,7 @@ impl Rule for NestingRule {
             let assertions: Vec<_> = self
                 .assertions
                 .iter()
-                .filter(|assertion| {
-                    assertion.target.matches(&source.path)
-                        && !assertion
-                            .exclude
-                            .as_ref()
-                            .is_some_and(|exclude| exclude.matches(&source.path))
-                })
+                .filter(|assertion| assertion.selected(&source.path))
                 .collect();
             if !assertions.is_empty() {
                 visit(
@@ -92,24 +86,27 @@ fn maximum(node: Node<'_>, depth: usize) -> usize {
         && node
             .parent()
             .is_some_and(|parent| parent.kind() == "else_clause");
-    let depth = depth
-        + usize::from(
-            !else_if
-                && matches!(
-                    node.kind(),
-                    "if_statement"
-                        | "switch_statement"
-                        | "for_statement"
-                        | "while_statement"
-                        | "do_statement"
-                ),
-        );
+    let control = matches!(
+        node.kind(),
+        "if_statement" | "switch_statement" | "for_statement" | "while_statement" | "do_statement"
+    );
+    let depth = depth + usize::from(!else_if && control);
     let mut result = depth;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         result = result.max(maximum(child, depth));
     }
     result
+}
+
+impl Assertion {
+    fn selected(&self, path: &std::path::Path) -> bool {
+        self.target.matches(path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.matches(path))
+    }
 }
 
 #[cfg(test)]

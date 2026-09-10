@@ -33,14 +33,10 @@ impl Definition {
         let value = self;
         let setting = format!("rules.\"c/safety-rationale\"[{index}]");
         if value.operations.is_empty()
-            || value.operations.iter().any(|name| {
-                name.is_empty()
-                    || !name.bytes().enumerate().all(|(index, byte)| {
-                        byte == b'_'
-                            || byte.is_ascii_alphabetic()
-                            || (index > 0 && byte.is_ascii_digit())
-                    })
-            })
+            || value
+                .operations
+                .iter()
+                .any(|name| !crate::recovery::identifier(name))
         {
             return Err(Error::Configuration(format!(
                 "{setting}.operations: expected nonempty exact C function names"

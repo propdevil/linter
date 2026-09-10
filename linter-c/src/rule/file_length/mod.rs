@@ -30,13 +30,7 @@ impl Rule for FileLength {
             let assertions: Vec<_> = self
                 .assertions
                 .iter()
-                .filter(|assertion| {
-                    assertion.target.matches(&source.path)
-                        && !assertion
-                            .exclude
-                            .as_ref()
-                            .is_some_and(|exclude| exclude.matches(&source.path))
-                })
+                .filter(|assertion| assertion.selected(&source.path))
                 .collect();
             if assertions.is_empty() {
                 continue;
@@ -67,6 +61,16 @@ impl Rule for FileLength {
             status: Status::Completed,
             findings,
         })
+    }
+}
+
+impl Assertion {
+    fn selected(&self, path: &std::path::Path) -> bool {
+        self.target.matches(path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.matches(path))
     }
 }
 

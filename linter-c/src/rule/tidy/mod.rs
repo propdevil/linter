@@ -83,6 +83,15 @@ impl Assertion {
         command.arg(file);
         let output =
             crate::process::run(&mut command, root, self.timeout_ms, self.max_output_bytes)?;
+        self.diagnostics(root, file, output, findings)
+    }
+    fn diagnostics(
+        &self,
+        root: &Path,
+        file: &Path,
+        output: crate::process::Output,
+        findings: &mut Vec<Finding>,
+    ) -> Result<(), Error> {
         let text = format!(
             "{}{}",
             String::from_utf8_lossy(&output.stdout),

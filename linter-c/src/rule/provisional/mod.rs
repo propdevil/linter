@@ -23,15 +23,12 @@ impl Rule for ProvisionalComment {
     fn check(&self, _: &Project, analysis: &Analysis) -> Result<RuleResult, Error> {
         let mut findings = Vec::new();
         for source in &analysis.sources {
-            for assertion in &self.assertions {
-                if assertion.target.matches(&source.path)
-                    && !assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|target| target.matches(&source.path))
-                {
-                    assertion.visit(source.syntax.root_node(), source, &mut findings);
-                }
+            for assertion in self
+                .assertions
+                .iter()
+                .filter(|assertion| assertion.selected(&source.path))
+            {
+                assertion.visit(source.syntax.root_node(), source, &mut findings);
             }
         }
         Ok(RuleResult {
@@ -41,6 +38,14 @@ impl Rule for ProvisionalComment {
     }
 }
 impl Assertion {
+    fn selected(&self, path: &std::path::Path) -> bool {
+        self.target.matches(path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|target| target.matches(path))
+    }
+
     fn visit(&self, node: Node<'_>, source: &Source, findings: &mut Vec<Finding>) {
         if matches!(node.kind(), "comment" | "line_comment" | "block_comment") {
             self.comment(node, source, findings);

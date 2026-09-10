@@ -69,21 +69,7 @@ impl FileScan<'_> {
             return;
         }
         if node.kind() == "declaration" && context.function.is_some() {
-            let mut cursor = node.walk();
-            let external = node.named_children(&mut cursor).any(|child| {
-                child.kind() == "storage_class_specifier" && self.text(child) == "extern"
-            });
-            for child in node.children_by_field_name("declarator", &mut cursor) {
-                if !external
-                    && !is_function_declarator(child)
-                    && let Some(identifier) = declared_identifier(child)
-                {
-                    let name = self.text(identifier);
-                    if let Some(scope) = self.locals.last_mut() {
-                        scope.insert(name);
-                    }
-                }
-            }
+            self.local_declaration(node);
         }
         match node.kind() {
             "preproc_if" | "preproc_ifdef" | "preproc_elif" | "preproc_elifdef" => {
@@ -94,6 +80,28 @@ impl FileScan<'_> {
                 self.walk_definition(node, context);
                 return;
             }
+            _ => {
+                if !self.event(node, context) {
+                    return;
+                }
+            }
+        }
+        let inherited = Context {
+            predicate: context.predicate || is_predicate(node),
+            ..*context
+        };
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            let child_context = Context {
+                predicate: inherited.predicate || condition_field(node, child),
+                ..inherited
+            };
+            self.walk(child, &child_context);
+        }
+    }
+
+    fn event(&mut self, node: Node<'_>, context: &Context<'_>) -> bool {
+        match node.kind() {
             "declaration" if context.function.is_none() => {
                 self.record_file_scope_declaration(node, context);
             }
@@ -121,48 +129,56 @@ impl FileScan<'_> {
                     self.record_write(base, context);
                 }
             }
-            "call_expression" => {
-                if let Some(function) = node.child_by_field_name("function")
-                    && function.kind() == "identifier"
-                {
-                    let spelling = self.text(function);
-                    if self.shadowed(&spelling) {
-                        return;
-                    }
-                    let name = self.names.get(&spelling).cloned().unwrap_or(spelling);
-                    let site = self.site(function, context);
-                    self.corpus.calls.entry(name).or_default().push(site);
-                }
-            }
+            "call_expression" => return self.call(node, context),
             "identifier" if context.predicate && !context.test_only => {
-                let spelling = self.text(node);
-                if !self.shadowed(&spelling)
-                    && let Some(name) = self.names.get(&spelling)
-                {
-                    let site = self.site(node, context);
-                    self.corpus
-                        .predicate_reads
-                        .entry(name.clone())
-                        .or_default()
-                        .push(site);
-                }
+                self.predicate(node, context)
             }
             _ => {}
         }
-        let inherited = Context {
-            predicate: context.predicate || is_predicate(node),
-            ..*context
-        };
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            let child_context = Context {
-                predicate: inherited.predicate || condition_field(node, child),
-                ..inherited
-            };
-            self.walk(child, &child_context);
+        true
+    }
+    fn call(&mut self, node: Node<'_>, context: &Context<'_>) -> bool {
+        if let Some(function) = node.child_by_field_name("function")
+            && function.kind() == "identifier"
+        {
+            let spelling = self.text(function);
+            if self.shadowed(&spelling) {
+                return false;
+            }
+            let name = self.names.get(&spelling).cloned().unwrap_or(spelling);
+            let site = self.site(function, context);
+            self.corpus.calls.entry(name).or_default().push(site);
+        }
+        true
+    }
+    fn predicate(&mut self, node: Node<'_>, context: &Context<'_>) {
+        let spelling = self.text(node);
+        if !self.shadowed(&spelling)
+            && let Some(name) = self.names.get(&spelling)
+        {
+            let site = self.site(node, context);
+            self.corpus
+                .predicate_reads
+                .entry(name.clone())
+                .or_default()
+                .push(site);
         }
     }
-
+    fn local_declaration(&mut self, node: Node<'_>) {
+        let mut cursor = node.walk();
+        let external = node
+            .named_children(&mut cursor)
+            .any(|child| child.kind() == "storage_class_specifier" && self.text(child) == "extern");
+        for child in node.children_by_field_name("declarator", &mut cursor) {
+            if !external
+                && !is_function_declarator(child)
+                && let Some(identifier) = declared_identifier(child)
+            {
+                let name = self.text(identifier);
+                self.locals.last_mut().map(|scope| scope.insert(name));
+            }
+        }
+    }
     fn record_assignment(&mut self, node: Node<'_>, context: &Context<'_>) {
         let Some(left) = node.child_by_field_name("left") else {
             return;
@@ -255,44 +271,49 @@ impl FileScan<'_> {
     fn record_file_scope_declaration(&mut self, node: Node<'_>, context: &Context<'_>) {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            match child.kind() {
-                "identifier" | "pointer_declarator" | "array_declarator" => {
-                    if let Some(identifier) = declared_identifier(child)
-                        && !is_function_declarator(child)
-                    {
-                        let spelling = self.text(identifier);
-                        if let Some(name) = self.names.get(&spelling) {
-                            self.corpus
-                                .state
-                                .insert(name.clone(), self.site(identifier, context));
-                        }
-                    }
+            self.file_declarator(child, context);
+        }
+    }
+    fn file_declarator(&mut self, child: Node<'_>, context: &Context<'_>) {
+        match child.kind() {
+            "identifier" | "pointer_declarator" | "array_declarator" => {
+                if let Some(identifier) = declared_identifier(child)
+                    && !is_function_declarator(child)
+                {
+                    self.record_state(identifier, context);
                 }
-                "init_declarator" => {
-                    let Some(identifier) = child
-                        .child_by_field_name("declarator")
-                        .and_then(declared_identifier)
-                    else {
-                        continue;
-                    };
-                    let spelling = self.text(identifier);
-                    let Some(name) = self.names.get(&spelling).cloned() else {
-                        continue;
-                    };
-                    self.corpus
-                        .state
-                        .insert(name.clone(), self.site(identifier, context));
-                    let initializer = child.child_by_field_name("value");
-                    if initializer.is_some_and(|value| !self.is_zero(value)) {
-                        let site = self.site(identifier, context);
-                        self.corpus.writes.entry(name).or_default().push(site);
-                    }
-                }
-                _ => {}
             }
+            "init_declarator" => {
+                let Some(identifier) = child
+                    .child_by_field_name("declarator")
+                    .and_then(declared_identifier)
+                else {
+                    return;
+                };
+                let spelling = self.text(identifier);
+                let Some(name) = self.names.get(&spelling).cloned() else {
+                    return;
+                };
+                self.corpus
+                    .state
+                    .insert(name.clone(), self.site(identifier, context));
+                let initializer = child.child_by_field_name("value");
+                if initializer.is_some_and(|value| !self.is_zero(value)) {
+                    let site = self.site(identifier, context);
+                    self.corpus.writes.entry(name).or_default().push(site);
+                }
+            }
+            _ => {}
         }
     }
 
+    fn record_state(&mut self, identifier: Node<'_>, context: &Context<'_>) {
+        if let Some(name) = self.names.get(&self.text(identifier)) {
+            self.corpus
+                .state
+                .insert(name.clone(), self.site(identifier, context));
+        }
+    }
     fn is_zero(&self, node: Node<'_>) -> bool {
         matches!(
             self.text(node).trim(),

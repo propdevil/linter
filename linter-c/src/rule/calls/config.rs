@@ -37,14 +37,10 @@ impl Definition {
         let value = self;
         let setting = format!("rules.\"c/forbidden-call\"[{index}]");
         if value.functions.is_empty()
-            || value.functions.iter().any(|name| {
-                name.is_empty()
-                    || !name.bytes().enumerate().all(|(index, byte)| {
-                        byte == b'_'
-                            || byte.is_ascii_alphabetic()
-                            || (index > 0 && byte.is_ascii_digit())
-                    })
-            })
+            || value
+                .functions
+                .iter()
+                .any(|name| !crate::recovery::identifier(name))
         {
             return Err(Error::Configuration(format!(
                 "{setting}.functions: expected nonempty exact C function names"

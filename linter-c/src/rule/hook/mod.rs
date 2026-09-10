@@ -11,10 +11,10 @@ pub use config::Config;
 use corpus::{Context, Corpus};
 use scan::FileScan;
 
-pub struct TestOnlyState {
+pub struct TestState {
     assertions: Vec<Assertion>,
 }
-impl Rule for TestOnlyState {
+impl Rule for TestState {
     const ID: &'static str = "c/test-only-state";
     type Analysis = Analysis;
     type Config = Config;
@@ -47,13 +47,7 @@ impl Rule for TestOnlyState {
                 corpus
                     .findings(&assertion.setting)
                     .into_iter()
-                    .filter(|finding| {
-                        assertion.target.matches(&finding.path)
-                            && !assertion
-                                .exclude
-                                .as_ref()
-                                .is_some_and(|exclude| exclude.matches(&finding.path))
-                    }),
+                    .filter(|finding| assertion.selected(&finding.path)),
             );
         }
         findings.sort_by(|left, right| {
@@ -82,22 +76,15 @@ fn symbols(node: Node<'_>, source: &Source, names: &mut BTreeMap<String, String>
             child.kind() == "storage_class_specifier"
                 && &source.text[child.byte_range()] == "static"
         });
-        for child in node.children_by_field_name("declarator", &mut cursor) {
-            if let Some(identifier) = scan::declared_identifier(child) {
-                let name = source.text[identifier.byte_range()].to_owned();
-                let key = if private {
-                    format!("{}::{name}", source.path.display())
-                } else {
-                    name.clone()
-                };
-                names
-                    .entry(name)
-                    .and_modify(|existing| {
-                        if private {
-                            *existing = key.clone();
-                        }
-                    })
-                    .or_insert(key);
+        for identifier in node
+            .children_by_field_name("declarator", &mut cursor)
+            .filter_map(scan::declared_identifier)
+        {
+            let name = source.text[identifier.byte_range()].to_owned();
+            if private {
+                names.insert(name.clone(), format!("{}::{name}", source.path.display()));
+            } else {
+                names.entry(name.clone()).or_insert(name);
             }
         }
         return;
@@ -110,12 +97,22 @@ fn symbols(node: Node<'_>, source: &Source, names: &mut BTreeMap<String, String>
     }
 }
 
+impl Assertion {
+    fn selected(&self, path: &std::path::Path) -> bool {
+        self.target.matches(path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.matches(path))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
     fn check(root: &Path) -> Result<linter::Report, linter::Error> {
         linter::Registry::default()
-            .register::<super::TestOnlyState>()?
+            .register::<super::TestState>()?
             .check(root)
     }
     fn report(files: &[(&str, &str)]) -> linter::Report {

@@ -62,13 +62,11 @@ impl Corpus {
                 let Some(sites) = self.calls.get(name) else {
                     continue;
                 };
-                if sites
+                let test_only = sites
                     .iter()
-                    .all(|site| Self::site_is_test_only(site, &unreachable))
-                {
-                    unreachable.insert(name.clone());
-                    grown = true;
-                }
+                    .all(|site| Self::site_is_test_only(site, &unreachable));
+                grown |= test_only;
+                unreachable.extend(test_only.then(|| name.clone()));
             }
             if !grown {
                 return unreachable;

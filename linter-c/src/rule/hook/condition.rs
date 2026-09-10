@@ -36,32 +36,24 @@ fn evaluate(node: Node<'_>, source: &[u8], macros: &BTreeSet<String>) -> Option<
         "binary_expression" => {
             let left = evaluate(node.child_by_field_name("left")?, source, macros);
             let right = evaluate(node.child_by_field_name("right")?, source, macros);
-            match node
-                .child_by_field_name("operator")?
-                .utf8_text(source)
-                .ok()?
-            {
-                "&&" => {
-                    if left == Some(false) || right == Some(false) {
-                        Some(false)
-                    } else if left == Some(true) && right == Some(true) {
-                        Some(true)
-                    } else {
-                        None
-                    }
-                }
-                "||" => {
-                    if left == Some(true) || right == Some(true) {
-                        Some(true)
-                    } else if left == Some(false) && right == Some(false) {
-                        Some(false)
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            }
+            boolean(
+                node.child_by_field_name("operator")?
+                    .utf8_text(source)
+                    .ok()?,
+                left,
+                right,
+            )
         }
+        _ => None,
+    }
+}
+
+fn boolean(operator: &str, left: Option<bool>, right: Option<bool>) -> Option<bool> {
+    match operator {
+        "&&" if left == Some(false) || right == Some(false) => Some(false),
+        "&&" if left == Some(true) && right == Some(true) => Some(true),
+        "||" if left == Some(true) || right == Some(true) => Some(true),
+        "||" if left == Some(false) && right == Some(false) => Some(false),
         _ => None,
     }
 }

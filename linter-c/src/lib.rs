@@ -26,7 +26,7 @@ pub fn register(registry: linter::Registry) -> Result<linter::Registry, linter::
         .register::<Safety>()?
         .register::<Interface>()?
         .register::<ForbiddenCall>()?
-        .register::<TestOnlyState>()?
+        .register::<TestState>()?
         .register::<Format>()?
         .register::<Tidy>()?
         .register::<Cppcheck>()?
@@ -43,7 +43,7 @@ pub use rule::interface::Interface;
 
 pub use rule::calls::ForbiddenCall;
 
-pub use rule::hook::TestOnlyState;
+pub use rule::hook::TestState;
 
 mod process;
 pub use rule::format::Format;

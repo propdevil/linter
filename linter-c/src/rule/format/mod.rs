@@ -22,10 +22,11 @@ impl Rule for Format {
     fn check(&self, project: &Project, _: &()) -> Result<RuleResult, Error> {
         let mut findings = Vec::new();
         for assertion in &self.assertions {
-            for entry in project.entries().filter(|entry| entry.kind.is_file()) {
-                if assertion.selected(&entry.path) {
-                    assertion.inspect(project, &entry.path, &mut findings)?;
-                }
+            for entry in project
+                .entries()
+                .filter(|entry| entry.kind.is_file() && assertion.selected(&entry.path))
+            {
+                assertion.inspect(project, &entry.path, &mut findings)?;
             }
         }
         Ok(RuleResult {
@@ -59,21 +60,7 @@ impl Assertion {
             path: path.clone(),
             source,
         })?;
-        let executable = if self.executable.components().count() > 1 {
-            root.join(&self.executable)
-        } else {
-            self.executable.clone()
-        };
-        let output = crate::process::run(
-            Command::new(executable)
-                .arg(format!("--style={}", self.style))
-                .arg(format!("--fallback-style={}", self.fallback_style))
-                .arg("--")
-                .arg(&path),
-            &root,
-            self.timeout_ms,
-            self.max_output_bytes,
-        )?;
+        let output = self.format(&root, &path)?;
         if !output.status.success() || !output.stderr.is_empty() {
             return Err(Error::Analysis(format!(
                 "{}: formatter failed ({}): {}",
@@ -95,6 +82,23 @@ impl Assertion {
             });
         }
         Ok(())
+    }
+    fn format(&self, root: &Path, path: &Path) -> Result<crate::process::Output, Error> {
+        let executable = if self.executable.components().count() > 1 {
+            root.join(&self.executable)
+        } else {
+            self.executable.clone()
+        };
+        crate::process::run(
+            Command::new(executable)
+                .arg(format!("--style={}", self.style))
+                .arg(format!("--fallback-style={}", self.fallback_style))
+                .arg("--")
+                .arg(path),
+            root,
+            self.timeout_ms,
+            self.max_output_bytes,
+        )
     }
 }
 
