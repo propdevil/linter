@@ -54,3 +54,4 @@ pub use rule::receiver::{Config as ReceiverNameConfig, ReceiverName};
 pub use rule::path_modules::{Config as PathModulesConfig, PathModules};
 
 pub use rule::constructor::{Config as SelfConstructorConfig, SelfConstructor};
+pub use rule::module_prefix::{Config as ModulePrefixConfig, ModulePrefix};
