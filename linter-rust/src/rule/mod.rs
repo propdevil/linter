@@ -33,3 +33,4 @@ pub(crate) mod detached;
 pub(crate) mod safety;
 
 pub(crate) mod namespace;
+pub(crate) mod single;

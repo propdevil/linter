@@ -72,3 +72,4 @@ pub use rule::accessor::{Config as RedundantAccessorConfig, RedundantAccessor};
 pub use rule::safety::{Config as UnsafeBoundaryConfig, UnsafeBoundary};
 
 pub use rule::namespace::{Config as RedundantNamespaceConfig, RedundantNamespace};
+pub use rule::single::{Config as SingleUseConfig, SingleUse};
