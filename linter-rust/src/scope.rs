@@ -3,6 +3,17 @@ use std::path::Path;
 use syn::{Meta, Token, punctuated::Punctuated};
 use tree_sitter::Node;
 
+impl Source {
+    pub(crate) fn test_mask(&self, root: &Path, analysis: &Analysis) -> Vec<bool> {
+        let integration = integration(self, root, analysis);
+        let mut mask = vec![integration; self.text.len()];
+        if !integration {
+            mark_tests(self.syntax.root_node(), &self.text, &mut mask);
+        }
+        mask
+    }
+}
+
 pub(crate) fn integration(source: &Source, root: &Path, analysis: &Analysis) -> bool {
     let path = root.join(&source.path);
     source.path.starts_with("tests")

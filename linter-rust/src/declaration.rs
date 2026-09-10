@@ -1,8 +1,5 @@
 use crate::type_path::standard;
-use crate::{
-    Analysis, Source,
-    scope::{integration, mark_tests},
-};
+use crate::{Analysis, Source};
 use std::{collections::BTreeMap, ops::Range, path::Path};
 use tree_sitter::Node;
 
@@ -121,12 +118,7 @@ impl<'a> Index<'a> {
         for source in &analysis.sources {
             let owner = Identity::for_source(source, analysis, root);
             index.owners.insert(source.path.clone(), owner.clone());
-            let mut tests = vec![false; source.text.len()];
-            if integration(source, root, analysis) {
-                tests.fill(true);
-            } else {
-                mark_tests(source.syntax.root_node(), &source.text, &mut tests);
-            }
+            let tests = source.test_mask(root, analysis);
             index.collect(source.syntax.root_node(), source, &owner, &tests, false);
         }
         let fields: Vec<_> = index
@@ -161,6 +153,17 @@ impl<'a> Index<'a> {
 
     pub fn resolve(&self, source: &Source, node: Node<'_>, owner: &Identity) -> Option<String> {
         self.resolve_type(source, node, owner, 0)
+    }
+
+    pub(crate) fn is_enum(&self, resolved: &str) -> bool {
+        let Some(key) = resolved.strip_prefix("nominal:") else {
+            return false;
+        };
+        let mut symbols = self.symbols.iter().filter(|symbol| symbol.id.key() == key);
+        let Some(symbol) = symbols.next() else {
+            return false;
+        };
+        symbol.node.kind() == "enum_item" && symbols.next().is_none()
     }
 
     pub(crate) fn resolve_name(&self, path: &str, owner: &Identity) -> Option<String> {
@@ -585,5 +588,23 @@ mod tests {
                 .ty
                 .is_none()
         );
+    }
+    #[test]
+    fn enum_proof_preserves_nominal_identity() {
+        let data = analysis(
+            r#"
+            mod phase { pub enum Value { Ready } }
+            mod label { pub struct Value(String); }
+            type Alias = phase::Value;
+            struct Input { state: Alias, text: label::Value, pending: Option<phase::Value> }
+        "#,
+        );
+        let index = Index::new(&data, Path::new("/project"));
+        let fields = &index.structures[0].fields;
+        assert!(index.is_enum(fields["state"].ty.as_deref().unwrap()));
+        assert!(!index.is_enum(fields["text"].ty.as_deref().unwrap()));
+        assert!(!index.is_enum(fields["pending"].ty.as_deref().unwrap()));
+        assert!(!index.is_enum("primitive:u8"));
+        assert!(!index.is_enum("nominal:/other::phase::Value"));
     }
 }
