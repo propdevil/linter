@@ -60,6 +60,7 @@ pub use rule::path_modules::{Config as PathModulesConfig, PathModules};
 pub use rule::constructor::{Config as SelfConstructorConfig, SelfConstructor};
 pub use rule::module_prefix::{Config as ModulePrefixConfig, ModulePrefix};
 mod type_path;
+pub use rule::function::{Config as FreeFunctionConfig, FreeFunction};
 pub use rule::object::{Config as GodObjectConfig, GodObject};
 
 pub use rule::detached::{Config as DetachedConstructorConfig, DetachedConstructor};

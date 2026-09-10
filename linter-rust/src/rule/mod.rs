@@ -6,6 +6,7 @@ pub(crate) mod method_length;
 pub(crate) mod boolean;
 pub(crate) mod contract;
 pub(crate) mod duplicate;
+pub(crate) mod function;
 pub(crate) mod nesting;
 pub(crate) mod object;
 pub(crate) mod struct_noun;
