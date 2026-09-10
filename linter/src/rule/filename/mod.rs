@@ -68,6 +68,19 @@ impl Assertion {
                         limit
                     ));
                 }
+                if let Some(maximum) = self.max_characters {
+                    let count = name.chars().count();
+                    if count > maximum {
+                        messages.push(format!(
+                            "{label} name has {count} characters; maximum is {maximum}"
+                        ));
+                    }
+                }
+                if self.reject_numbered_fragments && numbered_fragment(name) {
+                    messages.push(format!(
+                        "{label} name uses a numbered implementation fragment"
+                    ));
+                }
                 if let Some(case) = self.case {
                     let expected = match case {
                         Case::Snake => name.to_snake_case(),
@@ -90,6 +103,18 @@ impl Assertion {
             }
         }
     }
+}
+
+fn numbered_fragment(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    ["part", "section", "segment", "fragment", "chunk"]
+        .iter()
+        .any(|noun| {
+            name.strip_prefix(noun).is_some_and(|suffix| {
+                let suffix = suffix.strip_prefix('_').unwrap_or(suffix);
+                !suffix.is_empty() && suffix.chars().all(|character| character.is_ascii_digit())
+            })
+        })
 }
 
 #[cfg(test)]
@@ -145,7 +170,7 @@ mod tests {
             "[[rules.filename]]\ntarget = 'src/*'",
         );
         assert_eq!(check(root.path()).unwrap().findings.len(), 2);
-        for setting in ["max_words"] {
+        for setting in ["max_words", "max_characters"] {
             for invalid in [
                 format!("{setting} = 0"),
                 format!("{setting} = -1"),
@@ -209,6 +234,73 @@ case = "snake_case"
                 matches!(check(root.path()), Err(crate::Error::Configuration(_))),
                 "{fields}"
             );
+        }
+    }
+    #[test]
+    fn character_limit_counts_unicode_stems_and_directory_names() {
+        let root = tempfile::tempdir().unwrap();
+        for file in ["abcd.rs", "abcde.rs", "éééé.rs", "ééééé.rs"] {
+            write(root.path(), &format!("src/{file}"), "content");
+        }
+        fs::create_dir_all(root.path().join("src/longer")).unwrap();
+        write(
+            root.path(),
+            "linter.toml",
+            "[[rules.filename]]\ntarget = 'src/*'\nmax_characters = 4",
+        );
+        let report = check(root.path()).unwrap();
+        assert_eq!(report.findings.len(), 3);
+        assert!(
+            report
+                .findings
+                .iter()
+                .all(|finding| finding.message.contains("characters; maximum is 4"))
+        );
+    }
+
+    #[test]
+    fn rejects_only_complete_numbered_fragment_names_when_enabled() {
+        let root = tempfile::tempdir().unwrap();
+        let rejected = [
+            "part1",
+            "part_2",
+            "SECTION3",
+            "segment_4",
+            "fragment5",
+            "chunk_06",
+        ];
+        let accepted = [
+            "part",
+            "section",
+            "partition2",
+            "part_2_extra",
+            "part__2",
+            "part-2",
+            "chunk2d",
+            "v2",
+            "http2",
+            "sha256",
+            "version_2",
+        ];
+        for name in rejected.iter().chain(&accepted) {
+            write(root.path(), &format!("src/{name}.rs"), "content");
+        }
+        write(
+            root.path(),
+            "linter.toml",
+            "[[rules.filename]]\ntarget = 'src/*'\nmax_words = 10",
+        );
+        assert!(check(root.path()).unwrap().findings.is_empty());
+        write(
+            root.path(),
+            "linter.toml",
+            "[[rules.filename]]\ntarget = 'src/*'\nmax_words = 10\nreject_numbered_fragments = true",
+        );
+        let report = check(root.path()).unwrap();
+        assert_eq!(report.findings.len(), rejected.len());
+        for finding in report.findings {
+            assert!(rejected.contains(&finding.path.file_stem().unwrap().to_str().unwrap()));
+            assert!(finding.message.contains("numbered implementation fragment"));
         }
     }
 }

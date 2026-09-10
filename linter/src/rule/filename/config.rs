@@ -10,6 +10,10 @@ struct Definition {
     case: Option<Case>,
     #[serde(default)]
     max_words: Option<usize>,
+    #[serde(default)]
+    max_characters: Option<usize>,
+    #[serde(default)]
+    reject_numbered_fragments: bool,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -30,6 +34,8 @@ pub(super) struct Assertion {
     pub setting: String,
     pub case: Option<Case>,
     pub max_words: Option<usize>,
+    pub max_characters: Option<usize>,
+    pub reject_numbered_fragments: bool,
 }
 
 impl Definition {
@@ -40,12 +46,19 @@ impl Definition {
                 "{setting}.max_words: expected a positive integer"
             )));
         }
+        if self.max_characters == Some(0) {
+            return Err(Error::Configuration(format!(
+                "{setting}.max_characters: expected a positive integer"
+            )));
+        }
         Ok(Assertion {
             kind: self.kind,
             selector: self.target.compile(&format!("{setting}.target"), true)?,
             setting,
             case: self.case,
             max_words,
+            max_characters: self.max_characters,
+            reject_numbered_fragments: self.reject_numbered_fragments,
         })
     }
 }

@@ -6,6 +6,8 @@ target = "**/src/**/*.rs"
 kind = "file"
 case = "snake_case"
 max_words = 2
+max_characters = 32
+reject_numbered_fragments = true
 
 [[rules.filename]]
 target = "**/src/**/*"
@@ -20,3 +22,9 @@ Words are split across underscores, hyphens, and camel-case boundaries. The fina
 Examples: `payment.rs` and `payment_id.rs` pass a two-word file limit; `payment_account_id.rs` fails. A directory `payments` passes a one-word limit, while `payment_accounts` fails. Files and directories can use different blocks of this one rule. The root `.` has no repository-relative name and is not checked.
 
 All blocks apply independently. They use discovered entries, honor `[files].exclude`, do not follow symlinks, and do not require a target to match any entries. Without configured blocks the rule reports unconfigured. Disable a rule with its table envelope and `enabled = false`; invalid retained configuration still fails.
+
+`max_characters` optionally limits Unicode scalar values in the name, excluding a file's final extension. Exactly the configured maximum passes; zero is invalid. Without this setting there is no character limit.
+
+`reject_numbered_fragments` defaults to false. When true, it rejects exactly `part`, `section`, `segment`, `fragment`, or `chunk` followed by ASCII digits with an optional single underscore, ignoring ASCII case. Thus `part1.rs`, `section_2.rs`, and `CHUNK03.rs` fail; `v2.rs`, `http2.rs`, `sha256.rs`, and `partition2.rs` pass. This is not a general ban on digits. Both options apply to whichever file/directory kind the block selects.
+
+Migration: extends Husklet's `file-name-density` in `rule/repository/shape/mod.rs`. Preserves its character counting and numbered-fragment predicate. Replaces the fixed 32-character/two-word limits and underscore convention with configuration. Replaces implicit source-extension and test-path exemptions with explicit targets and project exclusions. Unlike the source's first-failure behavior, each violated configured constraint produces a finding. Existing conventional entrypoint names already meet the constraints and need no special exemption.
