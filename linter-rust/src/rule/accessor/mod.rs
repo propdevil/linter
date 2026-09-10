@@ -1,12 +1,12 @@
 use crate::{
     Analysis, Source,
-    declaration::Index,
+    declaration::{Index, Structure},
     scope::{integration, mark_tests},
 };
 use config::{Assertion, Scope};
 use contract::{Access, boundary, children};
 use linter::{Error, Evidence, Finding, Project, Rule, RuleResult, Span, Status};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::Path};
 use tree_sitter::Node;
 mod config;
 mod contract;
@@ -28,23 +28,7 @@ impl Rule for RedundantAccessor {
         let index = Index::new(analysis, &root);
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            let mut candidates = BTreeMap::<String, Vec<Access<'_>>>::new();
-            for source in &analysis.sources {
-                let mut tests = vec![false; source.text.len()];
-                if integration(source, &root, analysis) {
-                    tests.fill(true);
-                } else {
-                    mark_tests(source.syntax.root_node(), &source.text, &mut tests);
-                }
-                collect(
-                    source.syntax.root_node(),
-                    source,
-                    &index,
-                    &tests,
-                    assertion,
-                    &mut candidates,
-                );
-            }
+            let candidates = assertion.collect(analysis, &index, &root);
             for (owner, values) in candidates {
                 let Some(structure) = index
                     .structures
@@ -53,54 +37,7 @@ impl Rule for RedundantAccessor {
                 else {
                     continue;
                 };
-                for (position, candidate) in values.iter().enumerate() {
-                    if !selected(candidate, assertion) {
-                        continue;
-                    }
-                    if candidate.exposed {
-                        findings.push(report(
-                            candidate,
-                            assertion,
-                            format!(
-                                "`{}` only forw\
-                ards `{}.{}`, which callers can already access with equal or broader vis\
-                ibility",
-                                candidate.name, structure.id.name, candidate.field_name
-                            ),
-                            Evidence {
-                                path: structure.source.path.clone(),
-                                span: Some(Span::new(
-                                    &structure.source.text,
-                                    candidate.field.byte_range(),
-                                )),
-                                message: "\
-                Already exposed field"
-                                    .into(),
-                            },
-                        ));
-                    }
-                    if let Some(previous) = values[..position]
-                        .iter()
-                        .find(|previous| previous.equivalent(candidate))
-                    {
-                        findings.push(report(
-                            candidate,
-                            assertion,
-                            format!(
-                                "`{}::{}` and `{}::{}` expose the identical field operation",
-                                structure.id.name, previous.name, structure.id.name, candidate.name
-                            ),
-                            Evidence {
-                                path: previous.source.path.clone(),
-                                span: Some(Span::new(
-                                    &previous.source.text,
-                                    previous.method.byte_range(),
-                                )),
-                                message: "Identical accessor contract".into(),
-                            },
-                        ));
-                    }
-                }
+                assertion.compare(structure, &values, &mut findings);
             }
         }
         Ok(RuleResult {
@@ -109,13 +46,127 @@ impl Rule for RedundantAccessor {
         })
     }
 }
-fn selected(candidate: &Access<'_>, assertion: &Assertion) -> bool {
-    assertion.target.matches(&candidate.source.path)
-        && !assertion
-            .exclude
-            .as_ref()
-            .is_some_and(|exclude| exclude.matches(&candidate.source.path))
+
+impl Assertion {
+    fn selected(&self, candidate: &Access<'_>) -> bool {
+        self.target.matches(&candidate.source.path)
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.matches(&candidate.source.path))
+    }
+
+    fn collect<'a>(
+        &self,
+        analysis: &'a Analysis,
+        index: &Index<'a>,
+        root: &Path,
+    ) -> BTreeMap<String, Vec<Access<'a>>> {
+        let mut candidates = BTreeMap::new();
+        for source in &analysis.sources {
+            let mut tests = vec![false; source.text.len()];
+            if integration(source, root, analysis) {
+                tests.fill(true);
+            } else {
+                mark_tests(source.syntax.root_node(), &source.text, &mut tests);
+            }
+            collect(
+                source.syntax.root_node(),
+                source,
+                index,
+                &tests,
+                self,
+                &mut candidates,
+            );
+        }
+        candidates
+    }
+
+    fn collect_impl<'a>(
+        &self,
+        node: Node<'a>,
+        source: &'a Source,
+        index: &Index<'a>,
+        tests: &[bool],
+        output: &mut BTreeMap<String, Vec<Access<'a>>>,
+    ) {
+        if node.kind() != "impl_item"
+            || node.child_by_field_name("trait").is_some()
+            || boundary(node, source)
+        {
+            return;
+        }
+        let Some(structure) = index.implemented(node, source) else {
+            return;
+        };
+        if structure.platform || boundary(structure.node, structure.source) {
+            return;
+        }
+        let Some(body) = node.child_by_field_name("body") else {
+            return;
+        };
+        let owner = format!("nominal:{}", structure.id.key());
+        for method in children(body)
+            .into_iter()
+            .filter(|child| child.kind() == "function_item")
+        {
+            if !self.scope.includes(tests[method.start_byte()]) {
+                continue;
+            }
+            if let Some(candidate) = contract::candidate(method, source, index, structure) {
+                output.entry(owner.clone()).or_default().push(candidate);
+            }
+        }
+    }
+
+    fn compare(
+        &self,
+        structure: &Structure<'_>,
+        values: &[Access<'_>],
+        findings: &mut Vec<Finding>,
+    ) {
+        for (position, candidate) in values.iter().enumerate() {
+            if !self.selected(candidate) {
+                continue;
+            }
+            if candidate.exposed {
+                findings.push(candidate.exposure(structure, self));
+            }
+            if let Some(previous) = values[..position]
+                .iter()
+                .find(|previous| previous.equivalent(candidate))
+            {
+                findings.push(candidate.duplicate(previous, structure, self));
+            }
+        }
+    }
 }
+
+impl<'a> Index<'a> {
+    fn implemented(&self, node: Node<'a>, source: &Source) -> Option<&Structure<'a>> {
+        let mut ty = node.child_by_field_name("type")?;
+        if ty.kind() == "generic_type" {
+            ty = ty.child_by_field_name("type").unwrap_or(ty);
+        }
+        let context = self.identity(source, node);
+        let owner = self.resolve(source, ty, &context)?;
+        let owner = owner.split('<').next().unwrap_or(&owner);
+        self.structures
+            .iter()
+            .find(|structure| format!("nominal:{}", structure.id.key()) == owner)
+    }
+}
+
+impl Scope {
+    fn includes(self, test: bool) -> bool {
+        match self {
+            Self::Production => !test,
+            Self::Tests => test,
+            Self::All => true,
+        }
+    }
+}
+
 fn collect<'a>(
     node: Node<'a>,
     source: &'a Source,
@@ -124,70 +175,68 @@ fn collect<'a>(
     assertion: &Assertion,
     output: &mut BTreeMap<String, Vec<Access<'a>>>,
 ) {
-    if node.kind() == "impl_item"
-        && node.child_by_field_name("trait").is_none()
-        && !boundary(node, source)
-    {
-        let context = index.identity(source, node);
-        if let Some(mut ty) = node.child_by_field_name("type") {
-            if ty.kind() == "generic_type" {
-                ty = ty.child_by_field_name("type").unwrap_or(ty);
-            }
-            if let Some(owner) = index.resolve(source, ty, &context) {
-                let owner = owner.split('<').next().unwrap_or(&owner);
-                if let Some(structure) = index
-                    .structures
-                    .iter()
-                    .find(|structure| format!("nominal:{}", structure.id.key()) == owner)
-                    && !structure.platform
-                    && !boundary(structure.node, structure.source)
-                    && let Some(body) = node.child_by_field_name("body")
-                {
-                    for method in children(body)
-                        .into_iter()
-                        .filter(|child| child.kind() == "function_item")
-                    {
-                        let test = tests[method.start_byte()];
-                        let selected = match assertion.scope {
-                            Scope::Production => !test,
-                            Scope::Tests => test,
-                            Scope::All => true,
-                        };
-                        if selected
-                            && let Some(candidate) =
-                                contract::candidate(method, source, index, structure)
-                        {
-                            output.entry(owner.into()).or_default().push(candidate);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    assertion.collect_impl(node, source, index, tests, output);
     for child in children(node) {
         collect(child, source, index, tests, assertion, output);
     }
 }
-fn report(
-    candidate: &Access<'_>,
-    assertion: &Assertion,
-    message: String,
-    evidence: Evidence,
-) -> Finding {
-    Finding {
-        rule: RedundantAccessor::ID,
-        path: candidate.source.path.clone(),
-        span: Some(Span::new(
-            &candidate.source.text,
-            candidate.method.byte_range(),
-        )),
-        related: vec![evidence],
-        configuration: assertion.setting.clone(),
-        message,
-        instruction: "\
-        Keep one meaningful accessor contract, or make the field private when the method\
-        \u{20}intentionally owns the public boundary."
+
+impl Access<'_> {
+    fn exposure(&self, structure: &Structure<'_>, assertion: &Assertion) -> Finding {
+        self.report(
+            assertion,
+            format!(
+                concat!(
+                    "`{}` only forwards `{}.{}`, which callers can already access ",
+                    "with equal or broader visibility"
+                ),
+                self.name, structure.id.name, self.field_name
+            ),
+            Evidence {
+                path: structure.source.path.clone(),
+                span: Some(Span::new(&structure.source.text, self.field.byte_range())),
+                message: "Already exposed field".into(),
+            },
+        )
+    }
+
+    fn duplicate(
+        &self,
+        previous: &Self,
+        structure: &Structure<'_>,
+        assertion: &Assertion,
+    ) -> Finding {
+        self.report(
+            assertion,
+            format!(
+                "`{}::{}` and `{}::{}` expose the identical field operation",
+                structure.id.name, previous.name, structure.id.name, self.name
+            ),
+            Evidence {
+                path: previous.source.path.clone(),
+                span: Some(Span::new(
+                    &previous.source.text,
+                    previous.method.byte_range(),
+                )),
+                message: "Identical accessor contract".into(),
+            },
+        )
+    }
+
+    fn report(&self, assertion: &Assertion, message: String, evidence: Evidence) -> Finding {
+        Finding {
+            rule: RedundantAccessor::ID,
+            path: self.source.path.clone(),
+            span: Some(Span::new(&self.source.text, self.method.byte_range())),
+            related: vec![evidence],
+            configuration: assertion.setting.clone(),
+            message,
+            instruction: concat!(
+                "Keep one meaningful accessor contract, or make the field private ",
+                "when the method intentionally owns the public boundary."
+            )
             .into(),
+        }
     }
 }
 #[cfg(test)]
