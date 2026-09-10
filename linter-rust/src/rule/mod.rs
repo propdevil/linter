@@ -29,3 +29,4 @@ pub(crate) mod module_prefix;
 
 pub(crate) mod detached;
 pub(crate) mod accessor;
+pub(crate) mod safety;

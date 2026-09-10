@@ -65,3 +65,4 @@ pub use rule::object::{Config as GodObjectConfig, GodObject};
 pub use rule::detached::{Config as DetachedConstructorConfig, DetachedConstructor};
 
 pub use rule::accessor::{Config as RedundantAccessorConfig, RedundantAccessor};
+pub use rule::safety::{Config as UnsafeBoundaryConfig, UnsafeBoundary};
