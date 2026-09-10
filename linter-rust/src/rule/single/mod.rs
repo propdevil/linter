@@ -49,9 +49,10 @@ impl Rule for SingleUse {
                 mask
             })
             .collect();
+        let references = references::References::new(&functions, analysis, &index, &masks);
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            for declaration in &functions {
+            for (position, declaration) in functions.iter().enumerate() {
                 let source = declaration.source;
                 let node = declaration.node;
                 let mask = &masks[analysis
@@ -77,14 +78,8 @@ impl Rule for SingleUse {
                 {
                     continue;
                 }
-                let (related, uncertain) = references::collect(
-                    declaration,
-                    &functions,
-                    analysis,
-                    &index,
-                    &masks,
-                    assertion.scope,
-                );
+                let (related, uncertain) =
+                    references.get(position, &declaration.id.name, assertion.scope);
                 if uncertain || related.len() != 1 {
                     continue;
                 }
@@ -427,6 +422,44 @@ mod tests {
             )
             .findings
             .is_empty()
+        );
+    }
+    #[test]
+    fn indexed_references_separate_scopes_and_names() {
+        let text = "mod a {fn helper(){} fn run(){helper();} #[test] fn case(){helper();}} mod b {fn helper(){} fn run(){helper();helper();}}";
+        assert_eq!(run(&[("lib.rs", text)], "").findings.len(), 1);
+        assert!(run(&[("lib.rs", text)], "scope='all'").findings.is_empty());
+        let text = "fn helper(){} fn run(){helper();} #[test] fn case(){opaque!(helper);}";
+        assert_eq!(run(&[("lib.rs", text)], "").findings.len(), 1);
+        assert!(run(&[("lib.rs", text)], "scope='all'").findings.is_empty());
+    }
+    #[test]
+    fn indexes_large_production_fixture() {
+        let mut files = Vec::new();
+        for module in 0..10 {
+            let mut text = String::new();
+            for function in 0..100 {
+                text.push_str(&format!(
+                    "fn helper_{function}() {{\n{}\n}}\n",
+                    "    let _ = 1;\n".repeat(42)
+                ));
+            }
+            text.push_str("pub fn run() {\n");
+            for function in 0..100 {
+                text.push_str(&format!("helper_{function}();\n"));
+            }
+            text.push_str("}\n");
+            files.push((format!("src/module_{module}.rs"), text));
+        }
+        let borrowed: Vec<_> = files
+            .iter()
+            .map(|(path, text)| (path.as_str(), text.as_str()))
+            .collect();
+        let started = std::time::Instant::now();
+        assert_eq!(run(&borrowed, "").findings.len(), 1000);
+        eprintln!(
+            "single-use: 1000 candidates, 46020 lines: {:?}",
+            started.elapsed()
         );
     }
     #[test]
