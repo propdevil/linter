@@ -41,6 +41,14 @@ pub(super) fn transparent(node: Node<'_>, source: &Source, child: &str) -> bool 
         .is_some_and(|rest| rest.starts_with("::"))
 }
 pub(super) fn boundary(source: &Source) -> bool {
+    let sensitive = |meta: syn::Meta| {
+        meta.path().segments.last().is_some_and(|segment| {
+            matches!(
+                segment.ident.to_string().as_str(),
+                "cfg" | "cfg_attr" | "path" | "link" | "repr" | "doc"
+            )
+        })
+    };
     children(source.syntax.root_node())
         .into_iter()
         .any(|item| match item.kind() {
@@ -57,14 +65,7 @@ pub(super) fn boundary(source: &Source) -> bool {
                     .find(|child| child.kind() == "attribute");
                 attribute
                     .and_then(|attribute| syn::parse_str::<syn::Meta>(text(attribute, source)).ok())
-                    .is_some_and(|meta| {
-                        meta.path().segments.last().is_some_and(|segment| {
-                            matches!(
-                                segment.ident.to_string().as_str(),
-                                "cfg" | "cfg_attr" | "path" | "link" | "repr" | "doc"
-                            )
-                        })
-                    })
+                    .is_some_and(sensitive)
             }
             "line_comment" | "block_comment" => {
                 text(item, source).starts_with("///") || text(item, source).starts_with("/**")
@@ -112,16 +113,11 @@ pub(super) fn declarations<'a>(node: Node<'a>, source: &'a Source, target: &Path
         if !matches!(stem, "lib" | "main" | "mod") {
             directory.push(stem);
         }
-        let mut ancestry = Vec::new();
-        let mut parent = node.parent();
-        while let Some(item) = parent {
-            if item.kind() == "mod_item"
-                && let Some(name) = item.child_by_field_name("name")
-            {
-                ancestry.push(text(name, source));
-            }
-            parent = item.parent();
-        }
+        let ancestry: Vec<_> = std::iter::successors(node.parent(), |item| item.parent())
+            .filter(|item| item.kind() == "mod_item")
+            .filter_map(|item| item.child_by_field_name("name"))
+            .map(|name| text(name, source))
+            .collect();
         for ancestor in ancestry.into_iter().rev() {
             directory.push(ancestor);
         }
