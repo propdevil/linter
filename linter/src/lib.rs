@@ -184,3 +184,4 @@ impl Entries {
 pub use rule::{affix::SharedAffix, forbidden_words::ForbiddenWords};
 
 pub use rule::parent_name::ParentName;
+pub use rule::line_width::LineWidth;

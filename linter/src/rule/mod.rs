@@ -41,3 +41,4 @@ pub(crate) mod filename;
 pub(crate) mod forbidden_words;
 
 pub(crate) mod parent_name;
+pub(crate) mod line_width;
