@@ -46,63 +46,28 @@ impl Exports {
         for _ in 0..=imports.len() {
             let mut changed = false;
             for import in &imports {
-                let Some(target) = resolve(&import.owner.1, &import.path) else {
-                    continue;
-                };
-                let matching: Vec<_> = if let Some(alias) = &import.alias {
-                    bindings
-                        .get(&(import.owner.0.clone(), target))
-                        .map(|value| vec![(alias.clone(), value.clone())])
-                        .unwrap_or_default()
-                } else {
-                    bindings
-                        .iter()
-                        .filter(|((package, path), binding)| {
-                            package == &import.owner.0
-                                && binding.public
-                                && path.len() == target.len() + 1
-                                && path.starts_with(&target)
-                        })
-                        .map(|((_, path), binding)| {
-                            (path.last().cloned().unwrap_or_default(), binding.clone())
-                        })
-                        .collect()
-                };
-                for (name, mut binding) in matching {
-                    let mut path = import.owner.1.clone();
-                    path.push(name);
-                    binding.public = import.public;
-                    let key = (import.owner.0.clone(), path);
-                    match bindings.get_mut(&key) {
-                        Some(existing) => {
-                            let old = existing.clone();
-                            existing.origins.extend(binding.origins);
-                            existing.public |= binding.public;
-                            changed |= *existing != old;
-                        }
-                        None => {
-                            bindings.insert(key, binding);
-                            changed = true;
-                        }
-                    }
-                }
+                changed |= import.apply(&mut bindings);
             }
             if !changed {
                 break;
             }
         }
+        Self::from_bindings(bindings, &modules)
+    }
+    fn from_bindings(bindings: BTreeMap<Key, Binding>, modules: &BTreeSet<Key>) -> Self {
         let mut paths = BTreeMap::<Origin, Vec<Vec<String>>>::new();
         for ((package, mut path), binding) in bindings {
             if !binding.public {
                 continue;
             }
             path.pop();
-            if (1..=path.len())
+            if !(1..=path.len())
                 .all(|length| modules.contains(&(package.clone(), path[..length].to_vec())))
             {
-                for origin in binding.origins {
-                    paths.entry(origin).or_default().push(path.clone());
-                }
+                continue;
+            }
+            for origin in binding.origins {
+                paths.entry(origin).or_default().push(path.clone());
             }
         }
         Self { paths }
@@ -158,17 +123,7 @@ fn collect(
             | "const_item"
             | "static_item"
     ) {
-        if let Some(name) = node.child_by_field_name("name") {
-            let mut path = owner.1.clone();
-            path.push(text(name, source).trim_start_matches("r#").into());
-            bindings.insert(
-                (owner.0.clone(), path),
-                Binding {
-                    origins: BTreeSet::from([(source.path.clone(), node.start_byte())]),
-                    public: public(node, source),
-                },
-            );
-        }
+        Binding::declare(node, source, owner, bindings);
         return;
     }
     if node.kind() == "mod_item"
@@ -189,6 +144,108 @@ fn collect(
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         collect(child, source, &context, bindings, modules, imports);
+    }
+}
+impl Binding {
+    fn declare(
+        node: Node<'_>,
+        source: &Source,
+        owner: &Key,
+        bindings: &mut BTreeMap<Key, Binding>,
+    ) {
+        if let Some(name) = node.child_by_field_name("name") {
+            let mut path = owner.1.clone();
+            path.push(text(name, source).trim_start_matches("r#").into());
+            bindings.insert(
+                (owner.0.clone(), path),
+                Binding {
+                    origins: BTreeSet::from([(source.path.clone(), node.start_byte())]),
+                    public: public(node, source),
+                },
+            );
+        }
+    }
+}
+impl Import {
+    fn matching(&self, bindings: &BTreeMap<Key, Binding>) -> Vec<(String, Binding)> {
+        let Some(target) = resolve(&self.owner.1, &self.path) else {
+            return Vec::new();
+        };
+        if let Some(alias) = &self.alias {
+            return bindings
+                .get(&(self.owner.0.clone(), target))
+                .map(|value| vec![(alias.clone(), value.clone())])
+                .unwrap_or_default();
+        }
+        bindings
+            .iter()
+            .filter(|((package, path), binding)| {
+                package == &self.owner.0
+                    && binding.public
+                    && path.len() == target.len() + 1
+                    && path.starts_with(&target)
+            })
+            .map(|((_, path), binding)| (path.last().cloned().unwrap_or_default(), binding.clone()))
+            .collect()
+    }
+    fn apply(&self, bindings: &mut BTreeMap<Key, Binding>) -> bool {
+        let mut changed = false;
+        for (name, mut binding) in self.matching(bindings) {
+            let mut path = self.owner.1.clone();
+            path.push(name);
+            binding.public = self.public;
+            let key = (self.owner.0.clone(), path);
+            match bindings.get_mut(&key) {
+                Some(existing) => {
+                    let old = existing.clone();
+                    existing.origins.extend(binding.origins);
+                    existing.public |= binding.public;
+                    changed |= *existing != old;
+                }
+                None => {
+                    bindings.insert(key, binding);
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+    fn wildcard(
+        node: Node<'_>,
+        source: &Source,
+        prefix: &[String],
+        owner: &Key,
+        public: bool,
+    ) -> Self {
+        let mut target = prefix.to_vec();
+        let mut cursor = node.walk();
+        if let Some(path) = node.named_children(&mut cursor).next() {
+            target.extend(parts(text(path, source)));
+        }
+        Self {
+            owner: owner.clone(),
+            path: target,
+            alias: None,
+            public,
+        }
+    }
+    fn renamed(
+        node: Node<'_>,
+        source: &Source,
+        prefix: &[String],
+        owner: &Key,
+        public: bool,
+    ) -> Option<Self> {
+        let path = node.child_by_field_name("path")?;
+        let alias = node.child_by_field_name("alias")?;
+        let mut target = prefix.to_vec();
+        target.extend(parts(text(path, source)));
+        Some(Self {
+            owner: owner.clone(),
+            path: target,
+            alias: Some(text(alias, source).trim_start_matches("r#").into()),
+            public,
+        })
     }
 }
 fn public(node: Node<'_>, source: &Source) -> bool {
@@ -231,33 +288,9 @@ fn flatten(
             }
         }
         "use_as_clause" => {
-            if let (Some(path), Some(alias)) = (
-                node.child_by_field_name("path"),
-                node.child_by_field_name("alias"),
-            ) {
-                let mut target = prefix.to_vec();
-                target.extend(parts(text(path, source)));
-                imports.push(Import {
-                    owner: owner.clone(),
-                    path: target,
-                    alias: Some(text(alias, source).trim_start_matches("r#").into()),
-                    public,
-                });
-            }
+            imports.extend(Import::renamed(node, source, prefix, owner, public));
         }
-        "use_wildcard" => {
-            let mut target = prefix.to_vec();
-            let mut cursor = node.walk();
-            if let Some(path) = node.named_children(&mut cursor).next() {
-                target.extend(parts(text(path, source)));
-            }
-            imports.push(Import {
-                owner: owner.clone(),
-                path: target,
-                alias: None,
-                public,
-            });
-        }
+        "use_wildcard" => imports.push(Import::wildcard(node, source, prefix, owner, public)),
         "identifier" | "scoped_identifier" | "self" | "super" | "crate" => {
             let mut target = prefix.to_vec();
             target.extend(parts(text(node, source)));

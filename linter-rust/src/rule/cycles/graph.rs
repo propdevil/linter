@@ -54,28 +54,41 @@ pub(super) fn cycle(start: usize, component: &[usize], edges: &[Vec<usize>]) -> 
         if *next == start {
             return Some(vec![start, start]);
         }
-        let mut parents = vec![None; edges.len()];
-        let mut queue = VecDeque::from([*next]);
-        parents[*next] = Some(*next);
-        while let Some(node) = queue.pop_front() {
-            if edges[node].contains(&start) {
-                let mut path = vec![node];
-                let mut current = node;
-                while current != *next {
-                    current = parents[current]?;
-                    path.push(current);
-                }
-                path.reverse();
-                path.insert(0, start);
-                path.push(start);
-                return Some(path);
+        if let Some(path) = return_path(start, *next, &members, edges) {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn return_path(
+    start: usize,
+    next: usize,
+    members: &BTreeSet<usize>,
+    edges: &[Vec<usize>],
+) -> Option<Vec<usize>> {
+    let mut parents = vec![None; edges.len()];
+    let mut queue = VecDeque::from([next]);
+    parents[next] = Some(next);
+    while let Some(node) = queue.pop_front() {
+        if edges[node].contains(&start) {
+            let mut path = vec![node];
+            let mut current = node;
+            while current != next {
+                current = parents[current]?;
+                path.push(current);
             }
-            for target in &edges[node] {
-                if members.contains(target) && parents[*target].is_none() {
-                    parents[*target] = Some(node);
-                    queue.push_back(*target);
-                }
+            path.reverse();
+            path.insert(0, start);
+            path.push(start);
+            return Some(path);
+        }
+        for target in &edges[node] {
+            if !members.contains(target) || parents[*target].is_some() {
+                continue;
             }
+            parents[*target] = Some(node);
+            queue.push_back(*target);
         }
     }
     None

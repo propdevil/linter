@@ -31,6 +31,17 @@ impl linter::Analysis for Analysis {
     fn load(project: &Project) -> Result<Self, Error> {
         let root =
             fs::canonicalize(project.root()).map_err(|error| Error::Analysis(error.to_string()))?;
+        let packages = Self::packages(project, &root)?;
+        let sources = Self::sources(project, &root)?;
+        Ok(Self { sources, packages })
+    }
+}
+
+impl Analysis {
+    fn packages(
+        project: &Project,
+        root: &std::path::Path,
+    ) -> Result<BTreeMap<PathBuf, Package>, Error> {
         let manifests: BTreeSet<_> = project
             .entries()
             .filter(|entry| {
@@ -63,11 +74,15 @@ impl linter::Analysis for Analysis {
             for package in metadata.packages {
                 let manifest = package.manifest_path.clone().into_std_path_buf();
                 visited.insert(manifest.clone());
-                if manifests.contains(&manifest) {
-                    packages.insert(manifest, package);
+                if !manifests.contains(&manifest) {
+                    continue;
                 }
+                packages.insert(manifest, package);
             }
         }
+        Ok(packages)
+    }
+    fn sources(project: &Project, root: &std::path::Path) -> Result<Vec<Source>, Error> {
         let mut parser = Parser::new();
         parser
             .set_language(&tree_sitter_rust::LANGUAGE.into())
@@ -97,6 +112,6 @@ impl linter::Analysis for Analysis {
                 syntax,
             });
         }
-        Ok(Self { sources, packages })
+        Ok(sources)
     }
 }

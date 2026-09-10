@@ -47,106 +47,31 @@ impl linter::Analysis for CargoGraph {
             let path = root.join(&entry.path);
             let text = fs::read_to_string(&path).map_err(|e| failure(&entry.path, e))?;
             let document: Document = toml::from_str(&text).map_err(|e| failure(&entry.path, e))?;
-            for (_, _, _, dependency) in document.edges() {
-                dependency
-                    .get_ref()
-                    .validate()
-                    .map_err(|e| failure(&entry.path, e))?;
-            }
-            if let Some(workspace) = &document.workspace {
-                for dependency in workspace.dependencies.values() {
-                    let specification = dependency.get_ref();
-                    specification
-                        .validate()
-                        .map_err(|e| failure(&entry.path, e))?;
-                    if specification.inherited()? || specification.optional() {
-                        return Err(failure(
-                            &entry.path,
-                            "workspace dependencies cannot inherit or be optional",
-                        ));
-                    }
-                }
-            }
+            document.validate().map_err(|e| failure(&entry.path, e))?;
             documents.insert(path, (text, document));
         }
+        let discovery = Discovery { root, documents };
+        let packages = discovery.packages()?;
+        Ok(Self { packages })
+    }
+}
+struct Discovery {
+    root: PathBuf,
+    documents: BTreeMap<PathBuf, (String, Document)>,
+}
+impl Discovery {
+    fn packages(&self) -> Result<BTreeMap<PathBuf, CargoPackage>, Error> {
         let mut packages = BTreeMap::new();
-        for (path, (text, document)) in &documents {
+        for (path, (text, document)) in &self.documents {
             let Some(package) = &document.package else {
                 continue;
             };
             if package.name.trim().is_empty() {
                 return Err(failure(path, "package name must not be empty"));
             }
-            let workspace = workspace(path, document, &documents)?;
-            let mut dependencies = Vec::new();
-            for (kind, target, alias, spec) in document.edges() {
-                let span = Span::new(text, spec.span());
-                let mut specification = spec.get_ref();
-                let mut base = path.parent().unwrap_or(&root);
-                if specification.inherited()? {
-                    let (workspace_path, workspace_document) = workspace.ok_or_else(|| {
-                        failure(path, "inherited dependency has no discovered workspace")
-                    })?;
-                    specification = workspace_document
-                        .workspace
-                        .as_ref()
-                        .and_then(|w| w.dependencies.get(alias))
-                        .map(|v| v.get_ref())
-                        .ok_or_else(|| {
-                            failure(path, format!("workspace dependency {alias:?} is missing"))
-                        })?;
-                    if specification.inherited()? {
-                        return Err(failure(
-                            path,
-                            "workspace dependencies cannot inherit themselves",
-                        ));
-                    }
-                    base = workspace_path.parent().unwrap_or(&root);
-                }
-                specification.validate().map_err(|e| failure(path, e))?;
-                let resolved = specification
-                    .path()
-                    .map(|dependency| {
-                        fs::canonicalize(base.join(dependency).join("Cargo.toml"))
-                            .map_err(|e| failure(path, e))
-                    })
-                    .transpose()?;
-                let package_name = specification.package().unwrap_or(alias).to_owned();
-                if let Some(target_path) = &resolved
-                    && let Some((_, target_document)) = documents.get(target_path)
-                {
-                    let actual = target_document.package.as_ref().ok_or_else(|| {
-                        failure(path, "path dependency points at a virtual manifest")
-                    })?;
-                    if actual.name != package_name {
-                        return Err(failure(
-                            path,
-                            format!(
-                                "dependency {alias:?} expects {package_name:?}, found {:?}",
-                                actual.name
-                            ),
-                        ));
-                    }
-                }
-                dependencies.push(CargoDependency {
-                    alias: alias.into(),
-                    package: package_name,
-                    requirement: specification.version().map(str::to_owned),
-                    source: resolved
-                        .as_ref()
-                        .map(|path| format!("path:{}", path.display()))
-                        .or_else(|| specification.source()),
-                    manifest: resolved
-                        .filter(|p| documents.get(p).is_some_and(|(_, d)| d.package.is_some()))
-                        .map(|p| p.strip_prefix(&root).unwrap_or(&p).to_owned()),
-                    kind,
-                    target: target.map(str::to_owned),
-                    optional: spec.get_ref().optional(),
-                    span,
-                });
-            }
+            let dependencies = self.dependencies(path, text, document)?;
             let manifest = path
-                .strip_prefix(&root)
+                .strip_prefix(&self.root)
                 .map_err(|e| failure(path, e))?
                 .to_owned();
             let directory = manifest
@@ -165,9 +90,108 @@ impl linter::Analysis for CargoGraph {
                 },
             );
         }
-        Ok(Self { packages })
+        Ok(packages)
+    }
+    fn dependencies(
+        &self,
+        path: &Path,
+        text: &str,
+        document: &Document,
+    ) -> Result<Vec<CargoDependency>, Error> {
+        let workspace = workspace(path, document, &self.documents)?;
+        let mut dependencies = Vec::new();
+        for (kind, target, alias, spec) in document.edges() {
+            let (specification, base) =
+                self.specification(path, alias, spec.get_ref(), workspace)?;
+            let resolved = specification
+                .path()
+                .map(|dependency| {
+                    fs::canonicalize(base.join(dependency).join("Cargo.toml"))
+                        .map_err(|e| failure(path, e))
+                })
+                .transpose()?;
+            let package = specification.package().unwrap_or(alias).to_owned();
+            self.validate_target(path, alias, &package, resolved.as_deref())?;
+            let source = resolved
+                .as_ref()
+                .map(|p| format!("path:{}", p.display()))
+                .or_else(|| specification.source());
+            let manifest = resolved
+                .filter(|p| {
+                    self.documents
+                        .get(p)
+                        .is_some_and(|(_, d)| d.package.is_some())
+                })
+                .map(|p| p.strip_prefix(&self.root).unwrap_or(&p).to_owned());
+            dependencies.push(CargoDependency {
+                alias: alias.into(),
+                package,
+                requirement: specification.version().map(str::to_owned),
+                source,
+                manifest,
+                kind,
+                target: target.map(str::to_owned),
+                optional: spec.get_ref().optional(),
+                span: Span::new(text, spec.span()),
+            });
+        }
+        Ok(dependencies)
+    }
+    fn specification<'a>(
+        &'a self,
+        path: &'a Path,
+        alias: &str,
+        specification: &'a crate::cargo_manifest::Specification,
+        workspace: Option<(&'a PathBuf, &'a Document)>,
+    ) -> Result<(&'a crate::cargo_manifest::Specification, &'a Path), Error> {
+        if !specification.inherited()? {
+            specification.validate().map_err(|e| failure(path, e))?;
+            return Ok((specification, path.parent().unwrap_or(&self.root)));
+        }
+        let (workspace_path, document) = workspace
+            .ok_or_else(|| failure(path, "inherited dependency has no discovered workspace"))?;
+        let inherited = document
+            .workspace
+            .as_ref()
+            .and_then(|w| w.dependencies.get(alias))
+            .map(|v| v.get_ref())
+            .ok_or_else(|| failure(path, format!("workspace dependency {alias:?} is missing")))?;
+        if inherited.inherited()? {
+            return Err(failure(
+                path,
+                "workspace dependencies cannot inherit themselves",
+            ));
+        }
+        inherited.validate().map_err(|e| failure(path, e))?;
+        Ok((inherited, workspace_path.parent().unwrap_or(&self.root)))
+    }
+    fn validate_target(
+        &self,
+        path: &Path,
+        alias: &str,
+        expected: &str,
+        target: Option<&Path>,
+    ) -> Result<(), Error> {
+        let Some((_, document)) = target.and_then(|p| self.documents.get(p)) else {
+            return Ok(());
+        };
+        let actual = document
+            .package
+            .as_ref()
+            .ok_or_else(|| failure(path, "path dependency points at a virtual manifest"))?;
+        if actual.name != expected {
+            return Err(failure(
+                path,
+                format!(
+                    "dependency {alias:?} expects {expected:?}, found {:?}",
+                    actual.name
+                ),
+            ));
+        }
+        Ok(())
     }
 }
+
 fn workspace<'a>(
     path: &Path,
     document: &Document,

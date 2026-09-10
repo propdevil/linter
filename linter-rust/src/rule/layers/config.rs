@@ -34,22 +34,26 @@ impl Config {
         }
         self.0
             .into_iter()
-            .map(|definition| {
-                let mut dependencies = BTreeSet::new();
-                for name in definition.dependencies {
-                    if !names.contains(&name) || !dependencies.insert(name.clone()) {
-                        return Err(Error::Configuration(format!(
-                            "rust/layers: unknown or duplicate dependency layer {name:?}"
-                        )));
-                    }
-                }
-                let selector = definition.target.compile("rust/layers.target", true)?;
-                Ok(Layer {
-                    name: definition.name,
-                    selector,
-                    dependencies,
-                })
-            })
+            .map(|definition| definition.compile(&names))
             .collect()
+    }
+}
+
+impl Definition {
+    fn compile(self, names: &BTreeSet<String>) -> Result<Layer, Error> {
+        let mut dependencies = BTreeSet::new();
+        for name in self.dependencies {
+            if !names.contains(&name) || !dependencies.insert(name.clone()) {
+                return Err(Error::Configuration(format!(
+                    "rust/layers: unknown or duplicate dependency layer {name:?}"
+                )));
+            }
+        }
+        let selector = self.target.compile("rust/layers.target", true)?;
+        Ok(Layer {
+            name: self.name,
+            selector,
+            dependencies,
+        })
     }
 }

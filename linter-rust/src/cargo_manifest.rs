@@ -102,26 +102,7 @@ impl Specification {
             return Ok(());
         };
         for (key, value) in values {
-            let valid = match key.as_str() {
-                "path" | "package" | "version" | "git" | "branch" | "tag" | "rev" | "registry"
-                | "target" => value.as_str().is_some_and(|v| !v.trim().is_empty()),
-                "workspace" | "optional" | "default-features" | "public" | "lib" => value.is_bool(),
-                "features" => value
-                    .as_array()
-                    .is_some_and(|a| a.iter().all(|v| v.as_str().is_some_and(|s| !s.is_empty()))),
-                "artifact" => {
-                    value.is_str()
-                        || value
-                            .as_array()
-                            .is_some_and(|a| a.iter().all(toml::Value::is_str))
-                }
-                _ => false,
-            };
-            if !valid {
-                return Err(format!(
-                    "unsupported or invalid Cargo dependency option {key:?}"
-                ));
-            }
+            validate_option(key, value)?;
         }
         if self.value("workspace").is_some() {
             if self.value("workspace").and_then(toml::Value::as_bool) != Some(true) {
@@ -147,7 +128,84 @@ impl Specification {
         Ok(())
     }
 }
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum CargoOption {
+    Path,
+    Package,
+    Version,
+    Git,
+    Branch,
+    Tag,
+    Rev,
+    Registry,
+    Target,
+    Workspace,
+    Optional,
+    DefaultFeatures,
+    Public,
+    Lib,
+    Features,
+    Artifact,
+}
+impl CargoOption {
+    fn accepts(&self, value: &toml::Value) -> bool {
+        match self {
+            Self::Path
+            | Self::Package
+            | Self::Version
+            | Self::Git
+            | Self::Branch
+            | Self::Tag
+            | Self::Rev
+            | Self::Registry
+            | Self::Target => value.as_str().is_some_and(|v| !v.trim().is_empty()),
+            Self::Workspace | Self::Optional | Self::DefaultFeatures | Self::Public | Self::Lib => {
+                value.is_bool()
+            }
+            Self::Features => value
+                .as_array()
+                .is_some_and(|a| a.iter().all(|v| v.as_str().is_some_and(|s| !s.is_empty()))),
+            Self::Artifact => {
+                value.is_str()
+                    || value
+                        .as_array()
+                        .is_some_and(|a| a.iter().all(toml::Value::is_str))
+            }
+        }
+    }
+}
+fn validate_option(key: &str, value: &toml::Value) -> Result<(), String> {
+    let option = CargoOption::deserialize(serde::de::value::StrDeserializer::<
+        serde::de::value::Error,
+    >::new(key))
+    .ok();
+    if option.is_some_and(|option| option.accepts(value)) {
+        Ok(())
+    } else {
+        Err(format!(
+            "unsupported or invalid Cargo dependency option {key:?}"
+        ))
+    }
+}
 impl Document {
+    pub fn validate(&self) -> Result<(), String> {
+        for (_, _, _, dependency) in self.edges() {
+            dependency.get_ref().validate()?;
+        }
+        let Some(workspace) = &self.workspace else {
+            return Ok(());
+        };
+        for dependency in workspace.dependencies.values() {
+            let specification = dependency.get_ref();
+            specification.validate()?;
+            if specification.inherited().map_err(|e| e.to_string())? || specification.optional() {
+                return Err("workspace dependencies cannot inherit or be optional".into());
+            }
+        }
+        Ok(())
+    }
+
     pub fn edges(
         &self,
     ) -> Vec<(

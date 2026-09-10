@@ -29,10 +29,10 @@ impl Imports {
         let mut cursor = node.walk();
         for child in node.named_children(&mut cursor) {
             if child.kind() == "use_declaration" {
-                if let Some(argument) = child.child_by_field_name("argument") {
-                    self.import(argument, "", text);
-                }
-            } else if matches!(
+                self.declaration(child, text);
+                continue;
+            }
+            if matches!(
                 child.kind(),
                 "function_item"
                     | "macro_definition"
@@ -65,21 +65,7 @@ impl Imports {
                     self.import(list, &join(prefix, path), text);
                 }
             }
-            "use_as_clause" => {
-                if let (Some(path), Some(alias)) = (
-                    node.child_by_field_name("path"),
-                    node.child_by_field_name("alias"),
-                ) {
-                    self.alias(
-                        &text[alias.byte_range()],
-                        if &text[path.byte_range()] == "self" {
-                            prefix.into()
-                        } else {
-                            join(prefix, &text[path.byte_range()])
-                        },
-                    );
-                }
-            }
+            "use_as_clause" => self.renamed(node, prefix, text),
             "identifier" | "scoped_identifier" | "self" => {
                 let path = &text[node.byte_range()];
                 let joined = if path == "self" {
@@ -92,6 +78,26 @@ impl Imports {
             }
             _ => {}
         }
+    }
+    fn declaration(&mut self, node: Node<'_>, text: &str) {
+        if let Some(argument) = node.child_by_field_name("argument") {
+            self.import(argument, "", text);
+        }
+    }
+    fn renamed(&mut self, node: Node<'_>, prefix: &str, text: &str) {
+        let (Some(path), Some(alias)) = (
+            node.child_by_field_name("path"),
+            node.child_by_field_name("alias"),
+        ) else {
+            return;
+        };
+        let path = &text[path.byte_range()];
+        let target = if path == "self" {
+            prefix.into()
+        } else {
+            join(prefix, path)
+        };
+        self.alias(&text[alias.byte_range()], target);
     }
     fn alias(&mut self, name: &str, path: String) {
         self.aliases

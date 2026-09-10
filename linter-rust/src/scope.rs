@@ -34,24 +34,33 @@ pub(crate) fn mark_tests(node: Node<'_>, text: &str, excluded: &mut [bool]) {
             }
             "line_comment" | "block_comment" => {
                 let comment = &text[child.byte_range()];
-                if comment.starts_with("///") || comment.starts_with("/**") {
-                    start.get_or_insert(child.start_byte());
-                }
+                let documentation = comment.starts_with("///") || comment.starts_with("/**");
+                start = start.or(documentation.then_some(child.start_byte()));
             }
             _ => {
-                if test_scope(child, text)
-                    || attributes.iter().any(|attribute| {
-                        test_attribute(*attribute, text, child.kind() == "function_item")
-                    })
-                {
-                    excluded[start.unwrap_or(child.start_byte())..child.end_byte()].fill(true);
-                } else {
-                    mark_tests(child, text, excluded);
-                }
+                mark_item(child, text, excluded, &attributes, start);
                 start = None;
                 attributes.clear();
             }
         }
+    }
+}
+
+fn mark_item(
+    node: Node<'_>,
+    text: &str,
+    excluded: &mut [bool],
+    attributes: &[Node<'_>],
+    start: Option<usize>,
+) {
+    let test = test_scope(node, text)
+        || attributes
+            .iter()
+            .any(|attribute| test_attribute(*attribute, text, node.kind() == "function_item"));
+    if test {
+        excluded[start.unwrap_or(node.start_byte())..node.end_byte()].fill(true);
+    } else {
+        mark_tests(node, text, excluded);
     }
 }
 
@@ -105,25 +114,22 @@ fn evaluate(meta: &Meta, test: bool) -> Option<bool> {
                 return values[0].map(|value| !value);
             }
             if list.path.is_ident("all") {
-                if values.contains(&Some(false)) {
-                    Some(false)
-                } else if values.iter().all(|value| *value == Some(true)) {
-                    Some(true)
-                } else {
-                    None
-                }
-            } else if list.path.is_ident("any") {
-                if values.contains(&Some(true)) {
-                    Some(true)
-                } else if values.iter().all(|value| *value == Some(false)) {
-                    Some(false)
-                } else {
-                    None
-                }
-            } else {
-                None
+                return aggregate(&values, false);
             }
+            if list.path.is_ident("any") {
+                return aggregate(&values, true);
+            }
+            None
         }
         _ => None,
+    }
+}
+fn aggregate(values: &[Option<bool>], decisive: bool) -> Option<bool> {
+    if values.contains(&Some(decisive)) {
+        Some(decisive)
+    } else if values.iter().all(|value| *value == Some(!decisive)) {
+        Some(!decisive)
+    } else {
+        None
     }
 }

@@ -29,11 +29,40 @@ impl Rule for Layers {
         let root =
             fs::canonicalize(project.root()).map_err(|error| Error::Analysis(error.to_string()))?;
         let mut findings = Vec::new();
+        let ownership = self.ownership(analysis, &root, &mut findings)?;
+        if analysis.packages.is_empty() {
+            findings.push(finding(
+                Path::new("."),
+                "no Cargo packages found for configured layers".into(),
+                "Check the project root and discovery exclusions.".into(),
+            ));
+        }
+        for (manifest, source) in &analysis.packages {
+            let Some(source_layer) = ownership.get(manifest) else {
+                continue;
+            };
+            findings
+                .extend(source_layer.dependencies(manifest, source, analysis, &root, &ownership)?);
+        }
+        Ok(RuleResult {
+            status: Status::Completed,
+            findings,
+        })
+    }
+}
+
+impl Layers {
+    fn ownership<'a>(
+        &'a self,
+        analysis: &'a Analysis,
+        root: &Path,
+        findings: &mut Vec<Finding>,
+    ) -> Result<BTreeMap<&'a std::path::PathBuf, &'a Layer>, Error> {
         let mut ownership = BTreeMap::new();
         for (manifest, package) in &analysis.packages {
             let directory = manifest
                 .parent()
-                .and_then(|path| path.strip_prefix(&root).ok())
+                .and_then(|path| path.strip_prefix(root).ok())
                 .ok_or_else(|| {
                     Error::Analysis(format!("{} is outside the project", manifest.display()))
                 })?;
@@ -52,7 +81,7 @@ impl Rule for Layers {
                     ownership.insert(manifest, *layer);
                 }
                 [] => findings.push(finding(
-                    manifest.strip_prefix(&root).unwrap_or(manifest),
+                    manifest.strip_prefix(root).unwrap_or(manifest),
                     format!(
                         "package {} does not belong to a configured layer",
                         package.name
@@ -60,80 +89,104 @@ impl Rule for Layers {
                     "Add a layer path glob covering this package.".into(),
                 )),
                 _ => findings.push(finding(
-                    manifest.strip_prefix(&root).unwrap_or(manifest),
+                    manifest.strip_prefix(root).unwrap_or(manifest),
                     format!("package {} matches multiple layers", package.name),
                     "Make layer path globs disjoint so package ownership is unambiguous.".into(),
                 )),
             }
         }
-        if analysis.packages.is_empty() {
-            findings.push(finding(
-                Path::new("."),
-                "no Cargo packages found for configured layers".into(),
-                "Check the project root and discovery exclusions.".into(),
-            ));
-        }
-        for (manifest, source) in &analysis.packages {
-            let Some(source_layer) = ownership.get(manifest) else {
-                continue;
-            };
-            for dependency in &source.dependencies {
-                let Some(path) = &dependency.path else {
-                    continue;
-                };
-                let target = fs::canonicalize(path.join("Cargo.toml")).map_err(|error| {
-                    Error::Analysis(format!("dependency {}: {error}", dependency.name))
-                })?;
-                let Some(target_layer) = ownership.get(&target) else {
-                    if !analysis.packages.contains_key(&target) {
-                        findings.push(finding(
-                            manifest.strip_prefix(&root).unwrap_or(manifest),
-                            format!(
-                                "{} depends on local package {} outside analyzed layers",
-                                source.name, dependency.name
-                            ),
-                            "Include the local dependency in the analyzed project and as\
-                sign it a layer."
-                                .into(),
-                        ));
-                    }
-                    continue;
-                };
-                if !source_layer.dependencies.contains(&target_layer.name) {
-                    let alias = dependency.rename.as_deref().unwrap_or(&dependency.name);
-                    findings.push(finding(
-                        manifest.strip_prefix(&root).unwrap_or(manifest),
-                        format!(
-                            "{} -> {} via {alias}: layer {} cannot depend on {} ({:?\
-                }, target {})",
-                            source.name,
-                            dependency.name,
-                            source_layer.name,
-                            target_layer.name,
-                            dependency.kind,
-                            dependency
-                                .target
-                                .as_ref()
-                                .map_or_else(|| "all".into(), ToString::to_string)
-                        ),
-                        format!(
-                            "Remove or invert this dependency; place the reusable co\
-                ntract in a permitted layer. Allowed dependency layers: {}.",
-                            source_layer
-                                .dependencies
-                                .iter()
-                                .cloned()
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        ),
-                    ));
-                }
+        Ok(ownership)
+    }
+}
+impl Layer {
+    fn dependencies(
+        &self,
+        manifest: &Path,
+        source: &cargo_metadata::Package,
+        analysis: &Analysis,
+        root: &Path,
+        ownership: &BTreeMap<&std::path::PathBuf, &Layer>,
+    ) -> Result<Vec<Finding>, Error> {
+        let mut findings = Vec::new();
+        for dependency in &source.dependencies {
+            if let Some(finding) =
+                self.dependency(manifest, source, dependency, analysis, root, ownership)?
+            {
+                findings.push(finding);
             }
         }
-        Ok(RuleResult {
-            status: Status::Completed,
-            findings,
-        })
+        Ok(findings)
+    }
+
+    fn dependency(
+        &self,
+        manifest: &Path,
+        source: &cargo_metadata::Package,
+        dependency: &cargo_metadata::Dependency,
+        analysis: &Analysis,
+        root: &Path,
+        ownership: &BTreeMap<&std::path::PathBuf, &Layer>,
+    ) -> Result<Option<Finding>, Error> {
+        let Some(path) = &dependency.path else {
+            return Ok(None);
+        };
+        let target = fs::canonicalize(path.join("Cargo.toml"))
+            .map_err(|error| Error::Analysis(format!("dependency {}: {error}", dependency.name)))?;
+        let Some(target_layer) = ownership.get(&target) else {
+            if analysis.packages.contains_key(&target) {
+                return Ok(None);
+            }
+            return Ok(Some(finding(
+                manifest.strip_prefix(root).unwrap_or(manifest),
+                format!(
+                    "{} depends on local package {} outside analyzed layers",
+                    source.name, dependency.name
+                ),
+                "Include the local dependency in the analyzed project and assign it a layer."
+                    .into(),
+            )));
+        };
+        if self.dependencies.contains(&target_layer.name) {
+            return Ok(None);
+        }
+        Ok(Some(self.violation(
+            manifest,
+            source,
+            dependency,
+            root,
+            target_layer,
+        )))
+    }
+    fn violation(
+        &self,
+        manifest: &Path,
+        source: &cargo_metadata::Package,
+        dependency: &cargo_metadata::Dependency,
+        root: &Path,
+        target: &Layer,
+    ) -> Finding {
+        let alias = dependency.rename.as_deref().unwrap_or(&dependency.name);
+        let condition = dependency
+            .target
+            .as_ref()
+            .map_or_else(|| "all".into(), ToString::to_string);
+        finding(
+            manifest.strip_prefix(root).unwrap_or(manifest),
+            format!(
+                "{} -> {} via {alias}: layer {} cannot depend on {} ({:?}, target {condition})",
+                source.name, dependency.name, self.name, target.name, dependency.kind
+            ),
+            format!(
+                "Remove or invert this dependency; place the reusable contract \
+                in a permitted layer. \
+                Allowed dependency layers: {}.",
+                self.dependencies
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        )
     }
 }
 
@@ -366,7 +419,10 @@ dependencies = ["packages"]
         append(
             root.path(),
             "apps/cli/Cargo.toml",
-            "\n[dependencies]\nlinter={path='../../linter'}\nlinter-rust={path='../../linter-rust'}",
+            r#"
+[dependencies]
+linter={path='../../linter'}
+linter-rust={path='../../linter-rust'}"#,
         );
         let registry = Registry::default().register::<Layers>().unwrap();
         assert!(registry.check(root.path()).unwrap().findings.is_empty());

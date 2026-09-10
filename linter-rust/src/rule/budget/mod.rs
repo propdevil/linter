@@ -18,83 +18,106 @@ impl Rule for DependencyBudget {
     fn check(&self, _: &Project, graph: &CargoGraph) -> Result<RuleResult, Error> {
         let mut findings = Vec::new();
         for assertion in &self.0 {
-            for package in graph.packages.values().filter(|package| {
-                assertion.target.matches(&package.directory)
-                    && !assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|exclude| exclude.matches(&package.directory))
-            }) {
-                let mut dependencies: BTreeMap<_, Vec<&CargoDependency>> = BTreeMap::new();
-                for dependency in package
-                    .dependencies
-                    .iter()
-                    .filter(|dependency| assertion.kinds.contains(&dependency.kind))
-                {
-                    let source = dependency
-                        .manifest
-                        .as_ref()
-                        .map(|manifest| format!("local:{}", manifest.display()))
-                        .or_else(|| dependency.source.clone())
-                        .unwrap_or_else(|| "registry:crates-io".into());
-                    dependencies
-                        .entry((dependency.package.as_str(), source))
-                        .or_default()
-                        .push(dependency);
-                }
-                if dependencies.len() <= assertion.max_dependencies {
-                    continue;
-                }
-                let related = dependencies
-                    .iter()
-                    .flat_map(|((name, source), declarations)| {
-                        declarations.iter().map(move |dependency| Evidence {
-                            path: package.manifest.clone(),
-                            span: Some(dependency.span.clone()),
-                            message: format!(
-                                "{name} [{source}]: alias `{}`, {:?}{}{}",
-                                dependency.alias,
-                                dependency.kind,
-                                dependency
-                                    .target
-                                    .as_ref()
-                                    .map(|target| format!(", target {target}"))
-                                    .unwrap_or_default(),
-                                if dependency.optional {
-                                    ", optional"
-                                } else {
-                                    ""
-                                }
-                            ),
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                findings.push(Finding {
-                    rule: Self::ID,
-                    path: package.manifest.clone(),
-                    span: related.first().and_then(|e| e.span.clone()),
-                    related,
-                    configuration: format!(
-                        "\
-                {}.max_dependencies",
-                        assertion.setting
-                    ),
-                    message: format!(
-                        "crate `{}` declares {} distinct dependencies; maximum is {}",
-                        package.name,
-                        dependencies.len(),
-                        assertion.max_dependencies
-                    ),
-                    instruction: "Remove unnecessary dependencies or move unrelated respo\
-                nsibilities to their owning package."
-                        .into(),
-                });
-            }
+            findings.extend(
+                graph
+                    .packages
+                    .values()
+                    .filter_map(|package| assertion.check(package)),
+            );
         }
         Ok(RuleResult {
             status: Status::Completed,
             findings,
         })
+    }
+}
+
+impl config::Assertion {
+    fn check(&self, package: &crate::CargoPackage) -> Option<Finding> {
+        if !self.target.matches(&package.directory)
+            || self
+                .exclude
+                .as_ref()
+                .is_some_and(|e| e.matches(&package.directory))
+        {
+            return None;
+        }
+        let dependencies = self.dependencies(package);
+        if dependencies.len() <= self.max_dependencies {
+            return None;
+        }
+        let related: Vec<_> = dependencies
+            .iter()
+            .flat_map(|((name, source), declarations)| {
+                declarations
+                    .iter()
+                    .map(move |dependency| evidence(package, dependency, name, source))
+            })
+            .collect();
+        Some(Finding {
+            rule: DependencyBudget::ID,
+            path: package.manifest.clone(),
+            span: related.first().and_then(|e| e.span.clone()),
+            related,
+            configuration: format!("{}.max_dependencies", self.setting),
+            message: format!(
+                "crate `{}` declares {} distinct dependencies; maximum is {}",
+                package.name,
+                dependencies.len(),
+                self.max_dependencies
+            ),
+            instruction: "Remove unnecessary dependencies or move unrelated responsibilities \
+                to their owning package."
+                .into(),
+        })
+    }
+    fn dependencies<'a>(
+        &self,
+        package: &'a crate::CargoPackage,
+    ) -> BTreeMap<(&'a str, String), Vec<&'a CargoDependency>> {
+        let mut dependencies = BTreeMap::<_, Vec<_>>::new();
+        for dependency in package
+            .dependencies
+            .iter()
+            .filter(|d| self.kinds.contains(&d.kind))
+        {
+            let source = dependency
+                .manifest
+                .as_ref()
+                .map(|manifest| format!("local:{}", manifest.display()))
+                .or_else(|| dependency.source.clone())
+                .unwrap_or_else(|| "registry:crates-io".into());
+            dependencies
+                .entry((dependency.package.as_str(), source))
+                .or_default()
+                .push(dependency);
+        }
+        dependencies
+    }
+}
+fn evidence(
+    package: &crate::CargoPackage,
+    dependency: &CargoDependency,
+    name: &str,
+    source: &str,
+) -> Evidence {
+    let target = dependency
+        .target
+        .as_ref()
+        .map(|target| format!(", target {target}"))
+        .unwrap_or_default();
+    let optional = if dependency.optional {
+        ", optional"
+    } else {
+        ""
+    };
+    Evidence {
+        path: package.manifest.clone(),
+        span: Some(dependency.span.clone()),
+        message: format!(
+            "{name} [{source}]: alias `{}`, {:?}{target}{optional}",
+            dependency.alias, dependency.kind
+        ),
     }
 }
 
@@ -135,7 +158,10 @@ mod tests {
     #[test]
     fn counts_distinct_local_targets_across_kinds() {
         let root = fixture(
-            "[dependencies]\nfirst={path='../first'}\n[dev-dependencies]\nsecond={path='../second'}",
+            r#"[dependencies]
+first={path='../first'}
+[dev-dependencies]
+second={path='../second'}"#,
             "max_dependencies=1",
         );
         assert!(check(&root).unwrap().findings.is_empty());

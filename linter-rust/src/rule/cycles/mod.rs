@@ -17,99 +17,105 @@ impl Rule for DependencyCycles {
     }
     fn check(&self, _: &Project, analysis: &CargoGraph) -> Result<RuleResult, Error> {
         let packages: Vec<_> = analysis.packages.values().collect();
-        let mut findings = Vec::new();
-        for assertion in &self.0 {
-            let eligible: Vec<_> = packages
-                .iter()
-                .map(|package| {
-                    !assertion
-                        .exclude
-                        .as_ref()
-                        .is_some_and(|selector| selector.matches(&package.directory))
-                })
-                .collect();
-            let mut adjacency = vec![Vec::new(); packages.len()];
-            for (from, package) in packages.iter().enumerate().filter(|(i, _)| eligible[*i]) {
-                for edge in &package.dependencies {
-                    if assertion.kinds.contains(&edge.kind)
-                        && let Some(to) = packages
-                            .iter()
-                            .position(|package| Some(&package.manifest) == edge.manifest.as_ref())
-                        && eligible[to]
-                    {
-                        adjacency[from].push(to);
-                    }
-                }
-                adjacency[from].sort_unstable();
-                adjacency[from].dedup();
-            }
-            for component in graph::components(&adjacency) {
-                let Some(start) = component
-                    .iter()
-                    .copied()
-                    .find(|index| assertion.target.matches(&packages[*index].directory))
-                else {
-                    continue;
-                };
-                let Some(path) = graph::cycle(start, &component, &adjacency) else {
-                    continue;
-                };
-                let mut evidence = Vec::new();
-                for pair in path.windows(2) {
-                    let from = packages[pair[0]];
-                    let to = packages[pair[1]];
-                    let Some(edge) = from.dependencies.iter().find(|edge| {
-                        edge.manifest.as_ref() == Some(&to.manifest)
-                            && assertion.kinds.contains(&edge.kind)
-                    }) else {
-                        continue;
-                    };
-                    evidence.push(Evidence {
-                        path: from.manifest.clone(),
-                        span: Some(edge.span.clone()),
-                        message: format!(
-                            "{} -> {} ({:?}, alias `{}`{})",
-                            from.name,
-                            to.name,
-                            edge.kind,
-                            edge.alias,
-                            edge.target
-                                .as_ref()
-                                .map(|target| format!(", target {target}"))
-                                .unwrap_or_default()
-                        ),
-                    });
-                }
-                findings.push(Finding {
-                    rule: Self::ID,
-                    path: packages[start].manifest.clone(),
-                    span: evidence.first().and_then(|e| e.span.clone()),
-                    related: evidence,
-                    configuration: assertion.setting.clone(),
-                    message: format!(
-                        "declared Cargo dependency cycle: {}",
-                        path.iter()
-                            .map(|i| format!(
-                                "\
-                {} [{}]",
-                                packages[*i].name,
-                                packages[*i].directory.display()
-                            ))
-                            .collect::<Vec<_>>()
-                            .join(
-                                "\
-                \u{20}-> "
-                            )
-                    ),
-                    instruction: "Remove a reverse dependency or move the shared contract\
-                \u{20}to its owning lower layer."
-                        .into(),
-                });
-            }
-        }
+        let findings = self
+            .0
+            .iter()
+            .flat_map(|assertion| assertion.check(&packages))
+            .collect();
         Ok(RuleResult {
             status: Status::Completed,
             findings,
+        })
+    }
+}
+
+impl config::Assertion {
+    fn check(&self, packages: &[&crate::CargoPackage]) -> Vec<Finding> {
+        let adjacency = self.adjacency(packages);
+        graph::components(&adjacency)
+            .into_iter()
+            .filter_map(|component| {
+                let start = component
+                    .iter()
+                    .copied()
+                    .find(|index| self.target.matches(&packages[*index].directory))?;
+                let path = graph::cycle(start, &component, &adjacency)?;
+                Some(self.finding(packages, &path))
+            })
+            .collect()
+    }
+    fn adjacency(&self, packages: &[&crate::CargoPackage]) -> Vec<Vec<usize>> {
+        let eligible: Vec<_> = packages
+            .iter()
+            .map(|package| {
+                !self
+                    .exclude
+                    .as_ref()
+                    .is_some_and(|s| s.matches(&package.directory))
+            })
+            .collect();
+        let mut adjacency = vec![Vec::new(); packages.len()];
+        for (from, package) in packages.iter().enumerate().filter(|(i, _)| eligible[*i]) {
+            adjacency[from] = package
+                .dependencies
+                .iter()
+                .filter(|edge| self.kinds.contains(&edge.kind))
+                .filter_map(|edge| {
+                    packages
+                        .iter()
+                        .position(|p| Some(&p.manifest) == edge.manifest.as_ref())
+                })
+                .filter(|to| eligible[*to])
+                .collect();
+            adjacency[from].sort_unstable();
+            adjacency[from].dedup();
+        }
+        adjacency
+    }
+    fn finding(&self, packages: &[&crate::CargoPackage], path: &[usize]) -> Finding {
+        let evidence: Vec<_> = path
+            .windows(2)
+            .filter_map(|pair| self.evidence(packages[pair[0]], packages[pair[1]]))
+            .collect();
+        let names = path
+            .iter()
+            .map(|i| {
+                format!(
+                    "{} [{}]",
+                    packages[*i].name,
+                    packages[*i].directory.display()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        Finding {
+            rule: DependencyCycles::ID,
+            path: packages[path[0]].manifest.clone(),
+            span: evidence.first().and_then(|e| e.span.clone()),
+            related: evidence,
+            configuration: self.setting.clone(),
+            message: format!("declared Cargo dependency cycle: {names}"),
+            instruction: "Remove a reverse dependency or move the shared contract \
+                to its owning lower layer."
+                .into(),
+        }
+    }
+    fn evidence(&self, from: &crate::CargoPackage, to: &crate::CargoPackage) -> Option<Evidence> {
+        let edge = from.dependencies.iter().find(|edge| {
+            edge.manifest.as_ref() == Some(&to.manifest) && self.kinds.contains(&edge.kind)
+        })?;
+        let target = edge
+            .target
+            .as_ref()
+            .map(|target| format!(", target {target}"))
+            .unwrap_or_default();
+        Some(Evidence {
+            path: from.manifest.clone(),
+            span: Some(edge.span.clone()),
+            message: format!(
+                "{} -> {} ({:?}, alias `{}`{target})",
+                from.name, to.name, edge.kind, edge.alias
+            ),
         })
     }
 }

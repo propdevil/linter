@@ -13,13 +13,67 @@ pub(crate) struct Identity {
     pub name: String,
 }
 impl Identity {
+    fn for_source(source: &Source, analysis: &Analysis, root: &Path) -> Self {
+        let absolute = root.join(&source.path);
+        let package = analysis
+            .packages
+            .keys()
+            .filter(|manifest| {
+                manifest
+                    .parent()
+                    .is_some_and(|parent| absolute.starts_with(parent))
+            })
+            .max_by_key(|manifest| manifest.components().count());
+        let directory = package
+            .and_then(|manifest| manifest.parent())
+            .unwrap_or(root);
+        let relative = absolute.strip_prefix(directory).unwrap_or(&source.path);
+        let relative = relative.strip_prefix("src").unwrap_or(relative);
+        let mut module: Vec<String> = relative
+            .parent()
+            .into_iter()
+            .flat_map(|parent| parent.components())
+            .map(|part| part.as_os_str().to_string_lossy().into_owned())
+            .collect();
+        let stem = relative
+            .file_stem()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
+        if !matches!(stem, "lib" | "main" | "mod") {
+            module.push(stem.into());
+        }
+        Self {
+            package: package
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| root.display().to_string()),
+            module,
+            name: String::new(),
+        }
+    }
+
     pub fn key(&self) -> String {
-        format!(
-            "{}::{}::{}",
-            self.package,
-            self.module.join("::"),
-            self.name
-        )
+        let module = self.module.join("::");
+        format!("{}::{module}::{}", self.package, self.name)
+    }
+    fn relative(&self, parts: &mut Vec<&str>) -> Option<Self> {
+        let mut base = self.clone();
+        match parts.first().copied()? {
+            "crate" => {
+                base.module.clear();
+                parts.remove(0);
+            }
+            "self" => {
+                parts.remove(0);
+            }
+            "super" => {
+                while parts.first() == Some(&"super") {
+                    base.module.pop()?;
+                    parts.remove(0);
+                }
+            }
+            _ => {}
+        }
+        Some(base)
     }
     fn named(&self, name: &str) -> Self {
         Self {
@@ -65,7 +119,7 @@ impl<'a> Index<'a> {
             owners: BTreeMap::new(),
         };
         for source in &analysis.sources {
-            let owner = owner(source, analysis, root);
+            let owner = Identity::for_source(source, analysis, root);
             index.owners.insert(source.path.clone(), owner.clone());
             let mut tests = vec![false; source.text.len()];
             if integration(source, root, analysis) {
@@ -169,10 +223,11 @@ impl<'a> Index<'a> {
             .filter_map(|field| {
                 let name = named(field, structure.source)?;
                 let node = field.child_by_field_name("type")?;
+                let ty = self.resolve(structure.source, node, &structure.id);
                 Some((
                     name.into(),
                     Field {
-                        ty: self.resolve(structure.source, node, &structure.id),
+                        ty,
                         span: field.byte_range(),
                     },
                 ))
@@ -198,19 +253,7 @@ impl<'a> Index<'a> {
                     self.imports(list, source, owner, &prefix);
                 }
             }
-            "use_as_clause" => {
-                let Some(path) = node.child_by_field_name("path") else {
-                    return;
-                };
-                let Some(alias) = node.child_by_field_name("alias") else {
-                    return;
-                };
-                self.imports.push(Import {
-                    owner: owner.clone(),
-                    name: source.text[alias.byte_range()].into(),
-                    path: join(prefix, &source.text[path.byte_range()]),
-                });
-            }
+            "use_as_clause" => self.renamed(node, source, owner, prefix),
             "use_wildcard" => self.imports.push(Import {
                 owner: owner.clone(),
                 name: "*".into(),
@@ -230,6 +273,20 @@ impl<'a> Index<'a> {
                 });
             }
         }
+    }
+
+    fn renamed(&mut self, node: Node<'_>, source: &Source, owner: &Identity, prefix: &str) {
+        let Some(path) = node.child_by_field_name("path") else {
+            return;
+        };
+        let Some(alias) = node.child_by_field_name("alias") else {
+            return;
+        };
+        self.imports.push(Import {
+            owner: owner.clone(),
+            name: source.text[alias.byte_range()].into(),
+            path: join(prefix, &source.text[path.byte_range()]),
+        });
     }
 
     fn resolve_type(
@@ -273,25 +330,27 @@ impl<'a> Index<'a> {
                     .collect::<Option<Vec<_>>>()?;
                 Some(format!("({})", fields.join(",")))
             }
-            "array_type" => {
-                let inner = self.resolve_type(
-                    source,
-                    node.child_by_field_name("element")?,
-                    owner,
-                    depth + 1,
-                )?;
-                let length = node
-                    .child_by_field_name("length")
-                    .map(|length| source.text[length.byte_range()].trim());
-                if length
-                    .is_some_and(|value| !value.chars().all(|ch| ch.is_ascii_digit() || ch == '_'))
-                {
-                    return None;
-                }
-                Some(format!("[{inner};{}]", length.unwrap_or("slice")))
-            }
+            "array_type" => self.array(source, node, owner, depth),
             _ => None,
         }
+    }
+
+    fn array(
+        &self,
+        source: &Source,
+        node: Node<'_>,
+        owner: &Identity,
+        depth: usize,
+    ) -> Option<String> {
+        let element = node.child_by_field_name("element")?;
+        let inner = self.resolve_type(source, element, owner, depth + 1)?;
+        let length = node
+            .child_by_field_name("length")
+            .map(|length| source.text[length.byte_range()].trim());
+        if length.is_some_and(|value| !value.chars().all(|ch| ch.is_ascii_digit() || ch == '_')) {
+            return None;
+        }
+        Some(format!("[{inner};{}]", length.unwrap_or("slice")))
     }
 
     fn resolve_path(&self, path: &str, owner: &Identity, depth: usize) -> Option<String> {
@@ -301,21 +360,7 @@ impl<'a> Index<'a> {
         let path: String = path.split_whitespace().collect();
         let mut parts: Vec<_> = path.trim_start_matches("::").split("::").collect();
         let first = *parts.first()?;
-        if self
-            .symbols
-            .iter()
-            .filter(|symbol| symbol.id == *owner)
-            .any(|symbol| {
-                symbol
-                    .node
-                    .child_by_field_name("type_parameters")
-                    .is_some_and(|parameters| {
-                        children(parameters)
-                            .iter()
-                            .any(|parameter| named(*parameter, symbol.source) == Some(first))
-                    })
-            })
-        {
+        if self.parameter(owner, first) {
             return None;
         }
         if parts.len() == 1
@@ -328,64 +373,22 @@ impl<'a> Index<'a> {
             return None;
         }
 
-        let mut base = owner.clone();
-        match first {
-            "crate" => {
-                base.module.clear();
-                parts.remove(0);
+        if !matches!(first, "crate" | "self" | "super") {
+            let imports = self.named_imports(owner, first);
+            if imports.len() > 1 {
+                return None;
             }
-            "self" => {
-                parts.remove(0);
-            }
-            "super" => {
-                while parts.first() == Some(&"super") {
-                    base.module.pop()?;
-                    parts.remove(0);
-                }
-            }
-            _ => {
-                let imports: Vec<_> = self
-                    .imports
-                    .iter()
-                    .filter(|import| {
-                        import.owner.package == owner.package
-                            && import.owner.module == owner.module
-                            && import.name == first
-                    })
-                    .collect();
-                if imports.len() > 1 {
-                    return None;
-                }
-                if let Some(import) = imports.first() {
-                    let suffix = parts[1..].join("::");
-                    return self.resolve_path(&join(&import.path, &suffix), owner, depth + 1);
-                }
+            if let Some(import) = imports.first() {
+                let suffix = parts[1..].join("::");
+                return self.resolve_path(&join(&import.path, &suffix), owner, depth + 1);
             }
         }
+        let mut base = owner.relative(&mut parts)?;
         let name = parts.pop()?;
         base.module.extend(parts.iter().map(|part| (*part).into()));
         base.name = name.into();
-        let symbols: Vec<_> = self
-            .symbols
-            .iter()
-            .filter(|symbol| symbol.id == base)
-            .collect();
-        if symbols.len() > 1 {
-            return None;
-        }
-        if let Some(symbol) = symbols.first() {
-            if symbol.node.kind() != "type_item" {
-                return Some(format!("nominal:{}", base.key()));
-            }
-            if symbol.node.child_by_field_name("type_parameters").is_some() {
-                return None;
-            }
-            return self.resolve_type(
-                symbol.source,
-                symbol.node.child_by_field_name("type")?,
-                &base,
-                depth + 1,
-            );
+        if self.symbols.iter().any(|symbol| symbol.id == base) {
+            return self.symbol_type(&base, depth);
         }
         if owner
             .module
@@ -397,6 +400,48 @@ impl<'a> Index<'a> {
             return self.resolve_path(&path, &outer, depth + 1);
         }
         standard(&path).map(str::to_owned)
+    }
+    fn named_imports(&self, owner: &Identity, name: &str) -> Vec<&Import> {
+        self.imports
+            .iter()
+            .filter(|import| {
+                import.owner.package == owner.package
+                    && import.owner.module == owner.module
+                    && import.name == name
+            })
+            .collect()
+    }
+    fn parameter(&self, owner: &Identity, name: &str) -> bool {
+        self.symbols
+            .iter()
+            .filter(|symbol| symbol.id == *owner)
+            .any(|symbol| {
+                let Some(parameters) = symbol.node.child_by_field_name("type_parameters") else {
+                    return false;
+                };
+                children(parameters)
+                    .iter()
+                    .any(|parameter| named(*parameter, symbol.source) == Some(name))
+            })
+    }
+    fn symbol_type(&self, base: &Identity, depth: usize) -> Option<String> {
+        let mut symbols = self.symbols.iter().filter(|symbol| symbol.id == *base);
+        let symbol = symbols.next()?;
+        if symbols.next().is_some() {
+            return None;
+        }
+        if symbol.node.kind() != "type_item" {
+            return Some(format!("nominal:{}", base.key()));
+        }
+        if symbol.node.child_by_field_name("type_parameters").is_some() {
+            return None;
+        }
+        self.resolve_type(
+            symbol.source,
+            symbol.node.child_by_field_name("type")?,
+            base,
+            depth + 1,
+        )
     }
 }
 
@@ -435,11 +480,10 @@ fn platform_gated(node: Node<'_>, source: &Source) -> bool {
         match attribute.kind() {
             "attribute_item" => {
                 let text = &source.text[attribute.byte_range()];
-                if text.contains("cfg")
-                    && ["unix", "windows", "target_"]
-                        .iter()
-                        .any(|word| text.contains(word))
-                {
+                let platform = ["unix", "windows", "target_"]
+                    .iter()
+                    .any(|word| text.contains(word));
+                if text.contains("cfg") && platform {
                     return true;
                 }
             }
@@ -449,43 +493,6 @@ fn platform_gated(node: Node<'_>, source: &Source) -> bool {
         sibling = attribute.prev_named_sibling();
     }
     false
-}
-fn owner(source: &Source, analysis: &Analysis, root: &Path) -> Identity {
-    let absolute = root.join(&source.path);
-    let package = analysis
-        .packages
-        .keys()
-        .filter(|manifest| {
-            manifest
-                .parent()
-                .is_some_and(|parent| absolute.starts_with(parent))
-        })
-        .max_by_key(|manifest| manifest.components().count());
-    let directory = package
-        .and_then(|manifest| manifest.parent())
-        .unwrap_or(root);
-    let relative = absolute.strip_prefix(directory).unwrap_or(&source.path);
-    let relative = relative.strip_prefix("src").unwrap_or(relative);
-    let mut module: Vec<String> = relative
-        .parent()
-        .into_iter()
-        .flat_map(|parent| parent.components())
-        .map(|part| part.as_os_str().to_string_lossy().into_owned())
-        .collect();
-    let stem = relative
-        .file_stem()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
-    if !matches!(stem, "lib" | "main" | "mod") {
-        module.push(stem.into());
-    }
-    Identity {
-        package: package
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|| root.display().to_string()),
-        module,
-        name: String::new(),
-    }
 }
 
 #[cfg(test)]

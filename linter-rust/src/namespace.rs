@@ -68,50 +68,62 @@ impl Context {
                 .to_owned();
             next.push(name.clone());
             if node.child_by_field_name("body").is_none() {
-                let parent = source.path.parent().unwrap_or(Path::new(""));
-                let stem = source
-                    .path
-                    .file_stem()
-                    .and_then(|stem| stem.to_str())
-                    .unwrap_or_default();
-                let mut directory = parent.to_owned();
-                let explicit = explicit(node, source);
-                if !self.fallback.get(&source.path).is_some_and(Vec::is_empty)
-                    && !matches!(stem, "lib" | "main" | "mod")
-                    && (explicit.is_none() || !inline.is_empty())
-                {
-                    directory.push(stem);
-                }
-                for component in inline {
-                    directory.push(component);
-                }
-                let candidates = if let Some(path) = explicit {
-                    vec![directory.join(path)]
-                } else {
-                    vec![
-                        directory.join(format!("{name}.rs")),
-                        directory.join(&name).join("mod.rs"),
-                    ]
-                };
-                for path in candidates {
-                    let Some(path) = std::fs::canonicalize(root.join(path))
-                        .ok()
-                        .and_then(|path| path.strip_prefix(root).ok().map(Path::to_owned))
-                    else {
-                        continue;
-                    };
-                    if self.fallback.contains_key(&path) {
-                        self.parents
-                            .entry(path)
-                            .or_default()
-                            .push((source.path.clone(), next.clone()));
-                    }
-                }
+                self.external(node, source, root, inline, &next, &name);
             }
         }
         let mut cursor = node.walk();
         for child in node.named_children(&mut cursor) {
             self.collect(child, source, root, &next);
+        }
+    }
+    fn external(
+        &mut self,
+        node: Node<'_>,
+        source: &Source,
+        root: &Path,
+        inline: &[String],
+        next: &[String],
+        name: &str,
+    ) {
+        let parent = source.path.parent().unwrap_or(Path::new(""));
+        let stem = source
+            .path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or_default();
+        let mut directory = parent.to_owned();
+        let explicit = explicit(node, source);
+        if !self.fallback.get(&source.path).is_some_and(Vec::is_empty)
+            && !matches!(stem, "lib" | "main" | "mod")
+            && (explicit.is_none() || !inline.is_empty())
+        {
+            directory.push(stem);
+        }
+        for component in inline {
+            directory.push(component);
+        }
+        let candidates = if let Some(path) = explicit {
+            vec![directory.join(path)]
+        } else {
+            vec![
+                directory.join(format!("{name}.rs")),
+                directory.join(name).join("mod.rs"),
+            ]
+        };
+        for path in candidates {
+            let Some(path) = std::fs::canonicalize(root.join(path))
+                .ok()
+                .and_then(|path| path.strip_prefix(root).ok().map(Path::to_owned))
+            else {
+                continue;
+            };
+            if !self.fallback.contains_key(&path) {
+                continue;
+            }
+            self.parents
+                .entry(path)
+                .or_default()
+                .push((source.path.clone(), next.to_vec()));
         }
     }
 }
