@@ -1,0 +1,124 @@
+# Generated from the default preset, then configured for this repository.
+[files]
+exclude = ["**/.git", "**/target", "sources/**"]
+
+[[rules.layout]]
+target = "."
+mode = "permissive"
+files.required = ["Cargo.toml", "Cargo.lock", "linter.toml"]
+
+
+[[rules.layout]]
+target = "apps/*"
+mode = "restrictive"
+files.required = ["Cargo.toml", "src/main.rs"]
+directories.allowed = [{ target = "tests", description = "Crate integration tests." }]
+
+[[rules.layout]]
+target = "linter"
+mode = "restrictive"
+files.required = ["Cargo.toml", "src/lib.rs", "src/config.rs", "src/rule/mod.rs"]
+directories.allowed = [{ target = "tests", description = "Crate integration tests." }]
+
+[[rules.layout]]
+target = "{linter,linter-*}/src/rule/*"
+mode = "restrictive"
+files.required = ["mod.rs", "config.rs", "readme.md"]
+files.allow_empty = false
+directories.allow_empty = false
+directories.allowed = [{ target = "fixtures", description = "Rule test inputs." }]
+
+[[rules.layout]]
+target = "configs"
+mode = "restrictive"
+files.allowed = [{ target = "*.toml", description = "Embedded project configuration presets." }]
+
+[[rules.layout]]
+target = "docs"
+mode = "restrictive"
+files.allowed = [{ target = "*.md", description = "Project goal and rule descriptions." }]
+
+[[rules.layout]]
+target = "**/src{,/**}"
+directories.allow_single_file = false
+
+[[rules.layout]]
+target = ["**/*.md", "**/*.markdown"]
+allow = false
+case_sensitive = false
+
+[[rules.layout]]
+target = ["docs/*.md"]
+allow = true
+description = "Documents the project goal and design."
+
+[[rules.layout]]
+target = ["{linter,linter-*}/src/rule/*/readme.md"]
+allow = true
+description = "Describes each rule and its configuration."
+
+[[rules."rust/layers"]]
+name = "linter"
+target = ["linter"]
+dependencies = []
+
+[[rules."rust/layers"]]
+name = "rust"
+target = ["linter-rust"]
+dependencies = ["linter"]
+
+[[rules."rust/layers"]]
+name = "apps"
+target = ["apps/*"]
+dependencies = ["linter", "rust"]
+
+[[rules.layout]]
+target = [
+    "**/{test,tests}.rs",
+    "**/*{_,.,-}{test,tests}.rs",
+    "**/{test,tests}{_,.,-}*.rs",
+    "**/{test,tests}/**/*.rs",
+]
+allow = false
+case_sensitive = false
+
+[[rules.layout]]
+target = ["**/*{Test,Tests}.rs"]
+allow = false
+
+[[rules.layout]]
+target = ["tests/**/*.rs", "{linter,linter-*,apps/*}/tests/**/*.rs"]
+allow = true
+description = "Crate integration tests and repository-wide test cases."
+
+[rules."rust/file-length".config]
+max_lines = 500
+
+[[rules.filename]]
+target = "{linter,linter-*}/src/rule/*/*"
+kind = "file"
+case = "snake_case"
+
+[[rules.filename]]
+target = "{linter,linter-*}/src/rule/*/*"
+kind = "directory"
+case = "snake_case"
+
+[[rules.filename]]
+target = "**/src{,/**}/*"
+kind = "file"
+max_words = 2
+
+[[rules.filename]]
+target = "**/src/**/*"
+kind = "directory"
+max_words = 2
+
+[[rules."shared-affix"]]
+target = "**/src{,/**}/*"
+max_prefix = 2
+max_suffix = 2
+
+[[rules."forbidden-words"]]
+target = "**/src/**"
+words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils", "selected", "prepared", "creating", "loading", "running", "handling", "validating", "decoding", "encoding", "dispatching", "executing"]

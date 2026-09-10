@@ -1,0 +1,49 @@
+[files]
+exclude = ["**/.git", "**/target"]
+
+[[rules.layout]]
+target = "."
+mode = "permissive"
+
+files.required = ["Cargo.toml"]
+
+[[rules.layout]]
+target = ["**/*.md", "**/*.markdown"]
+allow = false
+case_sensitive = false
+
+[[rules.layout]]
+target = ["docs/*.md"]
+allow = true
+description = "Documents the project goal and design."
+
+[[rules.layout]]
+target = [
+    "**/{test,tests}.rs",
+    "**/*{_,.,-}{test,tests}.rs",
+    "**/{test,tests}{_,.,-}*.rs",
+    "**/{test,tests}/**/*.rs",
+]
+allow = false
+case_sensitive = false
+
+[[rules.layout]]
+target = ["**/*{Test,Tests}.rs"]
+allow = false
+
+[[rules.layout]]
+target = ["tests/**/*.rs", "{apps,packages,usecase}/*/tests/**/*.rs"]
+allow = true
+description = "Crate integration tests and repository-wide test cases."
+
+[rules."rust/file-length".config]
+max_lines = 500
+
+[[rules.filename]]
+target = "*"
+kind = "file"
+max_words = 2
+
+[[rules."forbidden-words"]]
+target = "*"
+words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]

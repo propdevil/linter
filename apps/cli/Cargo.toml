@@ -1,0 +1,23 @@
+[package]
+name = "linter-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "linter"
+path = "src/main.rs"
+doc = false
+
+[lints]
+workspace = true
+
+[dependencies]
+clap.workspace = true
+linter.workspace = true
+linter-rust.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

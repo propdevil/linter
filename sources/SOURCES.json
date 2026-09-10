@@ -1,0 +1,1372 @@
+[
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/ADOPTION.md",
+    "copy": "payment-sdk/packages/design-lint/ADOPTION.md",
+    "sha256": "5eb08c66fe690c7cb19cd542d605365dab093e4cf78297d8da934ddb37030ffc"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/Cargo.toml",
+    "copy": "payment-sdk/packages/design-lint/Cargo.toml",
+    "sha256": "ff6258ac58b988798156c33671b72079fcf3c8eb2244c743ac3026d3bf7f53d7"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/LICENSE-WORDNET",
+    "copy": "payment-sdk/packages/design-lint/LICENSE-WORDNET",
+    "sha256": "e95e845ba95cedf3fb62c96f656ab2d71e4404f3aa84741f1ec2862741965c98"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/PROVENANCE.md",
+    "copy": "payment-sdk/packages/design-lint/PROVENANCE.md",
+    "sha256": "11bc939421af91941bcc5d8bc5582896ae2d990f53977eeab6c8f91ff354e2e2"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/README.md",
+    "copy": "payment-sdk/packages/design-lint/README.md",
+    "sha256": "4b8d8889d6a921ebe8fb804f842c58faa8c2fc82634a1c51b929f16c47adf90c"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/examples/review-adoption.rs",
+    "copy": "payment-sdk/packages/design-lint/examples/review-adoption.rs",
+    "sha256": "2d9be06953827ef4ea62a27e78daafe8b43328e679cf394a44920582d05a0110"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/error.rs",
+    "copy": "payment-sdk/packages/design-lint/src/error.rs",
+    "sha256": "0b90956ce4708c66c50de4a7f576bfa1f53f339f7e3f9c29798d20c27f7389e3"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/lib.rs",
+    "copy": "payment-sdk/packages/design-lint/src/lib.rs",
+    "sha256": "1d46b49682e143f8fafbd476d34dfccfe32f6b103d4f4351cac7626275823e89"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/main.rs",
+    "copy": "payment-sdk/packages/design-lint/src/main.rs",
+    "sha256": "484d0cb59d629cc0403ae0d9f4b767d4708357971175f1a99398307ad580ade4"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/model.rs",
+    "copy": "payment-sdk/packages/design-lint/src/model.rs",
+    "sha256": "301720a6563ffa8e8d58e807b5e42fb87df5546088a423c7584f83b26bea076a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/policy/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/policy/mod.rs",
+    "sha256": "fa0497207cd73da81fc5bb7f0e80c988b9e1535c9500c37ceac38acdb7ecc176"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/policy/selection.rs",
+    "copy": "payment-sdk/packages/design-lint/src/policy/selection.rs",
+    "sha256": "b8dbd2072cef498a5d6ef45c1c87ddf26cd2a52b9753c1fe44d6bb0dc49ae859"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/report/cases/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/report/cases/mod.rs",
+    "sha256": "563f3dcf37665e3e4d2feab7c4aebebe48d7d5ce0b906416b0b12eac38933465"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/report/cases/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/report/cases/tests.rs",
+    "sha256": "5ff45d9bf45a79a3d542341f772817967395d350457dae5829db14905e21d295"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/report/diagnostic.rs",
+    "copy": "payment-sdk/packages/design-lint/src/report/diagnostic.rs",
+    "sha256": "c9b0047c376a126b9336929b2f19a18dd5aa6ca4405598a39778e687b1adf81b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/report/markdown.rs",
+    "copy": "payment-sdk/packages/design-lint/src/report/markdown.rs",
+    "sha256": "6a5a78f2b740eac4be3adb579bf109fcb48031d3bc832d46eb33a23d4c5a8320"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/report/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/report/mod.rs",
+    "sha256": "b6aef6d941a2eebaa681156c96706608fca4818aac822c9488aceedcdf2e32f4"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/report/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/report/tests.rs",
+    "sha256": "45c7e6e8acfd40068daafca2066246189ab8960869ebb2e70f59f43591df29ce"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/accessor/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/accessor/mod.rs",
+    "sha256": "b013e05b82112b59c56338d39dd00b97f0d4490df16b309b7fd905846d0769c2"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/accessor/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/accessor/tests.rs",
+    "sha256": "2ba466c8c8fa8902e2499357acd56e7d2458df11c04d8bcb4ba7819d72ca5db3"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/blocking/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/blocking/mod.rs",
+    "sha256": "9baa93528577a0f613efe7d9a28483950b67fcb4ec6be934500a74aee4192e2f"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/blocking/support.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/blocking/support.rs",
+    "sha256": "aaa3ba370374aac36be47ebc897d533114b0d30505dcfaef21eea3ec68ead41b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/blocking/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/blocking/tests.rs",
+    "sha256": "1501adf9ddf4ef92488636144d53771844e5b70ba7f6db0dea38cbd1b9fbbdde"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/boolean/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/boolean/mod.rs",
+    "sha256": "8fbc58c02aa0f95834c6f5128149c34ba9a4b3adcf15c515b419c1752607c0e5"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/boolean/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/boolean/tests.rs",
+    "sha256": "83ffd82644db93bb5ea66510f3dc44e2ab955deedc5b0ca6cc7ad492ae30d32d"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/catchall/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/catchall/mod.rs",
+    "sha256": "5cdcce07896417a0c884bd5b84fd18889785a5632a84bc0faf4cb75d10158aaf"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/catchall/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/catchall/tests.rs",
+    "sha256": "2b88189e41ab81f50fc8a7477a382bbb854f3af13f5a0f1f3dbe6de6d7ca72ec"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/ceremony/marker.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/ceremony/marker.rs",
+    "sha256": "77757528530ece7cdfd763c3e548f11f386252b897db2d0094608c5856714a04"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/ceremony/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/ceremony/mod.rs",
+    "sha256": "1ddd8b7303420b7394a0f874ca8e7c56acd14a476095ffc03fcecf441680e0f2"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/ceremony/namespace.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/ceremony/namespace.rs",
+    "sha256": "1f1d5771fdff3224a3fafae500c000be4bcd18e8df79fcd3b043b0369997757a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/ceremony/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/ceremony/tests.rs",
+    "sha256": "ba12461c7dc8e6d969f1ada79cb335ac50ec4cc004442a4b3fd36d3cb4561c24"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/ceremony/wrapper.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/ceremony/wrapper.rs",
+    "sha256": "85f427fe9e2f99707cba357597b8440a9bbe320a4426a1aa01354a77942a97df"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/command/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/command/mod.rs",
+    "sha256": "885e72dd1b48f6a704c74aba8b83f6f3bb6700b126eb75a60b5d5a10ee976bf1"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/command/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/command/tests.rs",
+    "sha256": "199a630cb6f90abdb0f24a9dbb8fc4f683b12f731772c6a7d656ce2a9572c8bb"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/contract/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/contract/mod.rs",
+    "sha256": "cb4dd85015064f633c4f843387b44ee33270333fe1b436e1f0116ad262e29b12"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/contract/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/contract/tests.rs",
+    "sha256": "8b0baaca99ace9452489446cb20d8fdca4c18b68026d63a9660c0d762b0da3e7"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/duplicate/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/duplicate/mod.rs",
+    "sha256": "b264fbf6f385b65653185c9ddb11e282b7810336e3639ef66f29f0223b651da9"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/duplicate/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/duplicate/tests.rs",
+    "sha256": "3b0b05bc883b5c1a18c1667fd0ee101bee6b0df1e7c279cf3f41b0cd283efe3c"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/environment/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/environment/mod.rs",
+    "sha256": "aa1e7a07ecf4318700dd2856c108a0e82dc90a8257f7919bba4c0b48464a40e0"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/environment/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/environment/tests.rs",
+    "sha256": "05f593d52b2cc12e7387d3cc340729cee79428727145267ae8f2ad899c2d1e49"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/function/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/function/mod.rs",
+    "sha256": "3f8fc626a1670f42efdd4bca854d3c0e95b9f6178d4f1a7d75d8f4f3766c975b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/function/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/function/tests.rs",
+    "sha256": "a3287e98affcb76d29cff3c561a4d475d021aafa7ae18fb23e23fe4899bc7f14"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/model/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/model/mod.rs",
+    "sha256": "c98855acb3cb558d39a81ffa4cd97c5f218a3b6f65d418e4cf635960a6139953"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/model/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/model/tests.rs",
+    "sha256": "983f346c92afd93fc84d3b4b16148ebffcb1dcc682f8fff0ca9bdf0868e4d773"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/naming/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/naming/mod.rs",
+    "sha256": "f761954a34afd47217aeaac67000cc2b18cf818dcc91f566ac2e27c5c4a58f17"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/naming/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/naming/tests.rs",
+    "sha256": "346553e308df930bf319f0561e865dd705bb6193dd5f2b18c810bdccef977fc7"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/nesting/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/nesting/mod.rs",
+    "sha256": "f9503ce1db8ed463d5a61f34d7aebc2fb6be15ba8d0a6d7c0df6e17939f069cc"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/nesting/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/nesting/tests.rs",
+    "sha256": "5b10e46b61cfb61548f86844b293e68ff25054c58a1e88893be2189301ad1666"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/object/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/object/mod.rs",
+    "sha256": "e557785aa092773d4eeef6386dbd2b2064071a2579d9802a74f2e681c006fd3b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/object/origin.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/object/origin.rs",
+    "sha256": "0ea33f6bebb446a1d0435d737d2f9eb3cb083d76b6f5156b3efed9450905a2d9"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/object/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/object/tests.rs",
+    "sha256": "1d4d62857a25c6e3c9b7e778d8cc80418301fa87b44eed58250b818eb3bece0e"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/receiver/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/receiver/mod.rs",
+    "sha256": "e07f94f7f119e444d78a4da5a1c210532bc922e702063c0eb6c6bdf8c6d5199e"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/receiver/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/receiver/tests.rs",
+    "sha256": "7354b5851ea05258f718c9d844f72ff0b9c0977e4a897727f2ea48a2c4fafd13"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/result/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/result/mod.rs",
+    "sha256": "fe2de5da37bb6eb630b61827742ad5577b9bb208f3ab38e6c2274489531f51b8"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/result/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/result/tests.rs",
+    "sha256": "f8dc24d7d68931396ef5ed65bb7661e259ba3c86546dfdaf4cf6816fdf3b0a66"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/single/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/single/mod.rs",
+    "sha256": "731440bdb5619df197298e855dff8e8e5ae0a30c8ac3b3e9bb6f66b67e45840c"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/single/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/single/tests.rs",
+    "sha256": "6b4f18991efc56a7858e9adad4ffd7ccf7594fd04ccd3cc82b8851b3e2d34c96"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/state/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/state/mod.rs",
+    "sha256": "01f5843c6e8337261dc051795d86e40b6f39935745ddd617c6bbd8995e008394"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/state/syntax.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/state/syntax.rs",
+    "sha256": "694eca6b6c1d8f1cb2ca2e854d6b450d0f088bcc763e56d76159e2e68a67e3c7"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted/state/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted/state/tests.rs",
+    "sha256": "421faa9abfe39439accbcd4147518c675439d21d9429770cdd7ae3f5f2f3f566"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/adopted.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/adopted.rs",
+    "sha256": "80941d2cd1f363ffae61fb0c4da324b1244e468d7e9187b77e1376350ef45b75"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/mod.rs",
+    "sha256": "c817f6862582840e57c255f1617cdda941a850af8c51f478a95b7ecff140ee55"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/production.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/production.rs",
+    "sha256": "b3ae95a7faf91df36ec40798aa22da77eb258747cd64eb5901487d2c96b22e31"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/references.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/references.rs",
+    "sha256": "4ddb09e48f310af3f64ff167c1883d861a73e179922775a4dd9e8c05a61ee9cc"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/registry.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/registry.rs",
+    "sha256": "eac362b2778ccb65b00fe054ac6d91eca3be5cb7fae9db0cdb7049502ef0fbaa"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/repository.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/repository.rs",
+    "sha256": "5584ce7568d29b07b2826f12c5bff310796d99fc52a800d5b61bd212b8bb960b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/rust.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/rust.rs",
+    "sha256": "9b4d21329f144849b9de3926317ee20a1c1147e548d19b19f981bf0b9c0a7e4d"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/syntax.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/syntax.rs",
+    "sha256": "98dccae8798121d4be53d11cf27cc10fb2e0668192944ef7827ee4ebdb5eed9f"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/rule/test.rs",
+    "copy": "payment-sdk/packages/design-lint/src/rule/test.rs",
+    "sha256": "c3d9f898f403cdb8374dd1b4d080e50c463eb438839bc889eb18238bd147e196"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/runner_tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/runner_tests.rs",
+    "sha256": "9d698dde3f1cf6ecc68f354b72dbe0c1ecaad56a341ea834a58223f944b9a3ac"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/source/exception.rs",
+    "copy": "payment-sdk/packages/design-lint/src/source/exception.rs",
+    "sha256": "be03e0dadd0dd0989f907f97fac2d520ae78c20c968b6421274308f57ac9c834"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/source/mod.rs",
+    "copy": "payment-sdk/packages/design-lint/src/source/mod.rs",
+    "sha256": "ec5196c6b87835ec1a4f89e39a9bef8ae39eb8aabb4a9e30be96df2cc87233b5"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/source/package.rs",
+    "copy": "payment-sdk/packages/design-lint/src/source/package.rs",
+    "sha256": "87528ffc1afc842441ddcc8cd5452e8982fc3508bd8b63691ee6466390285fc1"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/source/scope.rs",
+    "copy": "payment-sdk/packages/design-lint/src/source/scope.rs",
+    "sha256": "f67055a920f19e042c4b3bf1cc9d840cf16ae088b9241f996169e11f7b97b211"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/source/tests.rs",
+    "copy": "payment-sdk/packages/design-lint/src/source/tests.rs",
+    "sha256": "ceda5fd6a44bac66a8c1e7660ee4f06720d836c1eb7d9329a90eda2d204fe1b6"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/src/test_support.rs",
+    "copy": "payment-sdk/packages/design-lint/src/test_support.rs",
+    "sha256": "d469f45cb3fbe657c0536b3b256f0d0c8ba836ca901fb8b33581dc12e57c2497"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/packages/design-lint/tests/cli.rs",
+    "copy": "payment-sdk/packages/design-lint/tests/cli.rs",
+    "sha256": "bd00e9b86b37d36bc36d43312c351348754dde1b90ba982f01735d74330f0d70"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/lint.toml",
+    "copy": "payment-sdk/context/lint.toml",
+    "sha256": "da84d083daa63f8360bd7c2cca8aecdbac26a34a74062e8232a4dfb7e7931e88"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/lint/examples/negative.md",
+    "copy": "payment-sdk/context/lint/examples/negative.md",
+    "sha256": "8a15fcf17391314e696d7dfec5335ebc7129ba13b6deec7d186eb0fa74a67091"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/lint/examples/positive.md",
+    "copy": "payment-sdk/context/lint/examples/positive.md",
+    "sha256": "566fee5d013fd119c343557f0c2c1c8e092ac002373bea66c234bad7bceca528"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/AGENTS.md",
+    "copy": "payment-sdk/context/AGENTS.md",
+    "sha256": "05cd902c39ed54b9f578e44a691aa336bec3d24326e595819a1b09000d7e8a25"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/Cargo.toml",
+    "copy": "payment-sdk/context/Cargo.toml",
+    "sha256": "09791ebdbf71ba769ff6d2b16471129564690d014bfb6eeb2d7d8b8e989ff505"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/payment-sdk/Cargo.lock",
+    "copy": "payment-sdk/context/Cargo.lock",
+    "sha256": "5e152e28c5b19e5c681e10a94bd43ea2723ae5ff3d50b2b22cbf319eed067b7a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/Cargo.lock",
+    "copy": "prop/packages/design-lint/Cargo.lock",
+    "sha256": "87eb39bda3abde585531419165480c796994cdd10c678f55f33fbe08b3da416a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/Cargo.toml",
+    "copy": "prop/packages/design-lint/Cargo.toml",
+    "sha256": "64378a3d54ed691a2e502af82c847533598b108a6d676ac956dbca5c18cf71c7"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/error.rs",
+    "copy": "prop/packages/design-lint/src/error.rs",
+    "sha256": "57cc98360efdbdc14add404f3f6b8a7aa07a2f04a7f5fb22096c1645245e3fb3"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/lib.rs",
+    "copy": "prop/packages/design-lint/src/lib.rs",
+    "sha256": "6d9df5507d4624e744b70f8bc94bf2230dfa048ae6dcdfc6d7c2dc6fbb742635"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/main.rs",
+    "copy": "prop/packages/design-lint/src/main.rs",
+    "sha256": "38703aef4110dc73feed4fc143649c75b53c1723803d4f2a23f4b8ffd0ef285a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/model.rs",
+    "copy": "prop/packages/design-lint/src/model.rs",
+    "sha256": "c3f404fc1c8c39641a9cbfd587e0a762097b37852e579876f17c472e3136453e"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/report/cases.rs",
+    "copy": "prop/packages/design-lint/src/report/cases.rs",
+    "sha256": "434c8fe85e4479679def0aea4b5012c93b834705ee0b2394aecc1d285415ea84"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/report/diagnostic.rs",
+    "copy": "prop/packages/design-lint/src/report/diagnostic.rs",
+    "sha256": "b81b6a60d8d62bd819a416efeea7a8441b5b715414e7ac11493c4f5081b291e2"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/report/markdown.rs",
+    "copy": "prop/packages/design-lint/src/report/markdown.rs",
+    "sha256": "e62c51b54f61bc0c9e2ec8494119ca3d3029fd949d624678b168830a5081f791"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/report/mod.rs",
+    "copy": "prop/packages/design-lint/src/report/mod.rs",
+    "sha256": "7834d171a6782a16f89fb1a9855128ac6e51f26bf2295efe1bb73b045036b75c"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/accessor/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/accessor/mod.rs",
+    "sha256": "6749f83a3453e9f08a02a28d66b0bbd34127c47bdc59905c3ff5392672de9306"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/accessor/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/accessor/tests.rs",
+    "sha256": "fe50216dbf45c910773244ec2c7bb80c2a189d03e3248b3475b6b7fc8aa7c5d2"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/blocking/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/blocking/mod.rs",
+    "sha256": "607c4c86557a2e9e50733f25146bbd00530be35859ef2c9cc502a3d88efc4ee0"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/blocking/support.rs",
+    "copy": "prop/packages/design-lint/src/rule/blocking/support.rs",
+    "sha256": "c1b5b196c458fff3240100de798c4298a2174fcc7be8e7290f8d502b2d03df69"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/blocking/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/blocking/tests.rs",
+    "sha256": "522ac4c2ed8f44e88656c1fb48d4bc19115b02a152aa6570dfea2d9e7c9f8af5"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/boolean/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/boolean/mod.rs",
+    "sha256": "1da44ccfb449d803fc74a4ad676b0ac2b0fddd2a4cae3a6374ca59dd3b6d3fd6"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/boolean/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/boolean/tests.rs",
+    "sha256": "405bec6c71d78320f31a58616a5c4fd5940337a0fd01e71cdaa120086c772251"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/catchall/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/catchall/mod.rs",
+    "sha256": "ce012e16a08bc7f34d4cf3a9a50d011a99edf193c5587dce4a6b3a298bdcb90a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/ceremony/marker.rs",
+    "copy": "prop/packages/design-lint/src/rule/ceremony/marker.rs",
+    "sha256": "7e13b8d566b772dca6572c86f346ba4719f8e9f52f62be642bf9a1d56edda33a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/ceremony/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/ceremony/mod.rs",
+    "sha256": "d0a8654539e45fea3d8bf1a9b6af3f55e612f2d2b19c5adc864b437822c7f12b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/ceremony/namespace.rs",
+    "copy": "prop/packages/design-lint/src/rule/ceremony/namespace.rs",
+    "sha256": "59800f905b889da7f3fd17892f29f048feb2df5dad599c64d23ca1d31333af95"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/ceremony/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/ceremony/tests.rs",
+    "sha256": "0b3069fc4cc2f853b62acc30bca007b951de35fa519c4b3230f918659eff33bf"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/ceremony/wrapper.rs",
+    "copy": "prop/packages/design-lint/src/rule/ceremony/wrapper.rs",
+    "sha256": "9f149920224f9bb2729cc5a616a9d8c164364337d66d2d55fff58e8cde5ed5f3"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/command/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/command/mod.rs",
+    "sha256": "ce7a49db5b6ced92b9167162d1d14f4daf3252b7cdbaa655852f0349a464ec6d"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/contract/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/contract/mod.rs",
+    "sha256": "1677f86e6a7a14762398c1f7f603073dd05be3b8fde44dae759519d4a73abde6"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/contract/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/contract/tests.rs",
+    "sha256": "e23b146bf36a7e460f6654b9dc6278295a50e6f96d140562347c53ed7542612b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/dependency/cycle.rs",
+    "copy": "prop/packages/design-lint/src/rule/dependency/cycle.rs",
+    "sha256": "52ca961948b5a82ecb2fbb99e691dad7b21f0a82e88e2b1049327ff4b7bef10f"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/dependency/discovery.rs",
+    "copy": "prop/packages/design-lint/src/rule/dependency/discovery.rs",
+    "sha256": "a0274366b5f2faf86c9ccdd3932300d50445d662a3851949dd87ed4c8e018d77"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/dependency/location.rs",
+    "copy": "prop/packages/design-lint/src/rule/dependency/location.rs",
+    "sha256": "d44df69be031ee4838531c38871c72ab00ad99d8b6f21031f17290671ab2f07a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/dependency/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/dependency/mod.rs",
+    "sha256": "11c22b65a349461a25b08028bbdfb413a030f000b0bda23d7a35be3207935d54"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/dependency/module.rs",
+    "copy": "prop/packages/design-lint/src/rule/dependency/module.rs",
+    "sha256": "18f78773ec08d10ee3645e8ec93e78d3b9fd138adc324451a70af92ff878ba90"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/dependency/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/dependency/tests.rs",
+    "sha256": "f74d17de064bd948aac59723d04be0f61c036fc53bd12ef2e35950fd902b385f"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/duplicate/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/duplicate/mod.rs",
+    "sha256": "eacac2198852265875eb32e34d0e0950f70d2b12f81242f2bbbdf1010837b21b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/empty/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/empty/mod.rs",
+    "sha256": "67f2c7fda6e6d0e1b0ce3feb7192f606f141af5b3ef69fdce49de4677fa40c83"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/environment/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/environment/mod.rs",
+    "sha256": "0c1b964f882330c861b2ff76cfb8c40f50a6467e6e6fa926b5b35479fd32d661"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/environment/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/environment/tests.rs",
+    "sha256": "883b0994f3e968642085aeab457e9a582bd45d92f6b17e24700fe16c60b63025"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/folder/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/folder/mod.rs",
+    "sha256": "6809c61776e6e79f25aff05f470bcc0d2b8045eb9e1de33f218d7c674a6943e4"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/folder/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/folder/tests.rs",
+    "sha256": "7acd3a1d8dab82ab881587a9aa63301fbfcdb91f44f08da60bd56336494ee4ce"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/function/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/function/mod.rs",
+    "sha256": "08987373bc569fbe47d1dd85f77d854db9ca9e2efd32f24c97d5c1526d291316"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/length/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/length/mod.rs",
+    "sha256": "7173264cac205d629257444b1502cc4be52923e90d1b99ed18ad28566b98aefc"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/mod.rs",
+    "sha256": "ea9e4ae5329852219bd5a42389bbc71d51784f2e8533f012d54d2374340cf18a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/model/dependencies.rs",
+    "copy": "prop/packages/design-lint/src/rule/model/dependencies.rs",
+    "sha256": "ca2404edf35b1cffde3a8338f5e4bf508cc14cb812702b4ba818e9d83f84a29c"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/model/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/model/mod.rs",
+    "sha256": "a5d777a8a66491884e45e3ecad42e30261a74e1187f6c752fb65063bb129dc1c"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/model/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/model/tests.rs",
+    "sha256": "a5e1ff447bd1f7b5ce61ed434077472e08575444db877fb6205edc69b12926c7"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/naming/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/naming/mod.rs",
+    "sha256": "8d44d41577dc848abf983bc9a7400b154b13514080ba1a6fcf48c18d239194f2"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/nesting/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/nesting/mod.rs",
+    "sha256": "d1d26dc15ecba885b41627595f3996fe2f4d46675bd3b6b0c3e9f9363f226a1e"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/object/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/object/mod.rs",
+    "sha256": "4d7009eaf7c9f2eecab0f2cc4e6f92515875adac3a0a5d074e123bb6f9d9f38b"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/object/origin.rs",
+    "copy": "prop/packages/design-lint/src/rule/object/origin.rs",
+    "sha256": "0ea33f6bebb446a1d0435d737d2f9eb3cb083d76b6f5156b3efed9450905a2d9"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/object/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/object/tests.rs",
+    "sha256": "6674efe64a071490e26f3377203fd2c0a8e24e19e9df9b343b04192e725ec0bb"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/receiver/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/receiver/mod.rs",
+    "sha256": "d2ba4cfff5958464f8d3cc6875972c84ea053d283d914665ab295fa37813fa3f"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/references.rs",
+    "copy": "prop/packages/design-lint/src/rule/references.rs",
+    "sha256": "7f0bbeb7ded5b11a3af55d48065953c1e3d8dbc81c10d540fc596dfcddfe81a5"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/single/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/single/mod.rs",
+    "sha256": "f154890c40705f712b125662ed1f08fc8c320b3bbfa552c87f9c6c59e9179b80"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/state/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/state/mod.rs",
+    "sha256": "2876980b01db881b88bfb0f7d7936be81be719b63afc4cef5bfccd0414c813e5"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/state/syntax.rs",
+    "copy": "prop/packages/design-lint/src/rule/state/syntax.rs",
+    "sha256": "71e4d1f52d194e70c6022ce7873e57665cdde08ebecc7102871b1df4357dffe9"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/state/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/state/tests.rs",
+    "sha256": "a0dc656fdbcfe7db26f15fb746bfa13cb3cc71e318f96c167e97e58f4c6190dd"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/syntax.rs",
+    "copy": "prop/packages/design-lint/src/rule/syntax.rs",
+    "sha256": "98dccae8798121d4be53d11cf27cc10fb2e0668192944ef7827ee4ebdb5eed9f"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/toolkit/aliases.rs",
+    "copy": "prop/packages/design-lint/src/rule/toolkit/aliases.rs",
+    "sha256": "657d42966e57d70ffa4a7adb56914df9e305f298189aff11cf4d91f43b3b0971"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/toolkit/mod.rs",
+    "copy": "prop/packages/design-lint/src/rule/toolkit/mod.rs",
+    "sha256": "6c60ab7ff3f711f1b080c20fd487a8edb9f31659645b24482665cfaa8ac392fa"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/toolkit/reachability.rs",
+    "copy": "prop/packages/design-lint/src/rule/toolkit/reachability.rs",
+    "sha256": "139322bb787719ed7488311d54b8214e9b1e2392dab4cc83df3d27e235bdc551"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/rule/toolkit/tests.rs",
+    "copy": "prop/packages/design-lint/src/rule/toolkit/tests.rs",
+    "sha256": "f0bde49fdc7cba9a3595a50ca663782d0b55fa2c33db0a2ee62dc20fbaf05a6a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/packages/design-lint/src/source.rs",
+    "copy": "prop/packages/design-lint/src/source.rs",
+    "sha256": "e4780cd8a2e8fb0a53d6192ff69f468ed54a7e20f149cedee349b8c49a50e9aa"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/lint/rules.enabled",
+    "copy": "prop/context/lint/rules.enabled",
+    "sha256": "f96822cb9fd4a7699eaec17638db9ea02b829e456a043ca381f03b10120a1597"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/lint/examples/negative.md",
+    "copy": "prop/context/lint/examples/negative.md",
+    "sha256": "e07816da7ccb8ff5d992527e4353ade4a9fef23887a3d5ed9c5bf784024dd1db"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/lint/examples/positive.md",
+    "copy": "prop/context/lint/examples/positive.md",
+    "sha256": "31ccc056de2c45ce182e2552edde9d7486d28bd5db00b8cb075d349d9e410d1d"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/AGENTS.md",
+    "copy": "prop/context/AGENTS.md",
+    "sha256": "7c0dc3684d34e46a143bb2cd3cbabeece9accd95c4e7596c35181897c271ee0a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/Cargo.toml",
+    "copy": "prop/context/Cargo.toml",
+    "sha256": "7d281ceca08a67e0d8f6d43092c7fd7d79035e37f49d06cd912c448ce0a5fec8"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/Cargo.lock",
+    "copy": "prop/context/Cargo.lock",
+    "sha256": "e15a75582139d86a28eec326cd4c87888b005184e9e913740c00d111589807f0"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/scripts/design-lint",
+    "copy": "prop/context/scripts/design-lint",
+    "sha256": "49c8deb629b33ad13a15be9d12852883b708a6904c48e05448d20497dd810895"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/scripts/lint-cases",
+    "copy": "prop/context/scripts/lint-cases",
+    "sha256": "b891a80cfe93457a15366b0013f735af623ea925e4e0c075f118d5796821590a"
+  },
+  {
+    "source": "/Users/x/Projects/propdevil/prop/scripts/lint-rules",
+    "copy": "prop/context/scripts/lint-rules",
+    "sha256": "affe82b1354f6d4681ec0f6e85f0748408115d44d28fb387fb67764c99b73e00"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/Cargo.toml",
+    "copy": "husklet/src/packages/hl-design-lint/Cargo.toml",
+    "sha256": "06be8eefed8f9e218c7270ebf00025f87de97643cc2d2b8a4ca6aded5cf525d8"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/error.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/error.rs",
+    "sha256": "0b90956ce4708c66c50de4a7f576bfa1f53f339f7e3f9c29798d20c27f7389e3"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/lib.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/lib.rs",
+    "sha256": "6061fccde58e55438e8055c29f5110d1aa62c65aba6c575aed44b727a82f19be"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/main.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/main.rs",
+    "sha256": "7d1e73701aba466651cfb3ad8811f3dbd831eb2fa187958445ad3631ea45ce90"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/model.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/model.rs",
+    "sha256": "836abe85924df1191ca31f48de3ed40450cf93344a2c3dc173014e3608ac048f"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/policy.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/policy.rs",
+    "sha256": "b4227ed18055505ed3b81650496fc0880dd52b63375adbc420ecd521854c9a65"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/report/cases.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/report/cases.rs",
+    "sha256": "d5e3a62780971ca56eb0895daa3a9ad83f59ce44c23a6329fee53e238d054a43"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/report/diagnostic.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/report/diagnostic.rs",
+    "sha256": "3633c679503586d3052d40e14bf98aee61985693073617d9ceecc63fb99166da"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/report/markdown.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/report/markdown.rs",
+    "sha256": "a51fda18cf844cc8b9928b6a49967e017bc4090ad10a429608cb335666a66b65"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/report/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/report/mod.rs",
+    "sha256": "a831fe7369d490a72b4250a087c0273c4d4f498328224cae035b17eeb39e3663"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/allocation.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/allocation.rs",
+    "sha256": "d3c843a84a5765694c484c35d91117d2c2f363ffbd157dc5aa733647e7b27deb"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/allocation_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/allocation_test.rs",
+    "sha256": "05141d6e94bfca4a68a5f897c9f673b17f58720a594ccf6492fce9b57ba59e72"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/analyzer.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/analyzer.rs",
+    "sha256": "98909dd92ec43e6351b3f66e90a204a0157d2ba7e2ff3ef07f07e134141f034a"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/hook.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/hook.rs",
+    "sha256": "89216ede32d9c9ac7078c179302ff2f54fb9522e1c6dd05349eb5fff63c858fd"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/hook_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/hook_test.rs",
+    "sha256": "4ea73a5e4171af888300c52989466e9d2a131e6b90eca90ba676a219826ee8e6"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/interface.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/interface.rs",
+    "sha256": "975678792154ca49eea85cbfe761064d273a7c9b1dcb615bfdc92de716d35a4b"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/interface_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/interface_test.rs",
+    "sha256": "5d0c63f85819ed00c9f8d2ab1656c3ce415d7694804479c84b2bcd07f9320c17"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/mod.rs",
+    "sha256": "e7ff9fa79ccc5c5b86a79c40ae64eefa2e86fd7919c41c1c719c7bb4141e1b77"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/policy.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/policy.rs",
+    "sha256": "abcaf69f8026ce2e24e7a77daa66cac06883123ae966538d73453881efec8c60"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/policy_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/policy_test.rs",
+    "sha256": "b63732dc98cd3b02dfbbeb4ae393b96c4fb1d9a71e26a9425a7834b0f9d02951"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/result.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/result.rs",
+    "sha256": "c4606fec9974de29ad6c8510e268b8849dc0bb596be07090949fbc44d323d153"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/result_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/result_test.rs",
+    "sha256": "cb9cf2203cc7133aae8e3220b6b14488cf3a1680853c09eb631de5ccdbdc4c72"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/safety.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/safety.rs",
+    "sha256": "97a47a0f46e86fbafd34cf8f351381cfa25bb437e912a663f316568aa32edd17"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/safety_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/safety_test.rs",
+    "sha256": "a08182e7e8dce53629fa6e01e4d107ad1ea7da87365a1630b399b6f4d845e461"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/structure.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/structure.rs",
+    "sha256": "223f830fe4840332471dd2f6cd354cb97857d3a9b90d55a19a3201c53604981e"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/structure_test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/structure_test.rs",
+    "sha256": "35513bef6f7a4cd0b42fd4db3f3d42addb2f5c276a29040bbec06fda45cbe801"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/c/suppression.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/c/suppression.rs",
+    "sha256": "267b467384c8cb52d10ab068d55580c01406d3c4037bbba38363b038157af539"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/mod.rs",
+    "sha256": "4e5c3d1619d4d3c2356458718d1b31d3c111bb7ac8be8f6d4590deb65e54c753"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/catchall/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/catchall/mod.rs",
+    "sha256": "1af99b9a9068232c01d2e4c756cebfc3476f719161a7496665c8f695472cbd47"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/catchall/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/catchall/test.rs",
+    "sha256": "0733aa3e0607a19b4182757a40527eb923ff38c005c58609bdf6e7511252d2a5"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/dependency/cycle.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/dependency/cycle.rs",
+    "sha256": "52ca961948b5a82ecb2fbb99e691dad7b21f0a82e88e2b1049327ff4b7bef10f"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/dependency/discovery.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/dependency/discovery.rs",
+    "sha256": "20055e039538352a8cea4cb81ebd15f860803a77148cd58f543d214897206c88"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/dependency/location.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/dependency/location.rs",
+    "sha256": "0d37a7ea18eccb171e29e2ab8e2274e8c7364c270cdf2350f06352859a15178c"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/dependency/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/dependency/mod.rs",
+    "sha256": "93e7993381197409260cd30d6dbe99d77f020e9721dade370710ad7a715d15f1"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/dependency/module.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/dependency/module.rs",
+    "sha256": "5acfd5d4646e7656055d2d511a3a8a84b84c71cb042f9650990147d6de2a999a"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/dependency/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/dependency/test.rs",
+    "sha256": "98765c130207310311ae2d9c9e610811d053a27f8c202be84af236971b21eeb1"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/documentation/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/documentation/mod.rs",
+    "sha256": "cea719898d6c20b9e18eeee2b02854e934a192a978bff8823e643a9255f261db"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/documentation/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/documentation/test.rs",
+    "sha256": "91ae8dfa98b7d6584f7fc6ffbcdbd73f9de6c0982bdaa45f7c9ae8a3fc68cd5c"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/empty/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/empty/mod.rs",
+    "sha256": "869fab19c82ea0c5651a46c1248f1737afeda2237b54cace0d4e917f5905ed42"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/empty/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/empty/test.rs",
+    "sha256": "c1232bffcd246a04e337d5dd31c1a148871470e8b4eb388348734bcdc8911ba5"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/escape/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/escape/mod.rs",
+    "sha256": "d6e74a7e6cf5ccc9adad00febec0a56a0162789b389b172a7bedf922db11ece0"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/escape/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/escape/test.rs",
+    "sha256": "607a2cf67fda1b485d1f129304ffef9905c498a75b0cdcf5d403dca3237f5190"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/folder/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/folder/mod.rs",
+    "sha256": "4bd6250684d55fc71e76b90f4d55c32c149690fe0cbc7d0265337bb2e8a471e1"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/folder/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/folder/test.rs",
+    "sha256": "e2c4cfdff981fb14b5e443d09bcf2953b4748b8830242f3f226fbccb425e56bb"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/length/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/length/mod.rs",
+    "sha256": "27d3f9cca77149a78581fd0e5d1fce047ce6f3a6d11884d7377f1420ff1bdd2d"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/length/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/length/test.rs",
+    "sha256": "c069d3c3736f4e215063221ac0cbe862b89b54b5a221e669e9b57deb798e4f3e"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/mod.rs",
+    "sha256": "128741b57caf374c43e6a3bab2c80c35a1655b87b66226be8726010323c94108"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/ownership/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/ownership/mod.rs",
+    "sha256": "aafab42894da9ccfb02a813adc556dc108478e048ad72503100fb0a21b4b0e5c"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/ownership/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/ownership/test.rs",
+    "sha256": "a699e2ebd3f3f0bf4456caeebeb35b66f017dc066bb2973942a57f56e218f06e"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/provisional.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/provisional.rs",
+    "sha256": "d7656ad3a9d74ce25c760faefcf33146182e759793513b8000f26517891e5f86"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/shape/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/shape/mod.rs",
+    "sha256": "01f2fe9dd04c5988bb9814db329c4ac67437097a37462897e1891bbe41b1b6b9"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/shape/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/shape/test.rs",
+    "sha256": "8ca68ef136b452a7647a2f51ad84190808ab7d15b555605a7c9861b30550c0f1"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/suite/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/suite/mod.rs",
+    "sha256": "f591db415198ac91e220c64000033456b25e6e1ca5a1f7b5a399c31c82130abf"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/suite/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/suite/test.rs",
+    "sha256": "575d30f4e9cf1e1c5341af3fa46c2668fb71ce28647f7b5737490d97c90a3d9f"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/repository/suite_path.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/repository/suite_path.rs",
+    "sha256": "9a7053b46a934c2b1bc5e546af05bb4b77e3310c9dab68dc774644df09ed0454"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/accessor/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/accessor/mod.rs",
+    "sha256": "dae9b7a37977f450c862cc4c59929ba3c17c7c34309378c7b7baf71bd329867b"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/accessor/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/accessor/test.rs",
+    "sha256": "e6588f8608c1fcda313a82000daa198b4e982e616ab2986899abbf8d38210f4c"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/arguments.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/arguments.rs",
+    "sha256": "7532732544090cc2b8302d7b75543d6db2585d5b3050eceb9d9e3f3c8e39e4a5"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/blocking/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/blocking/mod.rs",
+    "sha256": "7bdc997a573640b57511591bd3f665b5a0d8b84c2ddb4e7fc0193d808fcb20ab"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/blocking/support.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/blocking/support.rs",
+    "sha256": "de0e9aa77bf7ea0da0b09c93033bfc23bedf5cba6d2664db4d9293ea4625d721"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/blocking/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/blocking/test.rs",
+    "sha256": "0e9846d3ec402596eee3afa2b99eed4e92a0a290b20ed871037e1723e08087b4"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/boolean/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/boolean/mod.rs",
+    "sha256": "7da702564548a3c21bd07bf3b68a205e658f122ca9408b7e642282a267ca49ac"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/boolean/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/boolean/test.rs",
+    "sha256": "1858c55672d0dad0bbf64acad92bbbdb2fe2d8ea2c926e75898c62c6790dd937"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/boundary/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/boundary/mod.rs",
+    "sha256": "0f29b2103be219a2ff3765acc4163253c0521f27ade12ea0b3733403b45515c0"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/boundary/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/boundary/test.rs",
+    "sha256": "34266553524d61dd0e0fd194d39030733d3bb4dc59cca96d62d44eb401eaca88"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/catchall.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/catchall.rs",
+    "sha256": "9d8471010c7fe4d74aa2a0ec9c81a63b3325063a74c6a3fb7f73367273bf4bbf"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/marker.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/marker.rs",
+    "sha256": "48dca527bc6b8779993a5aa1a2c9561c42701dfec972a2f3c2a69daa84835681"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/mod.rs",
+    "sha256": "1a71448161432748074b41805fb3c722147db7b726115fa9ea72fcfa7f896d35"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/namespace.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/namespace.rs",
+    "sha256": "bbb10821371c1fe256af9ae493e058a7a3c70042edb85eee35c85fdbe0437761"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/test.rs",
+    "sha256": "d9b77c5af249196500f729c17a21f9413117735caa7dfe9d80265270592651f1"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/wrapper.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/ceremony/wrapper.rs",
+    "sha256": "0c1e2fc656bd936b6dbb32b9b2d9f120be53a395d261eebee32e4070685f704b"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/command/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/command/mod.rs",
+    "sha256": "810629624ec36dbb4cbf720d307b8b6aa38d7a029464a2aacc61955f4ba651a8"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/command/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/command/test.rs",
+    "sha256": "88f0cc2cbcd1faa966d6c2f3a996f9d531f9b880f2591e441c099bc14e63c074"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/constructor/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/constructor/mod.rs",
+    "sha256": "2fdab70d7cfc387eec973ef8093ea485a8a726d63c6a54ca70f1a2c29bd3d5fb"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/constructor/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/constructor/test.rs",
+    "sha256": "99d4d9d514a50574acd613690176909fb6be94f98d219e2a17d883579ce94d76"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/contract/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/contract/mod.rs",
+    "sha256": "9a72f6d53ca1eec1b431d1f0ef6963d9a5d2f94f3c71a6976c44b10334b8e351"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/contract/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/contract/test.rs",
+    "sha256": "a2c58efd0734612d3e15e6135fc21b8764d931d615d4feb23acd1095980510a2"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/duplicate.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/duplicate.rs",
+    "sha256": "6f9c8b7d883b9485e36a509d6d1687ed3fc691d7fc28ed9e18db1f5b2863141e"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/environment/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/environment/mod.rs",
+    "sha256": "f4df4dad989647461c58b5ec97a8274b284bf2d3f1ed1b91a87ec7e86adc5ea3"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/environment/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/environment/test.rs",
+    "sha256": "d62366ffc8fde7ad4c2d3dfc25220255746f6aea1d5df29fd4194a991d02d571"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/function/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/function/mod.rs",
+    "sha256": "ded208896b900363dad7dc40980a3956c7a58150b4181af2ca9eb03e41f58a7a"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/function/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/function/test.rs",
+    "sha256": "3d2f3b908189e3995adb03ac938b443dfb9802b4ad0d29013b1bb522486c357a"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/mod.rs",
+    "sha256": "3324399c16bd08d623e9ff5ee2962e52e3caa30ef3bd00517d0a0e4b20b69ced"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/model/dependencies.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/model/dependencies.rs",
+    "sha256": "eff47cab4166eedb773863951479101a0d8113f2788c2624611b7d9d82ebba92"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/model/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/model/mod.rs",
+    "sha256": "d1e376e8eccd4215f25f15ce35e81f4d8b694b5e8aaa52af21aa8ba509371173"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/model/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/model/test.rs",
+    "sha256": "155ed07929a5fea44f35a47bce25e82a0415b0daa4c02bec2a28d254ddba3a2d"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/naming.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/naming.rs",
+    "sha256": "aada5cc079ad73aaf70ce06841ed34fe4e4dffcf3c6e68a2f7c0364b84f09aa5"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/nesting.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/nesting.rs",
+    "sha256": "e629b10d0de097ac816641e8952a155af9ab975b3d00dc834aa9f20ddb11b2e6"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/object/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/object/mod.rs",
+    "sha256": "9f7c3cf3342b072cbc82d81590f599ac1253a6b829ca7ef59a6c62d0a53671fb"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/object/origin.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/object/origin.rs",
+    "sha256": "07fe72f7c6f8ce21146c43fef43681bb411279a61d0ef2e4ebd216aaae1a1492"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/object/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/object/test.rs",
+    "sha256": "e9d85484d17b115dc75a63f7cbcbdf6291448a5f13979975e119012eb8552104"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/placement/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/placement/mod.rs",
+    "sha256": "7f25fcca9a2903e5dd0e65454215b7e7e6112ef86d5cae9b06e9dd74ff6a0824"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/placement/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/placement/test.rs",
+    "sha256": "62c5bbeb452ef87af3f409605c0bbb46443bcb5f4caeb0c7e3871404476646a3"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/receiver.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/receiver.rs",
+    "sha256": "f47ceea73d60145bca5fb2239a351364287cb23d82e65c959047b7864c6a5816"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/result/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/result/mod.rs",
+    "sha256": "ee7a3d8ac1f4b221c016fb3030caa2b23d561b138abf71fea401702a73ec8ad9"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/result/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/result/test.rs",
+    "sha256": "d1a89475d3a5d179cba5374b66607bc5098048c0d38c4a9f648b7e305799dfbf"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/role/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/role/mod.rs",
+    "sha256": "94aa504fdd3508c87dfe55fcbd2fd2d371ea8873eb31cb77e5c98e34c8b884c4"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/role/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/role/test.rs",
+    "sha256": "50103ef3efcf254111e751ade5cb009d805b52e24c9d5d810ceec29782f22664"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/safety/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/safety/mod.rs",
+    "sha256": "176c63106fc73088276f06a9af0b3a0f802467771288ab106f86e9ede3ea7ebc"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/safety/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/safety/test.rs",
+    "sha256": "4f76cb1149924b2775b6dde3c5f25732a192643edf7aa6b0d89b9c10d249cf33"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/state/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/state/mod.rs",
+    "sha256": "8d5666dc8031f54544aeef1dc8473b7a2c0500dcd6f0813b9cbb4f044f1c04a8"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/state/syntax.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/state/syntax.rs",
+    "sha256": "725092cecb5ea0358981199e4909c1ea18ba9e7df25010df29017131c6a07381"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/state/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/state/test.rs",
+    "sha256": "88ffed5197ae0f4dbcfd647b38fe473767b50e7cbfd7287db72cc0a31b90cdec"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/aliases.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/aliases.rs",
+    "sha256": "72aa653227918b730776dbef52d4a43480f9040c3c4672da257e810e15d649c3"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/mod.rs",
+    "sha256": "2e46b3e79ef33c99d9fb5163a1cef8f61a9f8d297cdfa0e6766c4229547a25e2"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/reachability.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/reachability.rs",
+    "sha256": "f66598c544aaed6004874cfbcf139c1643ec2feb8fea4049f04817f4b7cabdd2"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/test.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/rust/toolkit/test.rs",
+    "sha256": "646c7bc0262915426fe9d26c889a26c679512ba6a68f834138cd19ff80e19b5f"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/support/mod.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/support/mod.rs",
+    "sha256": "0f397842c1636f2f838f8aefd64ac45d5ce858c58fffd86e900dc79399a499c1"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/support/references.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/support/references.rs",
+    "sha256": "64bd63a3e05ae95abcab5751dbc648db19cbde2a889e2583715a1eee37be56d2"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/rule/support/syntax.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/rule/support/syntax.rs",
+    "sha256": "f7d3fbc2cc4a9f0dd4ba4e8d0114cd33f4cafba6c2a1ef189aaefe8791f99c28"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design-lint/src/source.rs",
+    "copy": "husklet/src/packages/hl-design-lint/src/source.rs",
+    "sha256": "de6ba81416a682a3980bee93a1e705b337cd5d41965200ad7e7885b0ecd7787d"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design/Cargo.toml",
+    "copy": "husklet/src/packages/hl-design/Cargo.toml",
+    "sha256": "2245ee5e5770350557bcd1781ad7f5c6ffc37a0f0a41f5bd969bd856801eef51"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design/src/lib.rs",
+    "copy": "husklet/src/packages/hl-design/src/lib.rs",
+    "sha256": "e474e0c4f1264674719825a081d4934a99e8a4d0790158b7f3ed1f12ef1952e5"
+  },
+  {
+    "source": "/Users/x/dd/husklet/src/packages/hl-design/tests/classify.rs",
+    "copy": "husklet/src/packages/hl-design/tests/classify.rs",
+    "sha256": "ca523678853ca2b871c21fe6fd1f6dba92de696578b2df66f1a5b5eea263af0c"
+  },
+  {
+    "source": "/Users/x/dd/husklet/lint.toml",
+    "copy": "husklet/context/lint.toml",
+    "sha256": "6dfaec10e002d054c13b29a8f80d9197001a1147b2c897cbe67756fe6e064821"
+  },
+  {
+    "source": "/Users/x/dd/husklet/lint/examples/negative.md",
+    "copy": "husklet/context/lint/examples/negative.md",
+    "sha256": "2d4ddf5dcda52a9b2e82266465045a2dd2f00ba42a676f57c4f72892fea206e0"
+  },
+  {
+    "source": "/Users/x/dd/husklet/lint/examples/positive.md",
+    "copy": "husklet/context/lint/examples/positive.md",
+    "sha256": "b66e47098c3274ef2757336b3ed856574fea3991ec605e6f93aafc02d80eb72d"
+  },
+  {
+    "source": "/Users/x/dd/husklet/AGENTS.md",
+    "copy": "husklet/context/AGENTS.md",
+    "sha256": "0852c163290cc87046e2e5bfa6dc1765f66e42bccd648232a8cdbe45e26e094d"
+  },
+  {
+    "source": "/Users/x/dd/husklet/Cargo.toml",
+    "copy": "husklet/context/Cargo.toml",
+    "sha256": "993a82d5cdf8a17456b24b65925455f6f0c64dd3485e18ce664a2842da23b050"
+  },
+  {
+    "source": "/Users/x/dd/husklet/Cargo.lock",
+    "copy": "husklet/context/Cargo.lock",
+    "sha256": "e0fa811ed0d4fd32af1dbe3b0dc004b3967cb325772d8e03b3baab612fe91d5a"
+  },
+  {
+    "source": "/Users/x/dd/husklet/rust-toolchain.toml",
+    "copy": "husklet/context/rust-toolchain.toml",
+    "sha256": "99d9254ec5224ea42dd822d2ffa9da4e21b5a91a9201b342af08eafdf2b692db"
+  }
+]

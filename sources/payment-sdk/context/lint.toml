@@ -1,0 +1,168 @@
+[dependency]
+ignored_packages = ["design-lint"]
+
+[[dependency.layers]]
+name = "package"
+directory = "packages"
+may_depend_on = ["package"]
+
+[[dependency.layers]]
+name = "base"
+may_depend_on = ["package"]
+
+[[dependency.layers]]
+name = "indexing"
+may_depend_on = ["package", "base"]
+
+[[dependency.layers]]
+name = "wallets"
+may_depend_on = ["package", "base", "indexing"]
+
+[[dependency.layers]]
+name = "indexing-adapter"
+may_depend_on = ["package", "base", "indexing"]
+
+[[dependency.layers]]
+name = "indexing-runtime"
+may_depend_on = ["package", "base", "indexing"]
+
+[[dependency.layers]]
+name = "bitcoin-chain"
+may_depend_on = ["package", "base", "indexing", "wallets"]
+
+[[dependency.layers]]
+name = "ethereum-chain"
+may_depend_on = ["package", "base", "indexing", "wallets"]
+
+[[dependency.layers]]
+name = "solana-chain"
+may_depend_on = ["package", "base", "indexing", "wallets"]
+
+[[dependency.layers]]
+name = "sdk-unclassified"
+directory = "sdk"
+may_depend_on = []
+
+[[dependency.layers]]
+name = "application"
+directory = "apps"
+may_depend_on = ["package", "base", "indexing", "wallets", "indexing-adapter", "indexing-runtime", "bitcoin-chain", "ethereum-chain", "solana-chain"]
+
+[[dependency.layers]]
+name = "acceptance"
+directory = "tests"
+may_depend_on = ["package", "base", "indexing", "wallets", "indexing-adapter", "indexing-runtime", "bitcoin-chain", "ethereum-chain", "solana-chain", "application"]
+
+[[dependency.package_layers]]
+package = "base"
+layer = "base"
+
+[[dependency.package_layers]]
+package = "indexing"
+layer = "indexing"
+
+[[dependency.package_layers]]
+package = "wallets"
+layer = "wallets"
+
+[[dependency.package_layers]]
+package = "indexing-postgres"
+layer = "indexing-adapter"
+
+[[dependency.package_layers]]
+package = "indexing-redb"
+layer = "indexing-adapter"
+
+[[dependency.package_layers]]
+package = "indexing-runtime"
+layer = "indexing-runtime"
+
+[[dependency.package_layers]]
+package = "chain-bitcoin"
+layer = "bitcoin-chain"
+
+[[dependency.package_layers]]
+package = "chain-ethereum"
+layer = "ethereum-chain"
+
+[[dependency.package_layers]]
+package = "chain-solana"
+layer = "solana-chain"
+
+[vocabulary]
+[[vocabulary.owners]]
+words = ["bitcoin", "btc"]
+allowed_paths = ["apps/", "sdk/chains/bitcoin/"]
+
+[[vocabulary.owners]]
+words = ["ethereum", "eth"]
+allowed_paths = ["apps/", "sdk/chains/ethereum/"]
+
+[[vocabulary.owners]]
+words = ["solana", "sol"]
+allowed_paths = ["apps/", "sdk/chains/solana/"]
+
+[repository]
+maximum_rust_lines = 500
+forbidden_paths = ["apps/indexer", "apps/wallet", "sdk/deposits", "sdk/indexing/http"]
+chain_root = "sdk/chains"
+chain_exclusions = ["base"]
+chain_skeleton = [
+    "src/lib.rs",
+    "src/address.rs",
+    "src/batch.rs",
+    "src/error.rs",
+    "src/indexer/mod.rs",
+    "src/indexer/source/mod.rs",
+    "src/rpc/mod.rs",
+    "src/transaction/mod.rs",
+    "src/transaction/operations/mod.rs",
+    "src/wallet/mod.rs",
+]
+chain_directories = [
+    "src/indexer",
+    "src/indexer/source",
+    "src/rpc",
+    "src/transaction",
+    "src/transaction/operations",
+    "src/wallet",
+]
+
+[source]
+ignored_directories = [".git", "target", "vendor", "generated", "old", "reference", "lint"]
+self_packages = ["design-lint"]
+
+# Environment access belongs to these exact configuration and local benchmark files.
+[[boundaries.environment]]
+path = "apps/api/src/config.rs"
+
+[[boundaries.environment]]
+path = "apps/api/src/config/postgres.rs"
+
+[[boundaries.environment]]
+path = "sdk/indexing/postgres/examples/bench.rs"
+
+[[boundaries.environment]]
+path = "sdk/indexing/redb/examples/bench.rs"
+
+[rust]
+forbidden_modules = ["common", "core", "shared", "util", "utils", "helper", "helpers", "misc"]
+
+[rules]
+# Original SDK checks always run. Error rules with a source backlog remain available
+# through Registry::all() and the review-adoption example at their original severity.
+enabled = [
+    "catch-all-module-name",
+    "environment-variable-access",
+    "platform-command-boundary",
+    "ignored-fallible-result",
+    "async-blocking-operation",
+    "single-use-free-function",
+    "deep-control-flow",
+    "boolean-state-cluster",
+    "string-backed-finite-state",
+    "god-object-growth",
+    "redundant-accessor",
+    "wire-domain-model-duplication",
+    "ceremonial-structure",
+]

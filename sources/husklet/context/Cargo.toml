@@ -1,0 +1,121 @@
+# hl — VM-less Linux container runtime on macOS. Cargo workspace.
+[workspace]
+resolver = "2"
+members = [
+    "src/runtime/*",
+    "src/packages/*",
+    "src/containers/*",
+    "src/workspaces/*",
+    "src/apps/*",
+]
+# Test runs drop scratch directories beside the crates; the member globs would
+# otherwise pick them up and fail every cargo command with a missing manifest.
+exclude = [
+    "src/containers/.cache",
+]
+# `hl-gui-gtk` is the only member of the default set that needs a system library:
+# gtk4 through pkg-config. The pinned dev shell supplies it (`flake.nix` carries
+# `pkgs.gtk4` on Linux and Darwin alike), so `cargo build` inside `nix develop`
+# works everywhere. Outside that shell it fails in `gtk4-sys`'s build script on a
+# host without the GTK4 development files. `hl-gui` itself is toolkit-neutral and
+# depends on nothing; libadwaita is not used anywhere in the workspace.
+default-members = [
+    "src/workspaces/hl-gui",
+    "src/workspaces/hl-gui-gtk",
+    "src/workspaces/hl-extension",
+    "src/workspaces/hl-ws-term",
+    "src/workspaces/hl-ws",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/husklet/husklet"
+homepage = "https://github.com/husklet/husklet"
+rust-version = "1.93"
+
+[workspace.dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+bytes = "1"
+chrono = "0.4"
+clap = { version = "4", features = ["derive", "env"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+futures-util = "0.3"
+fs2 = "0.4"
+http = "1"
+http-body-util = "0.1"
+hyper = "1"
+hyper-util = "0.1"
+oci-client = { version = "0.17", default-features = false }
+oci-spec = "0.9"
+percent-encoding = "2"
+reflink-copy = "0.1.30"
+reqwest = { version = "0.13", default-features = false, features = ["stream"] }
+regex = "1.13.0"
+serde = "1"
+serde_json = "1"
+serde_yaml = "0.9"
+sha2 = { version = "0.11", features = ["zeroize"] }
+socket2 = "0.6"
+tar = "0.4"
+tempfile = "3"
+thiserror = "2"
+tokio = "1"
+tokio-util = "0.7"
+toml = "0.9"
+tower = "0.5"
+uuid = { version = "1", features = ["v4"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# Pedantic lints that are wrong for an emulator/runtime workspace. Each is off deliberately, not
+# because nobody got to it; anything not listed here is expected to be fixed at the site.
+
+# Guest/host width conversions are the domain, and `try_from` on a decode path adds a panic edge.
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+
+# These demand prose sections, and this repo's style rule is one or two sentences maximum.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+# Opcode, address and mask constants read better as the manuals write them.
+inconsistent_digit_grouping = "allow"
+unreadable_literal = "allow"
+unusual_byte_groupings = "allow"
+
+# Instruction and syscall handlers carry the arity and flag set the ISA defines.
+fn_params_excessive_bools = "allow"
+struct_excessive_bools = "allow"
+too_many_arguments = "allow"
+too_many_lines = "allow"
+
+# Register and operand names differ by one character by nature (`rax`/`rbx`, `src`/`dst`).
+similar_names = "allow"
+
+# Merging arms in an ISA decode table destroys the per-opcode documentation value.
+match_same_arms = "allow"
+
+# `Result<T, ()>` is a pervasive existing design decision; changing it is an error-type redesign.
+result_unit_err = "allow"
+
+[profile.release]
+opt-level = 2
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+incremental = false
+
+[profile.test]
+incremental = false

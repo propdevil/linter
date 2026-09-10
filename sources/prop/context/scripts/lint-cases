@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Regenerate the design-lint case queue (lint/errors/ + lint/check/) for the
+# rules listed in lint/rules.enabled. Adopt the next rule by adding its id to
+# that file, then re-run this. See AGENTS.md > Design lint.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
+rules=()
+while IFS= read -r rule; do
+  [ -n "$rule" ] && rules+=(--rule "$rule")
+done < <(scripts/lint-rules)
+[ ${#rules[@]} -gt 0 ] || { echo "lint-cases: no rules enabled in lint/rules.enabled" >&2; exit 0; }
+exec scripts/design-lint --cases lint "${rules[@]}" services packages supervisor

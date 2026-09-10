@@ -1,0 +1,26 @@
+[files]
+exclude = ["**/.git", "**/target"]
+
+[[rules.layout]]
+target = "."
+mode = "permissive"
+
+
+[[rules.layout]]
+target = ["**/*.md", "**/*.markdown"]
+allow = false
+case_sensitive = false
+
+[[rules.layout]]
+target = ["docs/*.md"]
+allow = true
+description = "Documents the project goal and design."
+
+[[rules.filename]]
+target = "*"
+kind = "file"
+max_words = 2
+
+[[rules."forbidden-words"]]
+target = "*"
+words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]
