@@ -37,3 +37,5 @@ pub use rule::safety::Safety;
 pub use rule::interface::Interface;
 
 pub use rule::calls::ForbiddenCall;
+
+pub use rule::hook::TestOnlyState;
