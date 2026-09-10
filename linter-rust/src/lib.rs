@@ -85,3 +85,4 @@ pub use rule::cycles::{Config as DependencyCyclesConfig, DependencyCycles};
 mod cargo_manifest;
 
 pub use rule::marker::{Config as RedundantMarkerConfig, RedundantMarker};
+pub use rule::blocking::{AsyncBlocking, Config as AsyncBlockingConfig};
