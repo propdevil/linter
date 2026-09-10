@@ -52,6 +52,11 @@ impl Config {
                     )));
                 }
                 let state_words = words(definition.state_words, &format!("{setting}.state_words"))?;
+                if state_words.is_empty() {
+                    return Err(Error::Configuration(format!(
+                        "{setting}.state_words: expected at least one state word"
+                    )));
+                }
                 let ignored_words = words(
                     definition.ignored_words,
                     &format!("{setting}.ignored_words"),

@@ -453,6 +453,7 @@ fn transition(&self) -> bool {
         let root = tempfile::tempdir().unwrap();
         for config in [
             "",
+            "state_words=[]",
             "state_words=['status','STATUS']",
             "state_words=['two words']",
             "state_words=['status']\nignored_words=['']",

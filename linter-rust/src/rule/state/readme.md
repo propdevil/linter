@@ -10,7 +10,7 @@ state_words = ["state", "status", "phase", "mode", "kind", "stage", "condition",
 ignored_words = ["message", "name", "path", "id", "input", "raw"]
 ```
 
-Reports a closed state vocabulary encoded as strings. `state_words` is required; vocabulary is never hidden in implementation constants. A name qualifies when its final underscore-separated word matches this list case-insensitively. `ignored_words` wins over state words and defaults to empty. Entries must be unique nonempty ASCII alphabetic words. Empty vocabulary matches nothing.
+Reports a closed state vocabulary encoded as strings. `state_words` is required; vocabulary is never hidden in implementation constants. A name qualifies when its final underscore-separated word matches this list case-insensitively. `ignored_words` wins over state words and defaults to empty. Entries must be unique nonempty ASCII alphabetic words. The state vocabulary must contain at least one word; the ignored vocabulary may be empty.
 
 The default minimum is three distinct decoded string literals; `min_variants` must be at least two. Repeating the same literal does not increase the variant count. Beyond that threshold, the rule requires one of:
 
