@@ -20,3 +20,5 @@ pub(crate) mod struct_words;
 pub(crate) mod module_name;
 
 pub(crate) mod receiver;
+
+pub(crate) mod path_modules;
