@@ -7,7 +7,7 @@ use std::{
 use crate::{Error, Project, Report, Rule, RuleResult, Status, config::Configuration};
 
 type Check = Box<dyn Fn(&Project, &mut Analyses) -> Result<RuleResult, Error> + Send + Sync>;
-type Analyses = BTreeMap<TypeId, Box<dyn Any + Send + Sync>>;
+type Analyses = BTreeMap<TypeId, (Box<dyn Any + Send + Sync>, Vec<crate::Directive>)>;
 
 type Factory = fn(Option<toml::Value>) -> Result<Check, Error>;
 
@@ -53,6 +53,7 @@ impl Registry {
             checks.iter().any(|(_, enabled, _)| *enabled),
         )?;
         let mut report = Report {
+            suppressed: Vec::new(),
             rules: BTreeMap::new(),
             findings: Vec::new(),
         };
@@ -66,6 +67,14 @@ impl Registry {
                 report.rules.insert(id, Status::Disabled);
             }
         }
+        crate::directive::apply(
+            &mut report,
+            analyses
+                .values()
+                .flat_map(|(_, directives)| directives.iter().cloned())
+                .collect(),
+            self.rules.keys().copied().collect(),
+        );
         report.findings.sort_by(|left, right| {
             (&left.path, left.rule, &left.configuration, &left.message).cmp(&(
                 &right.path,
@@ -95,9 +104,12 @@ fn prepare<R: Rule>(config: Option<toml::Value>) -> Result<Check, Error> {
         }
         let key = TypeId::of::<R::Analysis>();
         if let std::collections::btree_map::Entry::Vacant(entry) = analyses.entry(key) {
-            entry.insert(Box::new(<R::Analysis as crate::Analysis>::load(project)?));
+            let analysis = <R::Analysis as crate::Analysis>::load(project)?;
+            let directives = crate::Analysis::directives(&analysis);
+            entry.insert((Box::new(analysis), directives));
         }
         let analysis = analyses[&key]
+            .0
             .downcast_ref::<R::Analysis>()
             .ok_or_else(|| Error::Analysis("registered analysis type mismatch".into()))?;
         rule.check(project, analysis)

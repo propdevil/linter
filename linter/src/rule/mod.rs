@@ -25,6 +25,9 @@ pub struct RuleResult {
 
 /// Input prepared once per check run and shared by rules with the same analysis type.
 pub trait Analysis: Send + Sync + 'static {
+    fn directives(&self) -> Vec<crate::Directive> {
+        Vec::new()
+    }
     fn load(project: &Project) -> Result<Self, Error>
     where
         Self: Sized;

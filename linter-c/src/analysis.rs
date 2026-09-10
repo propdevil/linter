@@ -14,6 +14,13 @@ pub struct Analysis {
 }
 
 impl linter::Analysis for Analysis {
+    fn directives(&self) -> Vec<linter::Directive> {
+        self.sources
+            .iter()
+            .flat_map(crate::directive::collect)
+            .collect()
+    }
+
     fn load(project: &Project) -> Result<Self, Error> {
         let mut sources = Vec::new();
         for entry in project.entries().filter(|entry| {

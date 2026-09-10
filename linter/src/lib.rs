@@ -12,6 +12,8 @@ mod target;
 pub use rule::filename::Filename;
 pub use target::{Selector, Target};
 mod diagnostic;
+mod directive;
+pub use directive::{Directive, Suppressed};
 mod registry;
 pub use diagnostic::{Evidence, Span};
 mod rule;
@@ -66,6 +68,8 @@ pub struct Finding {
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suppressed: Vec<Suppressed>,
     pub rules: BTreeMap<&'static str, Status>,
     pub findings: Vec<Finding>,
 }

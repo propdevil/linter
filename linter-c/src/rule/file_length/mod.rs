@@ -47,7 +47,7 @@ impl Rule for FileLength {
                 .into_iter()
                 .filter(|assertion| lines > assertion.max_lines)
             {
-                findings.push(Finding {
+                findings.push(Finding { span: None, related: Vec::new(),
                     rule: Self::ID,
                     path: source.path.clone(),
                     configuration: assertion.setting.clone(),

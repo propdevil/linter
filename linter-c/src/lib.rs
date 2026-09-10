@@ -11,3 +11,5 @@ pub use rule::function_length::FunctionLength;
 mod lines;
 
 pub use rule::file_length::FileLength;
+
+mod directive;
