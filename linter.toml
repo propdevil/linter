@@ -61,6 +61,11 @@ target = ["{linter,linter-*}/src/rule/*/readme.md"]
 allow = true
 description = "Describes each rule and its configuration."
 
+[[rules.layout]]
+target = "skills/*/SKILL.md"
+allow = true
+description = "Installable software design guidance and linter workflows."
+
 [[rules."rust/layers"]]
 name = "linter"
 target = ["linter"]
