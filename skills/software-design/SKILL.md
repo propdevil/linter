@@ -215,6 +215,11 @@ target = "**/*.rs"
 max_columns = 100
 ```
 
+The free-function length rule exempts file-level `main` functions, including async
+entrypoints: composition may be large. Helpers inside `main` retain their own
+limits. This does not exempt the containing file from its production-line limit
+or disable nesting and indentation checks.
+
 The length rules exclude recognized test-only code under their default production
 scope. A file with 500 production lines plus 500 test lines passes a 600-line
 production limit. Rust indentation is relative to each function declaration;
@@ -229,25 +234,66 @@ Do not split into numbered fragments or manufacture wrappers for one helper.
 Nested callbacks still deserve review; a passing numerical budget is not proof
 of a good design.
 
-### Choose semantic rules for the invariant
+### Choose rules by the problem you are solving
 
-| Design concern | Rule and interpretation |
-| --- | --- |
-| Small capabilities | `rust/trait-method-count`, usually `max_methods = 3`. |
-| Mixed large traits | `rust/broad-trait-responsibilities` uses configured verb/noun groups and signature words. It is a heuristic, not proof of cohesion; under the same three-method limit its findings already violate the size gate. |
-| Entity naming | `rust/struct-noun-naming`, `rust/struct-word-count`, `rust/module-name`, and `rust/receiver-name-repetition`. Review meaning rather than mechanically shortening names. |
-| Closed states | `rust/string-backed-finite-state` and `rust/boolean-state-cluster`. Enums should encode real mutually exclusive states, not arbitrary text. |
-| Repeated models | `rust/duplicate-entity-base` and `rust/wire-domain-model-duplication`. Inspect identity, invariants, and actual conversion evidence before composing a shared entity. |
-| Behavior ownership | `rust/free-function`, `rust/single-use-free-function`, `rust/detached-constructor`, and `rust/self-constructor-static`. Prefer existing receivers, meaningful collections, standard conversions, and validating constructors. |
-| Unnecessary indirection | `rust/redundant-accessor`, `rust/redundant-wrapper`, `rust/redundant-namespace`, and `rust/redundant-marker`. Preserve real visibility, validation, synchronization, and external contracts. |
-| Runtime boundaries | `rust/async-blocking-operation`, `rust/environment-variable-access`, and `rust/unsafe-boundary`. Configure concrete APIs and legitimate composition boundaries. |
-| C code | The C preset supplies length, nesting, allocation, result, and safety checks. Configure `c/forbidden-call` separately when a concrete API restriction is needed. Compiler-backed tools need their configured executables and project compile information. |
-| Markdown | `markdown/examples` validates title, case headings, and fences. `layout` decides which documents may exist and why. |
+Start with the matching preset and the repository's existing policy. Use this
+map to identify useful checks; it is not an instruction to enable every check
+or impose every convention on every project. Configure selectors, limits, API
+lists, and ownership boundaries for the actual invariant. A registered rule
+reported as `unconfigured` has not validated that invariant.
 
-Check rule IDs and settings against the bundled preset and each rule's `readme.md`
-in the source distribution. Do not invent an unavailable rule or claim a heuristic
-is a compiler proof. Rust parsing is shared per run, but the linter does not expand
-macros or replace compilation, tests, rustfmt, Clippy, or language-specific tools.
+For a new repository, start with layout, names, and language-specific size limits.
+For a growing Rust workspace, add Cargo layers and cycles, then model and behavior
+ownership checks. For async services or native code, configure the relevant
+runtime and safety boundaries. During refactoring, inspect related evidence
+before deciding whether a finding justifies moving or combining code.
+
+| When this is useful | Rules to consider | What to configure or inspect |
+| --- | --- | --- |
+| Establish directory skeletons, permitted documents, and test locations | `layout` | Required paths, restrictive directory categories, and ordered bans/allowances with purpose descriptions. Checks paths, not test dependencies or behavior. |
+| Keep file and directory names concise | `filename` | Case, word/character limits, numbered fragments, and separate file/directory targets. Does not prove English noun meaning. |
+| Remove vague path vocabulary | `forbidden-words` | Explicit banned words; selected paths include ancestor components. Does not scan Rust source vocabulary. |
+| Recognize a missing containing module | `shared-affix`, `redundant-parent-name` | Repeated sibling prefix/suffix thresholds and repetition of parent words. Group only genuinely cohesive files. |
+| Keep text readable | `line-width`, `max-indent` | Physical column limits. Prefer `rust/max-indent` for Rust so enclosing modules and impls do not count. |
+| Protect Cargo package ownership | `rust/layers` | Package-directory selectors and allowed destination layers. Does not enforce dependencies between modules inside one crate. |
+| Control dependency growth | `rust/dependency-cycles`, `rust/dependency-budget` | Cycles and agreed dependency budgets; keep necessary dependencies rather than hiding them to meet a count. |
+| Bound production Rust size | `rust/file-length`, `rust/function-length`, `rust/method-length` | Separate file, free-function, and method limits. Recognized test-only code is excluded by default. |
+| Flatten complicated Rust control flow | `rust/nesting`, `rust/max-indent` | Nesting depth, guard handling, and function-relative indentation. Consider early returns without changing behavior. |
+| Keep traits focused | `rust/trait-method-count`, `rust/broad-trait-responsibilities` | A simple method cap first; capability/signature clustering only when its configured vocabulary fits the project. Clustering is a heuristic. |
+| Investigate a growing orchestration object | `rust/god-object-growth` | Looks for many methods, independent field capabilities, and a workflow crossing their ownership. A high method count alone is insufficient. |
+| Improve Rust declaration names | `rust/struct-noun-naming`, `rust/struct-word-count`, `rust/module-name` | Word limits and configured naming vocabulary. Review domain meaning before shortening a name. |
+| Remove repeated namespace words | `rust/redundant-module-prefix`, `rust/receiver-name-repetition` | Declarations repeating their module noun or methods repeating their receiver's name. Preserve necessary disambiguation. |
+| Stop path attributes flattening several child domains | `rust/path-module-flattening` | Maximum child domains injected into one namespace. This is not a repository-escape check. |
+| Replace closed primitive state with a model | `rust/string-backed-finite-state`, `rust/boolean-state-cluster` | Literal state comparisons and related boolean state. Preserve extensible protocol values, identifiers, and ordinary user text. |
+| Investigate duplicated entity facts | `rust/duplicate-entity-base`, `rust/wire-domain-model-duplication` | Inspect identity, field evidence, and conversions. Different newtypes wrapping the same primitive remain different concepts. |
+| Put behavior on its owner | `rust/free-function`, `rust/detached-constructor`, `rust/self-constructor-static` | Receiver-shaped operations, free factories, and constructors. Prefer an existing entity, collection, or standard conversion; do not invent a wrapper for one helper. |
+| Review a helper with one caller | `rust/single-use-free-function` | Inline only when it improves the caller; preserve a meaningful algorithm or deliberate boundary with a justified exception. |
+| Remove forwarding that adds no contract | `rust/redundant-accessor`, `rust/redundant-wrapper` | Equivalent access/forwarding contracts. Preserve validation, visibility, nominal identity, and external API guarantees. |
+| Remove empty structural indirection | `rust/redundant-namespace`, `rust/redundant-marker`, `rust/empty-struct` | Transparent modules, unused empty traits, and fieldless structs are different checks. Empty structs can be valid typestate; never add dummy fields to silence a finding. |
+| Avoid blocking async executors | `rust/async-blocking-operation` | Explicit blocking APIs, receiver methods, worker callbacks, and synchronous guards across await. An unrelated method with the same name is not proof. |
+| Capture environment at composition | `rust/environment-variable-access` | Ambient APIs, permitted targets/modules, and optional lazy-global policy. Pass validated configuration to consumers. |
+| Keep Rust unsafe operations at an explicit boundary | `rust/unsafe-boundary` | Allowed targets/modules and attached safety rationales. Does not replace compiler unsafe checks. |
+| Remove provisional instrumentation | `rust/provisional-diagnostic`, `c/provisional-diagnostic` | Explicit comment terms such as temporary diagnostics; strings are not comments. |
+| Bound C implementation size and depth | `c/file-length`, `c/function-length`, `c/nesting` | File/function limits and nested control-flow depth for selected C sources. |
+| Keep C headers focused | `c/interface-breadth` | Maximum externally visible function declarations in selected headers. |
+| Catch unchecked C operations | `c/unchecked-allocation`, `c/ignored-result` | Allocation and result handling; inspect the configured API assumptions and actual success/failure branches. |
+| Enforce native API contracts | `c/forbidden-call`, `c/safety-rationale` | Explicit prohibited calls and rationale requirements for selected operations. |
+| Find C tests that exercise unreachable production state | `c/test-only-state` | Test-hook macro names; reports production predicates whose known state writers are test-only. |
+| Integrate native formatting and analyzers | `c/format`, `c/tidy`, `c/cppcheck` | Executable paths, formatting/check policy, and compilation databases for analyzers. Missing tools are errors; these checks do not edit source. |
+| Validate example-document structure | `markdown/examples` | Title, case headings, and closed fences. Document permissions remain in `layout`. |
+
+Use `linter config rust` or the MCP preset resource for actual starter settings;
+use `c` or `default` for the other presets. Preserve an existing configuration
+instead of overwriting it. The release plugin does not currently expose individual
+rule READMEs through MCP; when a needed option is absent from these examples and
+the preset, consult that rule's README in the matching repository version rather
+than guessing its schema. Unknown settings are errors.
+
+These are implemented rules, not promises of compiler-level analysis. The linter
+does not expand Rust macros or replace compilation, tests, rustfmt, Clippy, or
+language-specific tools. Process-execution boundaries, general public API type
+leakage, ignored Rust results, and semantic test-dependency checks are not
+implemented; do not claim that existing path or Cargo rules enforce them.
 
 For string states, this is a finding even without a `state_words` name filter:
 

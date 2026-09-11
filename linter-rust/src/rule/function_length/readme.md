@@ -1,6 +1,8 @@
 # rust/function-length
 
-Limits each free Rust function, including nested functions, using the shared Rust AST. Methods, associated functions, trait default bodies, and declarations without bodies are outside this rule.
+Limits free Rust functions, including nested functions, using the shared Rust AST. A file-level function named `main` is exempt: composition and startup can be longer than ordinary operations. Methods, associated functions, trait default bodies, and declarations without bodies are outside this rule.
+
+The exception is syntactic and applies to synchronous and async `main`, including attribute-based runtime entrypoints, regardless of filename. It does not require Cargo metadata. Functions inside `main` and functions named `main` inside inline modules or other functions still have their own limits. File-length, nesting, and indentation checks remain independent.
 
 ```toml
 [[rules."rust/function-length"]]

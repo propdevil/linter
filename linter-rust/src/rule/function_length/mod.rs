@@ -82,7 +82,7 @@ fn inspect_node(
     assertion: &Assertion,
     findings: &mut Vec<Finding>,
 ) {
-    if node.kind() != "function_item" || method(node) {
+    if node.kind() != "function_item" || method(node) || main_function(node, source) {
         return;
     }
     let test = tests[node.start_byte()];
@@ -116,6 +116,14 @@ fn inspect_node(
             });
         }
     }
+}
+
+fn main_function(node: Node<'_>, source: &Source) -> bool {
+    node.parent()
+        .is_some_and(|parent| parent.kind() == "source_file")
+        && node
+            .child_by_field_name("name")
+            .is_some_and(|name| &source.text[name.byte_range()] == "main")
 }
 
 fn method(node: Node<'_>) -> bool {
@@ -160,6 +168,24 @@ mod tests {
             .check(root.path())
             .unwrap()
             .findings
+    }
+
+    #[test]
+    fn main_is_exempt_but_its_helpers_and_nested_names_are_not() {
+        let text = "#[tokio::main]\nasync fn main() {\nfn helper() {\n}\n}\n\
+            fn work() {\n}\nmod nested { fn main() {\n}\n}\n";
+        let findings = check(text, "max_lines=1");
+        assert_eq!(findings.len(), 3);
+        assert!(findings.iter().any(|f| f.message.contains("`helper`")));
+        assert!(findings.iter().any(|f| f.message.contains("`work`")));
+        assert_eq!(
+            findings
+                .iter()
+                .filter(|f| f.message.contains("`main`"))
+                .count(),
+            1
+        );
+        assert!(check("fn main() {\n\n}\n", "max_lines=1\nscope='all'").is_empty());
     }
 
     #[test]
