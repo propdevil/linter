@@ -21,5 +21,4 @@ linter-markdown.workspace = true
 linter-c = { path = "../../linter-c" }
 serde_json.workspace = true
 
-[dev-dependencies]
 tempfile.workspace = true

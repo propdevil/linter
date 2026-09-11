@@ -1,3 +1,5 @@
+mod install;
+
 use std::{
     fs::OpenOptions,
     io::{self, Write},
@@ -16,6 +18,8 @@ struct Arguments {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Install the MCP server and design skill for Codex, Claude, or both.
+    Install(install::Installer),
     /// Print an embedded configuration preset.
     Config {
         #[arg(value_enum, default_value = "default")]
@@ -57,6 +61,7 @@ impl Preset {
 fn main() -> ExitCode {
     let (root, json) = match Arguments::parse().command {
         Command::Check { root, json } => (root, json),
+        Command::Install(installer) => return installer.run(),
         Command::Config { preset } => {
             return match io::stdout().lock().write_all(preset.contents().as_bytes()) {
                 Ok(()) => ExitCode::SUCCESS,

@@ -7,8 +7,9 @@ mkdir -p "$temporary/tools" "$temporary/assets" "$temporary/package/linter/bin" 
     "$temporary/package/linter/skills/software-design" "$temporary/package/linter/.codex-plugin" \
     "$temporary/package/linter/.claude-plugin"
 payload="$temporary/package/linter"
-printf '#!/bin/sh\nexit 0\n' > "$payload/bin/linter"
-cp "$payload/bin/linter" "$payload/bin/linter-mcp"
+cargo build --locked --manifest-path "$repo/Cargo.toml" -p linter-cli
+cp "$repo/target/debug/linter" "$payload/bin/linter"
+printf '#!/bin/sh\nexit 0\n' > "$payload/bin/linter-mcp"
 chmod +x "$payload/bin/"*
 printf 'Design skill\n' > "$payload/skills/software-design/SKILL.md"
 printf '{"name":"linter","version":"0.1.0"}\n' > "$payload/.codex-plugin/plugin.json"
@@ -54,11 +55,11 @@ run both --root "$temporary/install space"
 grep -F 'codex plugin add linter@propdevil-linter' "$TEST_CALLS" >/dev/null
 grep -F 'claude plugin install linter@propdevil-linter --scope user' "$TEST_CALLS" >/dev/null
 grep -F 'claude plugin update linter@propdevil-linter --scope user' "$TEST_CALLS" >/dev/null
-cmp "$payload/skills/software-design/SKILL.md" \
+cmp "$repo/skills/software-design/SKILL.md" \
     "$temporary/install space/plugins/linter/skills/software-design/SKILL.md"
 grep -F "$temporary/install space/plugins/linter/bin/linter-mcp" \
     "$temporary/install space/plugins/linter/.mcp.json" >/dev/null
-run codex --root "$temporary/install space" --version v0.1.0
+LINTER_VERSION=v0.1.0 run codex --root "$temporary/install space"
 grep -F '/releases/download/v0.1.0/' "$TEST_DOWNLOADS" >/dev/null
 printf 'PASS: bundle, both clients, paths with spaces, and repeat installation\n'
 
@@ -88,3 +89,16 @@ TEST_OS=Unsupported; export TEST_OS
 if run codex --root "$temporary/unsupported"; then exit 1; fi
 test ! -d "$temporary/unsupported"
 printf 'PASS: unrelated directories, invalid repository, and unsupported platforms rejected\n'
+
+"$temporary/install space/plugins/linter/bin/linter" install both \
+    --root "$temporary/install space" > "$temporary/output" 2>&1
+printf 'PASS: installed binary can reinstall itself\n'
+cat > "$temporary/tools/claude" <<'SHCLIENT'
+#!/bin/sh
+exit 1
+SHCLIENT
+if "$temporary/install space/plugins/linter/bin/linter" install claude --root "$temporary/install space" \
+    > "$temporary/output" 2>&1; then exit 1; fi
+grep -F 'registration failed' "$temporary/output" >/dev/null
+test -x "$temporary/install space/plugins/linter/bin/linter"
+printf 'PASS: failed client registration retains the installed bundle\n'

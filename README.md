@@ -29,7 +29,8 @@ command in a terminal. Start a **new client session** afterward.
 
 Supports macOS and Linux on ARM64 and x86-64. Uses standard shell tools, `curl`,
 `tar`, and `shasum` or `sha256sum`. The installer downloads a prebuilt release,
-verifies its SHA-256 checksum, and registers the skill and MCP server. It does
+verifies its SHA-256 checksum, then runs `linter install`. Rust installs and
+registers the skill and MCP server. It does
 not build anything or change your project's files.
 
 
@@ -56,9 +57,14 @@ Rerun the installation command to download the latest release. Restart your clie
 Files live under `~/.local/share/propdevil/linter`; keep this directory because
 the server runs from it. The installer prints the standalone CLI's full path.
 
-Pin a version by adding `--version v0.1.2` after the client argument.
+Pin a release by setting `LINTER_VERSION=v0.1.3` on the `sh` command.
 Choose an installation directory with `--root /absolute/path/to/linter`.
 Omit the client argument to install for every supported client on PATH.
+
+With an extracted release bundle, run `./bin/linter install both` directly.
+Use `codex` or `claude` instead of `both` to select one client. Keep `linter-mcp`
+beside `linter`; the Rust command copies both binaries and embeds the skill,
+configuration presets, and plugin metadata.
 
 If installation fails, fix the reported error and rerun the same command.
 Use `codex plugin list` or `claude plugin list` to confirm the plugin is installed.

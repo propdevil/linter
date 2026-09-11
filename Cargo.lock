@@ -495,7 +495,7 @@ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "linter"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "globset",
  "heck",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "linter-c"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "linter",
  "serde",
@@ -519,7 +519,7 @@ dependencies = [
 
 [[package]]
 name = "linter-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "linter",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "linter-markdown"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "linter",
  "pulldown-cmark",
@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "linter-mcp"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "linter",
@@ -558,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "linter-rust"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cargo_metadata",
  "english-pos-tagger",
