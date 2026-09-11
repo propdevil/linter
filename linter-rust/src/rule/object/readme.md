@@ -5,7 +5,6 @@ Rejects large state-owning types only when method count, independent field capab
 ```toml
 [[rules."rust/god-object-growth"]]
 target = "**/*.rs"
-unwrap_types = ["std:Box", "std:Option", "std:Arc", "std:Rc", "std:Mutex", "std:RwLock", "std:RefCell", "std:SyncWeak", "std:RcWeak"]
 excluded_suffixes = ["Builder"]
 ```
 
@@ -15,7 +14,7 @@ Count inherent methods with receivers across all resolved impl blocks. Associate
 
 An application with seven workspace methods, seven settings methods, seven terminal methods, and a conditional workflow across those services fails. A codec with many cohesive methods, a thin forwarding facade without workflow logic, or several stores within one protocol namespace passes.
 
-Type ownership comes from resolved nominal identities. Configured unwrapping applies only to recognized standard containers; user-defined wrappers retain their identity. Unresolved types do not invent distinct domains. Unwrap and excluded-suffix vocabularies are empty unless configured. C-layout representations and automatically derived implementations preserve donor exemptions. Test-only code is filtered consistently.
+Type ownership comes from resolved nominal identities. The analyzer automatically unwraps standard Box, Option, Arc, Rc, Mutex, RwLock, RefCell, and sync/rc Weak containers; user-defined wrappers retain their identity. Unresolved types do not invent distinct domains. `excluded_suffixes` defaults to empty; it is a project naming policy. The removed `unwrap_types` option is rejected. C-layout representations and automatically derived implementations preserve donor exemptions. Test-only code is filtered consistently.
 
 Diagnostics include the owner span, representative field-group methods, and crossing workflow. Directives attach to the owner struct. All syntax comes from shared analysis.
 

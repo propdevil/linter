@@ -1,35 +1,35 @@
 # rust/async-blocking-operation
 
-Reject configured synchronous operations in async functions, blocks, and closures. Also reject a known synchronous lock guard retained across an `await`, with evidence pointing to its acquisition. Blocking work belongs in an explicit worker callback; release synchronous guards before suspension.
+Reject known synchronous operations in async functions, blocks, and closures. Also reject a known synchronous lock guard retained across an `await`, with evidence pointing to its acquisition. Blocking work belongs in an explicit worker callback; release synchronous guards before suspension.
 
-The rule uses the shared Rust AST. Its API vocabulary is entirely configuration: an empty rule list disables it, and an assertion with neither functions nor methods is invalid.
+The rule uses the shared Rust AST. Supported API behavior is built into the analyzer. A target-only assertion enables the check; without assertions it reports unconfigured.
 
 ```toml
 [[rules."rust/async-blocking-operation"]]
 target = ["apps/**/*.rs", "linter*/src/**/*.rs"]
 exclude = "**/fixtures/**"
 scope = "production"
-blocking_functions = [
-    "std::thread::sleep",
-    "std::fs::read", "std::fs::read_to_string", "std::fs::write",
-    "std::fs::File::open", "std::fs::File::create",
-]
-blocking_contexts = ["tokio::task::spawn_blocking", "tokio::task::block_in_place"]
-guard_adapters = ["unwrap", "expect"]
-blocking_methods = [
-    { receiver = "std::process::Command", methods = ["spawn", "status", "output"], constructors = ["std::process::Command::new"], fluent_methods = ["arg", "args"] },
-    { receiver = "std::fs::OpenOptions", methods = ["open"], constructors = ["std::fs::OpenOptions::new"], fluent_methods = ["read", "write", "create"] },
-    { receiver = "std::sync::Mutex", methods = ["lock"], constructors = ["std::sync::Mutex::new"], returns_guard = true },
-    { receiver = "std::sync::RwLock", methods = ["read", "write"], constructors = ["std::sync::RwLock::new"], returns_guard = true },
-    { receiver = "parking_lot::Mutex", methods = ["lock"], constructors = ["parking_lot::Mutex::new"], returns_guard = true },
-    { receiver = "tokio::sync::Mutex", methods = ["blocking_lock"], constructors = ["tokio::sync::Mutex::new"] },
-    { receiver = "tokio::sync::mpsc::Receiver", methods = ["blocking_recv"] },
-]
 ```
 
-This explicit starter policy is exercised by the rule's Registry tests. Extend its exact function paths for other filesystem operations or blocking libraries; there is no implicit API catalogue. `target`, `exclude`, and optional `allowed_targets` accept one glob or a list. Allowed targets designate complete files permitted to contain blocking operations. `scope` is `production` (default), `tests`, or `all`. Unknown settings and malformed API identifiers fail configuration.
+`target`, `exclude`, and optional `allowed_targets` accept one glob or a list.
+Allowed targets permit blocking operations in whole files. `scope` is
+`production` (default), `tests`, or `all`. Unknown settings fail configuration,
+including the removed `blocking_functions`, `blocking_methods`,
+`blocking_contexts`, and `guard_adapters` options.
 
-`receiver` is an exact imported or qualified type. `constructors` establish that receiver type for an inferred local; `fluent_methods` preserve it through known builder calls. All names in `methods` are blocking operations. Set `returns_guard` only when those methods acquire a synchronous guard, including a result wrapping one. `guard_adapters` identifies methods that preserve this proven acquisition through result handling; it never makes an unrelated `.unwrap()` into a lock acquisition. Parentheses and `?` preserve acquisition provenance.
+Built-in operations are `std::thread::sleep`, `std::fs::{read, read_to_string,
+write}`, `std::fs::File::{open, create}`, `Command::{spawn, status, output}`,
+`OpenOptions::open`, standard Mutex/RwLock acquisition, `parking_lot::Mutex::lock`,
+Tokio `Mutex::blocking_lock`, and Tokio mpsc `Receiver::blocking_recv`.
+Constructors identify known receiver types. Command `arg`/`args` and OpenOptions
+`read`/`write`/`create` preserve builder identity. Other APIs and builder methods
+are not claimed as covered.
+
+Tokio `spawn_blocking` and `block_in_place` callbacks are worker boundaries.
+`unwrap` and `expect` preserve a proven standard lock acquisition through result
+handling; an unrelated `.unwrap()` never establishes a guard. Parentheses and
+`?` preserve acquisition provenance. Standard Mutex/RwLock and parking_lot Mutex
+guards are tracked across await. Custom API lists are not configurable.
 
 ```rust
 use std::sync::Mutex;
@@ -55,4 +55,4 @@ This is bounded syntax analysis, not Rust type checking or whole-program executi
 std::fs::read("startup");
 ```
 
-Migrates the blocking rules from [archived source](https://github.com/propdevil/linter/tree/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/husklet/src/packages/hl-design-lint/src/rule/rust/blocking/), [archived source](https://github.com/propdevil/linter/tree/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/prop/packages/design-lint/src/rule/blocking/), and [archived source](https://github.com/propdevil/linter/tree/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/payment-sdk/packages/design-lint/src/rule/adopted/blocking/). Their async API, worker boundary, storage adapter, and test-only regressions are retained. Guard checks additionally cover lexical lifetime without later use, alias moves, and shadowing; API lists and worker boundaries are now explicit configuration.
+Migrates the blocking rules from [archived source](https://github.com/propdevil/linter/tree/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/husklet/src/packages/hl-design-lint/src/rule/rust/blocking/), [archived source](https://github.com/propdevil/linter/tree/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/prop/packages/design-lint/src/rule/blocking/), and [archived source](https://github.com/propdevil/linter/tree/586162b6ca69190f6138a03ab1a7e7df1bab26dd/sources/payment-sdk/packages/design-lint/src/rule/adopted/blocking/). Their async API, worker boundary, storage adapter, and test-only regressions are retained. Guard checks additionally cover lexical lifetime without later use, alias moves, and shadowing; known API behavior and worker boundaries are now built-in; repository scope remains configurable.

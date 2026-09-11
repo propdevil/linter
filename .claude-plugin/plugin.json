@@ -1,6 +1,6 @@
 {
   "name": "linter",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Software design guidance and repository validation for coding agents.",
   "author": { "name": "Devil" }
 }

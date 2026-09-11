@@ -3,7 +3,7 @@ resolver = "3"
 members = ["linter", "linter-rust", "linter-c", "linter-markdown", "apps/cli", "apps/mcp"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.91"
 publish = false

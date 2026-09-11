@@ -253,13 +253,43 @@ fn implementation(
 mod tests {
     use super::*;
     fn policy() -> &'static str {
-        include_str!("readme.md")
-            .split("```toml\n")
-            .nth(1)
-            .unwrap()
-            .split("```")
-            .next()
-            .unwrap()
+        // Fixed regression vocabulary; independent of user-facing examples.
+        concat!(
+            "[[rules.\"rust/broad-trait-responsibilities\"]]\ntarget = \"**/*.r",
+            "s\"\nmin_methods = 8\nmin_clusters = 3\nmin_methods_per_cluster = ",
+            "2\nignored_type_words = [\"result\", \"option\", \"vec\", \"box\", \"arc",
+            "\", \"dyn\", \"impl\", \"where\", \"send\", \"sync\", \"static\", \"error\", ",
+            "\"bool\", \"str\", \"string\", \"usize\", \"isize\", \"u8\", \"u16\", \"u32\",",
+            " \"u64\", \"u128\", \"i8\", \"i16\", \"i32\", \"i64\", \"i128\"]\ncohesive_su",
+            "ffixes = [\"Protocol\", \"Codec\", \"Visitor\", \"Renderer\", \"Command",
+            "s\"]\ngenerated_markers = [\"@generated\", \"automatically generate",
+            "d\"]\ngenerated_attributes = [\"automatically_derived\", \"proc_mac",
+            "ro_derive\"]\ncapabilities = [\n  { name = \"persistence\", verbs =",
+            " [\"create\", \"open\", \"read\", \"write\", \"save\", \"load\", \"delete\",",
+            " \"remove\", \"list\", \"find\", \"get\", \"put\"] },\n  { name = \"lifecy",
+            "cle\", verbs = [\"start\", \"stop\", \"pause\", \"resume\", \"restart\", ",
+            "\"kill\", \"launch\", \"terminate\"] },\n  { name = \"observation\", ve",
+            "rbs = [\"inspect\", \"status\", \"stats\", \"health\", \"metrics\", \"des",
+            "cribe\", \"query\"], nouns = [\"metric\", \"metrics\", \"stat\", \"stats",
+            "\", \"status\", \"health\"] },\n  { name = \"configuration\", verbs = ",
+            "[\"configure\", \"set\", \"update\", \"apply\", \"reset\", \"enable\", \"di",
+            "sable\"] },\n  { name = \"events\", verbs = [\"subscribe\", \"unsubsc",
+            "ribe\", \"watch\", \"emit\", \"notify\", \"poll\"], nouns = [\"event\", \"",
+            "events\", \"notification\", \"notifications\"] },\n  { name = \"trans",
+            "fer\", verbs = [\"upload\", \"download\", \"push\", \"pull\", \"import\",",
+            " \"export\", \"copy\"] },\n  { name = \"authorization\", verbs = [\"lo",
+            "gin\", \"logout\", \"authenticate\", \"authorize\", \"grant\", \"revoke\"",
+            "], nouns = [\"auth\", \"permission\", \"permissions\", \"credential\",",
+            " \"credentials\"] },\n  { name = \"connection\", verbs = [\"connect\"",
+            ", \"disconnect\", \"bind\", \"listen\", \"accept\", \"send\", \"receive\"]",
+            " },\n  { name = \"rendering\", verbs = [\"render\", \"draw\", \"presen",
+            "t\", \"commit\", \"frame\", \"paint\"] },\n  { name = \"traversal\", ver",
+            "bs = [\"visit\", \"walk\", \"fold\", \"traverse\"] },\n  { name = \"code",
+            "c\", verbs = [\"encode\", \"decode\", \"serialize\", \"deserialize\", \"",
+            "parse\", \"format\"] },\n  { name = \"clipboard\", nouns = [\"clipboa",
+            "rd\"] },\n  { name = \"window\", nouns = [\"window\", \"windows\", \"su",
+            "rface\", \"interaction\"] },\n]\n",
+        )
     }
     fn check(source: &str, suffix: &str) -> linter::Report {
         let root = tempfile::tempdir().unwrap();

@@ -4,6 +4,7 @@ use crate::{
 };
 use linter::{Error, Project, Rule, RuleResult, Status};
 use std::fs;
+mod api;
 mod config;
 mod environment;
 mod scan;
@@ -56,24 +57,7 @@ impl Rule for AsyncBlocking {
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
-    const POLICY: &str = "\n[[rules.\"rust/async-blocking-operation\"]]\ntarget = \"**/*\
-        .rs\"\nblocking_functions = [\"std::thread::sleep\", \"std::fs::read\", \"std::f\
-        s::read_to_string\", \"std::fs::write\", \"std::fs::File::open\", \"std::fs::Fil\
-        e::create\"]\nblocking_contexts = [\"tokio::task::spawn_blocking\", \"tokio::tas\
-        k::block_in_place\"]\nguard_adapters = [\"unwrap\", \"expect\"]\nblocking_method\
-        s = [\n    { receiver = \"std::process::Command\", methods = [\"spawn\", \"statu\
-        s\", \"output\", \"wait\", \"wait_with_output\"], constructors = [\"std::process\
-        ::Command::new\"], fluent_methods = [\"arg\", \"args\"] },\n    { receiver = \"s\
-        td::fs::OpenOptions\", methods = [\"open\"], constructors = [\"std::fs::OpenOpti\
-        ons::new\"], fluent_methods = [\"read\", \"write\", \"create\"] },\n    { receiv\
-        er = \"std::sync::Mutex\", methods = [\"lock\"], constructors = [\"std::sync::Mu\
-        tex::new\"], returns_guard = true },\n    { receiver = \"std::sync::RwLock\", me\
-        thods = [\"read\", \"write\"], constructors = [\"std::sync::RwLock::new\"], retu\
-        rns_guard = true },\n    { receiver = \"parking_lot::Mutex\", methods = [\"lock\
-        \"], constructors = [\"parking_lot::Mutex::new\"], returns_guard = true },\n    \
-        { receiver = \"tokio::sync::Mutex\", methods = [\"blocking_lock\"], constructors\
-        \u{20}= [\"tokio::sync::Mutex::new\"] },\n    { receiver = \"tokio::sync::mpsc::\
-        Receiver\", methods = [\"blocking_recv\"] },\n]\n";
+    const POLICY: &str = "[[rules.\"rust/async-blocking-operation\"]]\ntarget = \"**/*.rs\"\n";
     fn check(root: &Path) -> Result<linter::Report, linter::Error> {
         linter::Registry::default()
             .register::<super::AsyncBlocking>()?
@@ -334,10 +318,11 @@ fn closures(builder: Builder) {
         );
     }
     #[test]
-    fn configuration_rejects_empty_policies_invalid_apis_and_unknown_settings() {
+    fn configuration_rejects_legacy_api_settings_and_invalid_selectors() {
         let root = tempfile::tempdir().unwrap();
         for fields in [
-            "target = '*'",
+            "target = '*'\nblocking_contexts = ['tokio::task::spawn_blocking']",
+            "target = '*'\nguard_adapters = ['unwrap']",
             "target = '*'\nblocking_functions = ['bad-path']",
             "target = '*'\nblocking_methods = [{ receiver = 'std::sync::Mutex', methods = [] }]",
             "target = []\nblocking_functions = ['std::fs::read']",

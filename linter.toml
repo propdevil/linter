@@ -1,25 +1,44 @@
 # Generated from the default preset, then configured for this repository.
+# Ignore matching paths during file discovery, before any rule sees them.
+# Example: target/debug artifacts and .git internals are not lint inputs.
+# Rule targets below are root-relative: * matches one path segment, ** crosses folders.
+# A target selects files for code/name checks, directories for structural layout checks,
+# and Cargo package directories for rust/layers. An unmatched target is not coverage.
 [files]
 exclude = ["**/.git", "**/target", "dist/**"]
 
+# Require listed paths while allowing additional root entries.
+# Example: Missing Cargo.toml fails; an extra root directory is allowed.
 [[rules.layout]]
 target = "."
 mode = "permissive"
 files.required = ["Cargo.toml", "Cargo.lock", "linter.toml"]
 
 
+# Each matched directory must contain any files.required paths, relative to that directory.
+# Restrictive mode rejects unlisted immediate children; required paths also allow their parents.
+# It does not recursively whitelist every file inside an allowed child directory.
+# Example: apps/cli needs Cargo.toml and src/main.rs; an unlisted root file fails.
 [[rules.layout]]
 target = "apps/*"
 mode = "restrictive"
 files.required = ["Cargo.toml", "src/main.rs"]
 directories.allowed = [{ target = "tests", description = "Crate integration tests." }]
 
+# Each matched directory must contain files.required, resolved relative to that directory.
+# Restrictive mode rejects unlisted immediate children; required paths also allow their parents.
+# It does not recursively whitelist every file inside an allowed child directory.
+# Example: linter needs its declared Cargo/source files; unlisted root entries fail.
 [[rules.layout]]
 target = "linter"
 mode = "restrictive"
 files.required = ["Cargo.toml", "src/lib.rs", "src/config.rs", "src/rule/mod.rs"]
 directories.allowed = [{ target = "tests", description = "Crate integration tests." }]
 
+# Each matched directory must contain files.required, resolved relative to that directory.
+# Restrictive mode rejects unlisted immediate children; required paths also allow their parents.
+# It does not recursively whitelist every file inside an allowed child directory.
+# Example: A rule missing config.rs fails; a documented fixtures directory is allowed.
 [[rules.layout]]
 target = "{linter,linter-*}/src/rule/*"
 mode = "restrictive"
@@ -32,65 +51,109 @@ files.allow_empty = false
 directories.allow_empty = false
 directories.allowed = [{ target = "fixtures", description = "Rule test inputs." }]
 
+# Each matched directory must contain files.required, resolved relative to that directory.
+# Restrictive mode rejects unlisted immediate children; required paths also allow their parents.
+# It does not recursively whitelist every file inside an allowed child directory.
+# Example: configs/rust.toml passes; configs/notes.txt fails.
 [[rules.layout]]
 target = "configs"
 mode = "restrictive"
 files.allowed = [{ target = "*.toml", description = "Embedded project configuration presets." }]
 
+# Each matched directory must contain files.required, resolved relative to that directory.
+# Restrictive mode rejects unlisted immediate children; required paths also allow their parents.
+# It does not recursively whitelist every file inside an allowed child directory.
+# Example: docs/goal.md passes; docs/image.png fails.
 [[rules.layout]]
 target = "docs"
 mode = "restrictive"
 files.allowed = [{ target = "*.md", description = "Project goal and rule descriptions." }]
 
+# For each selected source directory, inspect its immediate child directories.
+# Reject a child containing exactly one substantive file and no other entries.
+# Target source parents so a one-file crate's src boundary is not rejected automatically.
+# Example: src/payment/mod.rs alone suggests src/payment.rs instead.
 [[rules.layout]]
 target = "**/src{,/**}"
 directories.allow_single_file = false
 
+# Ban Markdown first; later documented allowances can override this ban.
+# Example: notes.md fails unless a later allow block matches it.
 [[rules.layout]]
 target = ["**/*.md", "**/*.markdown"]
 allow = false
 case_sensitive = false
 
+# Override earlier file bans for this target; the LAST matching permission decides.
+# description explains why the document/test belongs here, not how its content is validated.
+# Example: docs/goal.md is allowed; an unmatched root notes.md remains forbidden.
 [[rules.layout]]
 target = ["docs/*.md"]
 allow = true
 description = "Documents the project goal and design."
 
+# Override earlier file bans for this target; the LAST matching permission decides.
+# description explains why the document/test belongs here, not how its content is validated.
+# Example: linter/src/rule/layout/readme.md is allowed as rule documentation.
 [[rules.layout]]
 target = ["{linter,linter-*}/src/rule/*/readme.md"]
 allow = true
 description = "Describes each rule and its configuration."
 
+# Override earlier file bans for this target; the LAST matching permission decides.
+# description explains why the document/test belongs here, not how its content is validated.
+# Example: skills/software-design/SKILL.md is allowed as agent guidance.
 [[rules.layout]]
 target = "skills/*/SKILL.md"
 allow = true
 description = "Installable software design guidance and linter workflows."
 
+# Override earlier file bans for this target; the LAST matching permission decides.
+# description explains why the document/test belongs here, not how its content is validated.
+# Example: README.md is allowed for installation instructions.
 [[rules.layout]]
 target = "README.md"
 allow = true
 description = "Installation and first-use instructions for Codex and Claude Code."
 
+# Define a layer by Cargo package-directory selectors, then list allowed destination layers.
+# dependencies contains layer names, not crate names; a same-layer dependency needs
+# that layer's own name in the list. Every analyzed package must match exactly one layer.
+# Example: linter -> linter-rust fails; this base layer has no allowed local dependencies.
 [[rules."rust/layers"]]
 name = "linter"
 target = ["linter"]
 dependencies = []
 
+# Define a layer by Cargo package-directory selectors, then list allowed destination layers.
+# dependencies contains layer names, not crate names; a same-layer dependency needs
+# that layer's own name in the list. Every analyzed package must match exactly one layer.
+# Example: linter-rust -> linter passes; linter-rust -> apps/cli fails.
 [[rules."rust/layers"]]
 name = "rust"
 target = ["linter-rust"]
 dependencies = ["linter"]
 
+# Define a layer by Cargo package-directory selectors, then list allowed destination layers.
+# dependencies contains layer names, not crate names; a same-layer dependency needs
+# that layer's own name in the list. Every analyzed package must match exactly one layer.
+# Example: linter-c -> linter passes; linter-c -> linter-rust fails.
 [[rules."rust/layers"]]
 name = "c"
 target = ["linter-c"]
 dependencies = ["linter"]
 
+# Define a layer by Cargo package-directory selectors, then list allowed destination layers.
+# dependencies contains layer names, not crate names; a same-layer dependency needs
+# that layer's own name in the list. Every analyzed package must match exactly one layer.
+# Example: apps/cli -> linter passes; apps/cli -> apps/mcp fails.
 [[rules."rust/layers"]]
 name = "apps"
 target = ["apps/*"]
 dependencies = ["linter", "rust", "c", "markdown"]
 
+# Ban detached Rust test filenames and test directories before explicit allowances.
+# Example: src/parser_test.rs fails; use inline unit tests or an allowed integration path.
 [[rules.layout]]
 target = [
     "**/{test,tests}.rs",
@@ -101,208 +164,351 @@ target = [
 allow = false
 case_sensitive = false
 
+# Also reject PascalCase test filenames; this block supplements the underscore-name ban.
+# Example: src/ParserTests.rs fails; keep unit tests inline or use allowed integration paths.
 [[rules.layout]]
 target = ["**/*{Test,Tests}.rs"]
 allow = false
 
+# Override earlier file bans for this target; the LAST matching permission decides.
+# description explains why the document/test belongs here, not how its content is validated.
+# Example: tests/payment.rs is allowed; src/tests/payment.rs remains forbidden.
 [[rules.layout]]
 target = ["tests/**/*.rs", "{linter,linter-*,apps/*}/tests/**/*.rs"]
 allow = true
 description = "Crate integration tests and repository-wide test cases."
 
+# Limit counted production lines in a Rust file, not its total lines including tests.
+# Example: 500 production lines plus 500 recognized test-only lines pass max_lines=500;
+# 501 production lines fail. Recognized test modules/items are excluded from the count.
+# Split by owned responsibility, not numbered fragments. External test-module
+# classification is conservative; inspect test evidence before treating a count as fact.
 [[rules."rust/file-length"]]
 target = "**/*.rs"
 max_lines = 500
 
+# Check a file's name without its final extension, or a directory's full name.
+# Words split at underscores, hyphens and camel-case boundaries; max_words limits their count.
+# kind chooses files/directories; case enforces spelling only when explicitly configured.
+# Example: With max_words=2, payment_id passes; payment_account_id fails.
 [[rules.filename]]
 target = "{linter,linter-*}/src/rule/*/*"
 kind = "file"
 case = "snake_case"
 
+# Check a file's name without its final extension, or a directory's full name.
+# Words split at underscores, hyphens and camel-case boundaries; max_words limits their count.
+# kind chooses files/directories; case enforces spelling only when explicitly configured.
+# Example: With max_words=2, payment_id passes; payment_account_id fails.
 [[rules.filename]]
 target = "{linter,linter-*}/src/rule/*/*"
 kind = "directory"
 case = "snake_case"
 
+# Check a file's name without its final extension, or a directory's full name.
+# Words split at underscores, hyphens and camel-case boundaries; max_words limits their count.
+# kind chooses files/directories; case enforces spelling only when explicitly configured.
+# Example: With max_words=2, payment_id passes; payment_account_id fails.
 [[rules.filename]]
 target = "**/src{,/**}/*"
 kind = "file"
 max_words = 2
 
+# Check a file's name without its final extension, or a directory's full name.
+# Words split at underscores, hyphens and camel-case boundaries; max_words limits their count.
+# kind chooses files/directories; case enforces spelling only when explicitly configured.
+# Example: With max_words=2, payment_id passes; payment_account_id fails.
 [[rules.filename]]
 target = "**/src/**/*"
 kind = "directory"
 max_words = 2
 
+# Flag sibling files sharing too many first or last whole words.
+# Example: With max_prefix=2, func_a.rs + func_b.rs + func_c.rs fail.
 [[rules."shared-affix"]]
 target = "**/src{,/**}/*"
 max_prefix = 2
 max_suffix = 2
 
+# Reject any complete configured word in a selected name or one of its ancestor names.
+# This checks filesystem names, not words in source code; utility is not the word util.
+# Example: common/payment.rs fails when common is forbidden.
 [[rules."forbidden-words"]]
 target = "**/src/**"
 words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils", "selected", "prepared", "creating", "loading", "running", "handling", "validating", "decoding", "encoding", "dispatching", "executing"]
 
+# Split the file stem and its immediate parent name into words; reject shared words.
+# ignored_names exempts conventional entrypoints such as mod.rs, not entire directories.
+# Example: payment/payment_status.rs repeats payment; payment/status.rs does not.
 [[rules."redundant-parent-name"]]
 target = "**/src/**/*.{rs,c,h}"
 ignored_names = ["mod", "lib", "main", "index"]
 
+# Limit physical line width, including comments and tests.
+# Example: At max_columns=100, a 101-column line fails.
 [[rules."line-width"]]
 target = "**/*.{rs,c,h}"
 max_columns = 100
 tab_width = 4
 
+# Measure leading indentation relative to the line declaring the containing function.
+# Example: fn starts at column 5 and a body line starts at column 29: the difference
+# is 24 columns, which fails max_columns=20. Indentation from enclosing mod/impl is free.
+# Closures inside the function still consume this budget, as do test functions.
+# Flatten control flow or break up deeply nested expressions; this is not rustfmt.
 [[rules."rust/max-indent"]]
 target = "**/*.rs"
 max_columns = 20
 tab_width = 4
 
+# Count each free function from its declaration through its closing brace, including
+# signature lines, comments, blank lines and closures. Recognized test-only code is excluded.
+# Example: a 51-line helper fails max_lines=50; exactly 50 lines passes.
+# File-level main functions, including async main, are exempt because composition
+# may be large. Helpers declared inside main still have their own length limits.
 [[rules."rust/function-length"]]
 target = "**/*.rs"
 max_lines = 50
 
+# Count Rust impl methods/associated functions and trait default bodies separately.
+# Count declaration through closing brace, including comments, blanks and closures;
+# recognized test-only code is excluded by default.
+# Example: a 51-line impl method fails max_lines=50; exactly 50 lines passes.
+# Split coherent operations onto their owner, not into arbitrary numbered helpers.
 [[rules."rust/method-length"]]
 target = "**/*.rs"
 max_lines = 50
 
+# Count dependent control-flow levels inside each function, starting from zero.
+# Enclosing modules/impls do not count; an else-if chain shares one level.
+# Example: if a { if b { if c { work(); } } } reaches depth 3 and fails max_depth=2.
+# With ignore_guard_clauses=true, if invalid { return; } adds no level; following
+# work stays on the happy path. Nested control flow inside the guard is still checked.
+# Use an early return only if it preserves which later statements execute.
 [[rules."rust/nesting"]]
 target = "**/*.rs"
 max_depth = 2
 ignore_guard_clauses = true
 
+# Split struct names into words and check their grammatical role against lexical data.
+# Example: Running describes an action rather than a thing; choose the entity it
+# actually represents, such as Session, instead of adding a meaningless suffix.
+# Unknown technical nouns may need accepted_words. This is a naming heuristic,
+# not proof that a chosen name accurately represents the domain.
 [[rules."rust/struct-noun-naming"]]
 target = "**/*.rs"
 
+# Find related structs that repeat the same named fields and their resolved types.
+# The structs must be in one Cargo package and have related trailing name words
+# or a resolved From/TryFrom conversion; arbitrary similar shapes are insufficient.
+# Example: Wallet and ImportedWallet both storing id, address and network fail
+# min_shared_fields=3 when all three field types match. Consider storing Wallet
+# inside ImportedWallet if they represent the same entity at different stages.
+# Email(String) and WalletId(String) stay distinct: equal storage is not equal identity.
 [[rules."rust/duplicate-entity-base"]]
 target = "**/*.rs"
 min_shared_fields = 3
 
+# Find a serialized public-field model copying a related model's owned data.
+# Require a shared concept or simple field-copy conversion, matching field types,
+# and at least min_shared_fields matches covering min_overlap_percent of the smaller model.
+# Example: Serialize WireImage with public id/name/path and a behavioral Image
+# with the same three private fields can fail: 3 matches, 100% overlap.
+# Reuse the model or compose it when the boundary adds no representation contract.
+# Validation/translation in a conversion can justify keeping separate models.
 [[rules."rust/wire-domain-model-duplication"]]
 target = "**/*.rs"
 min_shared_fields = 3
 min_overlap_percent = 75
 
+# Find boolean fields used together to represent exactly one active state.
+# Having min_fields booleans alone is not a violation: the rule needs constructions,
+# assignments, or rejection predicates showing that the flags exclude one another.
+# Example: one transition sets idle=false, opening=false, active=true.
+# Use State::Active instead of permitting contradictory flag combinations.
+# Independent readable/writable/executable permissions can all be true and pass.
 [[rules."rust/boolean-state-cluster"]]
 target = "**/*.rs"
 min_fields = 3
 
+# Find strings whose comparisons enumerate at least min_variants literal values.
+# Example: match self.status.as_str() { "preparing" => ..., "pushing" => ...,
+# "pushed" => ... } exposes three named states stored as an unrestricted String.
+# An enum can prevent misspelled or impossible values; parse strings at the boundary.
+# Do not turn arbitrary user text into enums just because this heuristic reports it.
 [[rules."rust/string-backed-finite-state"]]
 target = "**/*.rs"
 min_variants = 3
 
+# Count method declarations and default methods directly on each Rust trait.
+# max_methods limits the trait's own surface; this does not infer architectural responsibilities.
+# Example: At max_methods=3, a four-method trait fails.
 [[rules."rust/trait-method-count"]]
 target = "**/*.rs"
 max_methods = 3
 
+# Cap semantic words in each struct name.
+# Example: At max_words=2, PaymentAccountRecord fails; AccountRecord passes.
 [[rules."rust/struct-word-count"]]
 target = "**/*.rs"
 max_words = 2
 
+# Reject unit structs and structs with zero named or tuple fields.
+# Example: struct Empty; and struct Empty {} fail; a real field passes this check.
+# An intentional typestate or marker may be valid: explain it with a narrow directive.
+# Do not add PhantomData or another dummy field merely to make the finding disappear.
 [[rules."rust/empty-struct"]]
 target = "**/*.rs"
 
+# Define a layer by Cargo package-directory selectors, then list allowed destination layers.
+# dependencies contains layer names, not crate names; a same-layer dependency needs
+# that layer's own name in the list. Every analyzed package must match exactly one layer.
+# Example: linter-markdown -> linter passes; the reverse edge fails.
 [[rules."rust/layers"]]
 name = "markdown"
 target = "linter-markdown"
 dependencies = ["linter"]
 
+# Reject configured vague words in Rust module declarations.
+# Example: mod common; fails when common is forbidden; mod payment; passes.
 [[rules."rust/module-name"]]
 target = "**/*.rs"
 forbidden_words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]
 
+# Require a leading document title, enough example sections, and closed code fences.
+# The title is an H1 (# Title); each counted case is a top-level H2 (## Parsing).
+# With min_cases=0, the document needs no case sections, but title/fence checks remain.
+# Example: opening a ```rust fence without a closing ``` fails.
+# Headings inside code or quotes do not count. Layout separately controls allowed paths.
 [[rules."markdown/examples"]]
 target = "**/*.md"
 min_cases = 0
 
+# Keep code from different child folders under separate Rust module paths.
+# #[path="..."] loads a file as the declared module, ignoring its usual folder module.
+# Here "child domain" means a distinct child directory used by those path overrides;
+# "namespace" means the containing Rust module where the declarations appear.
+# Example: in src/mod.rs, these two declarations fail max_child_domains=1:
+#   #[path="registry/state.rs"] mod state;
+#   #[path="signal/plan.rs"] mod plan;
+# They expose state and plan as siblings instead of registry::state and signal::plan.
+# Prefer mod registry; mod signal; with each folder declaring its own children.
+# Two overridden files from registry/ count as ONE child domain and pass this limit.
+# The rule does not ban every #[path] or check dependencies between those modules.
 [[rules."rust/path-module-flattening"]]
 target = "**/*.rs"
 max_child_domains = 1
 
+# Find methods whose leading or trailing words repeat their receiver type's namespace.
+# Example: Wallet::wallet_address can be Wallet::address because Wallet already
+# identifies the owner. This checks declaration names, not repeated words in filenames.
+# Preserve required trait/external contracts instead of blindly shortening names.
 [[rules."rust/receiver-name-repetition"]]
 target = "**/*.rs"
 
-[[rules."rust/broad-trait-responsibilities"]]
-target = "**/*.rs"
-min_methods = 8
-min_clusters = 3
-min_methods_per_cluster = 2
-ignored_type_words = ["result", "option", "vec", "box", "arc", "dyn", "impl", "where", "send", "sync", "static", "error", "bool", "str", "string", "usize", "isize", "u8", "u16", "u32", "u64", "u128", "i8", "i16", "i32", "i64", "i128"]
-cohesive_suffixes = ["Protocol", "Codec", "Visitor", "Renderer", "Commands"]
-generated_markers = ["@generated", "automatically generated"]
-generated_attributes = ["automatically_derived", "proc_macro_derive"]
-capabilities = [
-  { name = "persistence", verbs = ["create", "open", "read", "write", "save", "load", "delete", "remove", "list", "find", "get", "put"] },
-  { name = "lifecycle", verbs = ["start", "stop", "pause", "resume", "restart", "kill", "launch", "terminate"] },
-  { name = "observation", verbs = ["inspect", "status", "stats", "health", "metrics", "describe", "query"], nouns = ["metric", "metrics", "stat", "stats", "status", "health"] },
-  { name = "configuration", verbs = ["configure", "set", "update", "apply", "reset", "enable", "disable"] },
-  { name = "events", verbs = ["subscribe", "unsubscribe", "watch", "emit", "notify", "poll"], nouns = ["event", "events", "notification", "notifications"] },
-  { name = "transfer", verbs = ["upload", "download", "push", "pull", "import", "export", "copy"] },
-  { name = "authorization", verbs = ["login", "logout", "authenticate", "authorize", "grant", "revoke"], nouns = ["auth", "permission", "permissions", "credential", "credentials"] },
-  { name = "connection", verbs = ["connect", "disconnect", "bind", "listen", "accept", "send", "receive"] },
-  { name = "rendering", verbs = ["render", "draw", "present", "commit", "frame", "paint"] },
-  { name = "traversal", verbs = ["visit", "walk", "fold", "traverse"] },
-  { name = "codec", verbs = ["encode", "decode", "serialize", "deserialize", "parse", "format"] },
-  { name = "clipboard", nouns = ["clipboard"] },
-  { name = "window", nouns = ["window", "windows", "surface", "interaction"] },
-]
-
+# Reject constructor-like methods that accept a receiver but never use it.
+# Names include new/parse/from/try_from and their underscore extensions; the return
+# must be Self or a direct wrapper such as Result<Self, Error>. Trait impls are excluded.
+# Example: fn new(&self) -> Self { Self(0) } fails because &self contributes nothing.
+# Change it to fn new() -> Self. A consuming conversion that reads self passes.
 [[rules."rust/self-constructor-static"]]
 target = "**/*.rs"
 
+# Find Rust declarations repeating the leading noun supplied by their module path.
+# Example: cursor::CursorBlock repeats cursor; cursor::Block expresses the same context.
+# Inspect imports and callers before renaming: namespace repetition alone does not
+# prove an externally visible name can safely change.
 [[rules."rust/redundant-module-prefix"]]
 target = "**/*.rs"
 
+# Find one struct coordinating several independently owned services through many methods.
+# By default it needs over 20 receiver methods, at least 3 fields and 3 independent
+# field-use groups with at least 2 methods each, plus a workflow crossing those groups.
+# Example: an Application manages storage, windows and jobs separately, then a
+# conditional method calls across those owners. Split responsibilities by owner.
+# A large cohesive codec or simple forwarding facade is not sufficient evidence.
+# Standard wrappers such as Arc and Mutex are resolved automatically; custom types
+# retain their identity. excluded_suffixes exempts names such as ApplicationBuilder.
 [[rules."rust/god-object-growth"]]
 target = "**/*.rs"
-unwrap_types = ["std:Box", "std:Option", "std:Arc", "std:Rc", "std:Mutex", "std:RwLock", "std:RefCell", "std:SyncWeak", "std:RcWeak"]
 excluded_suffixes = ["Builder"]
 
+# Find free factory functions that construct and return one known local struct or enum.
+# Example: fn open() -> Lease { Lease { ... } } suggests Lease::open().
+# The returned construction must resolve to that owner; unknown external types and
+# multi-owner orchestration are skipped. Option/Result-wrapped returns can qualify.
+# Check whether protocol decoding belongs at its boundary before moving a factory.
 [[rules."rust/detached-constructor"]]
 target = "**/*.rs"
 
+# Find methods that repeat access already provided by a visible field, or duplicate
+# another method's field operation with the same type, visibility and ownership contract.
+# Example: pub value: u32 plus pub fn value(&self) -> u32 { self.value } adds no boundary.
+# A private field with one getter passes. Validation, type conversion and distinct
+# borrow/ownership contracts preserve meaningful accessors.
 [[rules."rust/redundant-accessor"]]
 target = "**/*.rs"
 
+# Confine unsafe constructs to approved boundaries; require block safety rationale.
+# Example: An unsafe block outside allowed targets/modules fails even with a SAFETY comment.
 [[rules."rust/unsafe-boundary"]]
 target = "**/*.rs"
 
+# In receiver mode, inspect a free function with exactly one total argument whose
+# unwrapped reference type is a resolved local struct/enum/union from the same package.
+# Example: fn active(wallet: &Wallet) -> bool { wallet.enabled } suggests
+# Wallet::active(&self), so the behavior stays with the entity whose state it reads.
+# Primitive arguments, external types, collections and two-owner operations do not
+# prove this ownership. Do not invent a new wrapper merely to move a helper.
 [[rules."rust/free-function"]]
 target = "**/*.rs"
 mode = "receiver"
 boundary_derives = ["clap::Parser", "clap::Args", "Parser", "Args"]
 
+# Find a private module file that adds one unnecessary step to reaching its child.
+# Example: shell/mod.rs contains only mod process; and pub(crate) use process::Child;
+# with no package code using shell as a namespace. process.rs may replace that wrapper.
+# Requires one external child and transparent crate-visible reexports; public,
+# conditional, documented or otherwise meaningful module boundaries are preserved.
 [[rules."rust/redundant-namespace"]]
 target = "**/*.rs"
 
+# Find private free functions with one proven use outside their own recursion.
+# Example: a private trim_row helper referenced only by parse is an inlining candidate.
+# A helper used by several callers is not a candidate. A single-use algorithm may
+# still deserve a name: review its contract before inlining or justifying an exception.
 [[rules."rust/single-use-free-function"]]
 target = "**/*.rs"
 
+# Reject comments containing all configured provisional-instrumentation terms.
+# Example: // Temporary diagnostics fails; a string containing those words does not.
 [[rules."rust/provisional-diagnostic"]]
 target = "**/*.rs"
 terms = ["temporary", "diagnostic"]
 
+# Find cycles formed by normal/build dependencies between local Cargo packages.
+# Example: A depends on B and B depends on A, so neither has an independent build order.
+# Development dependencies alone do not create a build cycle. Optional and target-specific
+# build edges are inspected conservatively; this does not infer Rust module-use edges.
 [[rules."rust/dependency-cycles"]]
 target = "**"
 
+# Find private empty traits with no consumers and no selective implementations.
+# Example: trait Anything {} plus impl<T> Anything for T {} tags everything but
+# constrains nothing when nobody uses the trait. Remove that unused ceremony.
+# A marker used in bounds, implemented for selected types, or carrying a real
+# supertrait/associated-item contract is preserved. This rule does not check structs.
 [[rules."rust/redundant-marker"]]
 target = "**/*.rs"
 
+# Detect supported synchronous operations running directly inside async code.
+# Example: async fn load() { std::fs::read("input"); } blocks its executor thread;
+# move that call into tokio::task::spawn_blocking(|| std::fs::read("input")).
+# Also flag a known synchronous lock guard still alive when execution reaches await.
+# Supported APIs, receiver builders, unwrap/expect guard handling and Tokio worker
+# boundaries are built-in. No API lists are required; target/scope select what to check.
+# Only the worker callback is exempt: blocking work done before creating it still runs
+# in the async caller. Unrelated custom methods named read or lock are not proof.
 [[rules."rust/async-blocking-operation"]]
 target = "**/*.rs"
 scope = "production"
-blocking_functions = [
-    "std::thread::sleep",
-    "std::fs::read", "std::fs::read_to_string", "std::fs::write",
-    "std::fs::File::open", "std::fs::File::create",
-]
-blocking_contexts = ["tokio::task::spawn_blocking", "tokio::task::block_in_place"]
-guard_adapters = ["unwrap", "expect"]
-blocking_methods = [
-    { receiver = "std::process::Command", methods = ["spawn", "status", "output"], constructors = ["std::process::Command::new"], fluent_methods = ["arg", "args"] },
-    { receiver = "std::fs::OpenOptions", methods = ["open"], constructors = ["std::fs::OpenOptions::new"], fluent_methods = ["read", "write", "create"] },
-    { receiver = "std::sync::Mutex", methods = ["lock"], constructors = ["std::sync::Mutex::new"], returns_guard = true },
-    { receiver = "std::sync::RwLock", methods = ["read", "write"], constructors = ["std::sync::RwLock::new"], returns_guard = true },
-    { receiver = "parking_lot::Mutex", methods = ["lock"], constructors = ["parking_lot::Mutex::new"], returns_guard = true },
-    { receiver = "tokio::sync::Mutex", methods = ["blocking_lock"], constructors = ["tokio::sync::Mutex::new"] },
-    { receiver = "tokio::sync::mpsc::Receiver", methods = ["blocking_recv"] },
-]

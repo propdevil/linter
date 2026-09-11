@@ -1,26 +1,45 @@
+# Ignore matching paths during file discovery, before any rule sees them.
+# Example: target/debug artifacts and .git internals are not lint inputs.
+# Rule targets below are root-relative: * matches one path segment, ** crosses folders.
+# A target selects files for code/name checks, directories for structural layout checks,
+# and Cargo package directories for rust/layers. An unmatched target is not coverage.
 [files]
 exclude = ["**/.git", "**/target"]
 
+# Require listed paths while allowing additional root entries.
+# Example: Additional root files are allowed here; later permission rules still apply.
 [[rules.layout]]
 target = "."
 mode = "permissive"
 
 
+# Ban Markdown first; later documented allowances can override this ban.
+# Example: notes.md fails unless a later allow block matches it.
 [[rules.layout]]
 target = ["**/*.md", "**/*.markdown"]
 allow = false
 case_sensitive = false
 
+# Override earlier file bans for this target; the LAST matching permission decides.
+# description explains why the document/test belongs here, not how its content is validated.
+# Example: docs/goal.md is allowed; an unmatched root notes.md remains forbidden.
 [[rules.layout]]
 target = ["docs/*.md"]
 allow = true
 description = "Documents the project goal and design."
 
+# Check a file's name without its final extension, or a directory's full name.
+# Words split at underscores, hyphens and camel-case boundaries; max_words limits their count.
+# kind chooses files/directories; case enforces spelling only when explicitly configured.
+# Example: With max_words=2, payment_id passes; payment_account_id fails.
 [[rules.filename]]
 target = "*"
 kind = "file"
 max_words = 2
 
+# Reject any complete configured word in a selected name or one of its ancestor names.
+# This checks filesystem names, not words in source code; utility is not the word util.
+# Example: the root name common.rs or common/ fails; target="*" does not select nested files.
 [[rules."forbidden-words"]]
 target = "*"
 words = ["common", "core", "helper", "helpers", "misc", "shared", "util", "utils"]

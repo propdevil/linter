@@ -85,7 +85,7 @@ fn finding(
     if methods.len() <= assertion.max_methods || item.fields.len() < assertion.min_fields {
         return None;
     }
-    let origins = origins(item, index, assertion);
+    let origins = origins(item, index);
     let clusters = clusters(methods, &origins, assertion);
     if clusters.len() < assertion.min_clusters {
         return None;
@@ -213,11 +213,7 @@ fn clusters(
     }
     disjoint
 }
-fn origins(
-    item: &Structure<'_>,
-    index: &Index<'_>,
-    assertion: &Assertion,
-) -> BTreeMap<String, String> {
+fn origins(item: &Structure<'_>, index: &Index<'_>) -> BTreeMap<String, String> {
     let Some(body) = item.node.child_by_field_name("body") else {
         return BTreeMap::new();
     };
@@ -226,17 +222,26 @@ fn origins(
         .filter_map(|field| {
             let name = field.child_by_field_name("name")?;
             let ty = field.child_by_field_name("type")?;
-            origin(ty, item, index, assertion)
+            origin(ty, item, index)
                 .map(|origin| (item.source.text[name.byte_range()].into(), origin))
         })
         .collect()
 }
-fn origin(
-    mut node: Node<'_>,
-    item: &Structure<'_>,
-    index: &Index<'_>,
-    assertion: &Assertion,
-) -> Option<String> {
+fn standard_container(constructor: &str) -> bool {
+    matches!(
+        constructor,
+        "std:Box"
+            | "std:Option"
+            | "std:Arc"
+            | "std:Rc"
+            | "std:Mutex"
+            | "std:RwLock"
+            | "std:RefCell"
+            | "std:SyncWeak"
+            | "std:RcWeak"
+    )
+}
+fn origin(mut node: Node<'_>, item: &Structure<'_>, index: &Index<'_>) -> Option<String> {
     loop {
         if node.kind() == "dynamic_type" {
             node = node.child_by_field_name("trait")?;
@@ -245,7 +250,7 @@ fn origin(
         if node.kind() == "bounded_type" {
             return children(node)
                 .into_iter()
-                .find_map(|bound| origin(bound, item, index, assertion));
+                .find_map(|bound| origin(bound, item, index));
         }
         if node.kind() == "reference_type" {
             node = node.child_by_field_name("type")?;
@@ -254,7 +259,7 @@ fn origin(
         if node.kind() == "generic_type" {
             let constructor =
                 index.resolve(item.source, node.child_by_field_name("type")?, &item.id)?;
-            if assertion.unwrap_types.contains(&constructor) && constructor.starts_with("std:") {
+            if standard_container(&constructor) {
                 node = node.child_by_field_name("type_arguments")?.named_child(0)?;
                 continue;
             }
@@ -636,6 +641,7 @@ mod tests {
             "minimum=3",
             "scope='maybe'",
             "unwrap_types=['nominal:Wrapper']",
+            "unwrap_types=['std:Box']",
         ] {
             let root = tempfile::tempdir().unwrap();
             fs::write(

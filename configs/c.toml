@@ -1,49 +1,86 @@
+# Ignore matching paths during file discovery, before any rule sees them.
+# Example: target/debug artifacts and .git internals are not lint inputs.
+# Rule targets below are root-relative: * matches one path segment, ** crosses folders.
+# A target selects files for code/name checks, directories for structural layout checks,
+# and Cargo package directories for rust/layers. An unmatched target is not coverage.
 [files]
 exclude = ["**/.git", "**/target"]
 
+# Limit physical lines in selected C files and headers.
+# Example: At max_lines=1500, a 1501-line file fails.
 [[rules."c/file-length"]]
 target = "**/*.{c,h}"
 max_lines = 1500
 
+# Limit the line span of each C function definition.
+# Example: At max_lines=200, a 201-line function fails.
 [[rules."c/function-length"]]
 target = "**/*.{c,h}"
 max_lines = 200
 
+# Limit nested C control-flow depth.
+# Example: At max_depth=6, seven dependent nested control-flow levels fail.
 [[rules."c/nesting"]]
 target = "**/*.{c,h}"
 max_depth = 6
 
+# Split the file stem and its immediate parent name into words; reject shared words.
+# ignored_names exempts conventional entrypoints such as mod.rs, not entire directories.
+# Example: payment/payment_status.rs repeats payment; payment/status.rs does not.
 [[rules."redundant-parent-name"]]
 target = "**/src/**/*.{rs,c,h}"
 ignored_names = ["mod", "lib", "main", "index"]
 
+# Limit physical line width, including comments and tests.
+# Example: At max_columns=100, a 101-column line fails.
 [[rules."line-width"]]
 target = "**/*.{rs,c,h}"
 max_columns = 100
 tab_width = 4
 
+# Limit absolute leading indentation; tabs expand to tab_width columns.
+# Example: At max_columns=16, 20 leading spaces fail, even inside modules.
 [[rules."max-indent"]]
 target = "**/*.{rs,c,h}"
 max_columns = 16
 tab_width = 4
 
 
+# Track results of the listed nullable allocation calls through local bindings/aliases.
+# Report their first dereference unless preceding control flow proves the pointer non-null.
+# Example: p=malloc(n); *p=1; fails. if (!p) return; before *p=1 can establish the guard.
+# Merely passing p to another function is not a dereference proven by this check.
 [[rules."c/unchecked-allocation"]]
 target = "**/*.{c,h}"
 functions = ["malloc", "calloc", "realloc"]
 
+# Require the return value of each listed C call to be consumed rather than discarded.
+# Example: (void)fopen(path, mode); fails even with the explicit void cast.
+# FILE *f=fopen(path, mode); passes this rule because it retains the result; this does
+# not prove f is checked for NULL or that its lifetime is managed correctly.
 [[rules."c/ignored-result"]]
 target = "**/*.{c,h}"
 functions = ["fopen", "fdopen", "tmpfile", "realloc"]
 
+# Require an immediately attached, nonempty SAFETY comment for each listed C call.
+# Example: vsprintf(...) without a comment explaining buffer bounds fails.
+# A distant comment or empty SAFETY: marker does not count. A rationale documents
+# the invariant for review; it does not prove the operation safe or ban the API.
 [[rules."c/safety-rationale"]]
 target = "**/*.{c,h}"
 operations = ["gets", "vsprintf"]
 
+# Count externally visible function declarations in each selected .h header.
+# Example: 25 prototypes fail max_functions=24; exactly 24 passes.
+# Static functions, definitions and function-pointer variables are not counted;
+# conditional alternatives and repeated public prototypes do count separately.
+# Keep headers focused on one public contract rather than splitting declarations at random.
 [[rules."c/interface-breadth"]]
 target = "**/*.h"
 max_functions = 24
 
+# Reject comments containing every configured diagnostic term.
+# Example: /* temporary diagnostics */ fails; an ordinary temporary-directory comment passes.
 [[rules."c/provisional-diagnostic"]]
 target = "**/*.{c,h}"
 terms = ["temporary", "diagnostic"]

@@ -248,17 +248,15 @@ impl Scan<'_> {
                 .assertion
                 .methods
                 .iter()
-                .find(|policy| policy.constructors.contains(&path))
-                .map(|policy| policy.receiver.clone());
+                .find(|policy| policy.constructors.contains(&path.as_str()))
+                .map(|policy| policy.receiver.to_owned());
         }
         let (receiver, method) = method(function, &self.source.text)?;
         let ty = self.receiver_type(receiver, env)?;
         self.assertion
             .methods
             .iter()
-            .find(|policy| {
-                policy.receiver == ty && policy.fluent_methods.iter().any(|name| name == method)
-            })
+            .find(|policy| policy.receiver == ty && policy.fluent_methods.contains(&method))
             .map(|_| ty)
     }
     fn acquisition(&self, node: Node<'_>, env: &Environment) -> Option<Range<usize>> {
@@ -277,9 +275,7 @@ impl Scan<'_> {
             .methods
             .iter()
             .any(|policy| {
-                policy.receiver == ty
-                    && policy.returns_guard
-                    && policy.methods.iter().any(|name| name == method)
+                policy.receiver == ty && policy.returns_guard && policy.methods.contains(&method)
             })
             .then(|| node.byte_range())
     }
@@ -341,9 +337,11 @@ impl Scan<'_> {
         } else if let Some((receiver, method)) =
             function.and_then(|function| method(function, &self.source.text))
             && let Some(ty) = self.receiver_type(receiver, env)
-            && self.assertion.methods.iter().any(|policy| {
-                policy.receiver == ty && policy.methods.iter().any(|name| name == method)
-            })
+            && self
+                .assertion
+                .methods
+                .iter()
+                .any(|policy| policy.receiver == ty && policy.methods.contains(&method))
         {
             self.report(
                 node,
